@@ -1,4 +1,5 @@
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 
 import type { UserGeo } from '../types/common';
@@ -26,6 +27,10 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null
  */
 async function resolveUserGeo(): Promise<UserGeo | null> {
   try {
+    // Browser/IP geolocation on the demo box often lands outside Ontario
+    // (e.g. Chicago). Prefer the Toronto default map center on web.
+    if (Platform.OS === 'web') return null;
+
     const servicesEnabled = await Location.hasServicesEnabledAsync();
     if (!servicesEnabled) return null;
 

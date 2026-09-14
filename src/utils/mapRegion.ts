@@ -11,7 +11,7 @@ export const DEFAULT_MAP_GEO: UserGeo = {
 };
 
 /** Search + camera radius on first load / recenter. */
-export const INITIAL_RADIUS_KM = 10;
+export const INITIAL_RADIUS_KM = 25;
 
 const MIN_RADIUS_KM = 1;
 const MAX_RADIUS_KM = 100;
