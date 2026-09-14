@@ -28,9 +28,7 @@ export function AuthScreen({
   children,
   scroll = true,
 }: AuthScreenProps) {
-  const { colors, typography, spacing } = useTheme();
-  const { horizontalPadding, contentMaxWidth } = useResponsive();
-  const router = useRouter();
+  const formMaxWidth = Math.min(contentMaxWidth ?? 440, 440);
 
   return (
     <SafeAreaView
@@ -70,7 +68,7 @@ export function AuthScreen({
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.xl,
               paddingBottom: spacing.xxxl,
-              maxWidth: contentMaxWidth,
+              maxWidth: formMaxWidth,
               width: '100%',
               alignSelf: 'center',
             }}
@@ -93,7 +91,7 @@ export function AuthScreen({
               flex: 1,
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.xl,
-              maxWidth: contentMaxWidth,
+              maxWidth: formMaxWidth,
               width: '100%',
               alignSelf: 'center',
             }}
