@@ -28,6 +28,9 @@ export function AuthScreen({
   children,
   scroll = true,
 }: AuthScreenProps) {
+  const { colors, typography, spacing } = useTheme();
+  const { horizontalPadding, contentMaxWidth } = useResponsive();
+  const router = useRouter();
   const formMaxWidth = Math.min(contentMaxWidth ?? 440, 440);
 
   return (
