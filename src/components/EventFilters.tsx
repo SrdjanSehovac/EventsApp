@@ -17,6 +17,7 @@ import type {
   PublicSortField,
   Ticketing,
 } from '../types/events';
+import { SW_ONTARIO_CITIES } from '../config/cities';
 import { SelectField } from './SelectField';
 
 export type EventsFilterState = {
@@ -144,12 +145,29 @@ export function EventFilters({
     onChange({ ...value, ...partial });
   }
 
-  const cityOptions = [
-    { label: 'City: Any', value: null },
-    ...cities.map((city) => ({
+  const apiByName = new Map(
+    cities.map((city) => [city.city.toLowerCase(), city] as const),
+  );
+  const pinnedCityOptions = SW_ONTARIO_CITIES.map((name) => {
+    const match = apiByName.get(name.toLowerCase());
+    return {
+      label: `City: ${match?.city ?? name}`,
+      value: match?.city ?? name,
+    };
+  });
+  const otherCityOptions = cities
+    .filter(
+      (city) =>
+        !SW_ONTARIO_CITIES.some((name) => name.toLowerCase() === city.city.toLowerCase()),
+    )
+    .map((city) => ({
       label: `City: ${city.city}`,
       value: city.city,
-    })),
+    }));
+  const cityOptions = [
+    { label: 'City: Any', value: null },
+    ...pinnedCityOptions,
+    ...otherCityOptions,
   ];
 
   const neighbourhoodOptions = [

@@ -20,10 +20,13 @@ import {
   EventFilters,
   EMPTY_FILTERS,
   SelectField,
+  AccountButton,
+  FavouritesButton,
   countActiveFilters,
   filtersToParams,
   type EventsFilterState,
 } from '../../src/components';
+import { SW_ONTARIO_CITIES } from '../../src/config/cities';
 import {
   useCategories,
   useCities,
@@ -157,6 +160,11 @@ export default function EventsScreen() {
                 </Text>
               </View>
 
+              <View style={[styles.headerIcons, { gap: spacing.sm }]}>
+                <FavouritesButton />
+                <AccountButton />
+              </View>
+
               {showSidebar ? (
                 <View style={[styles.headerActions, { gap: spacing.sm }]}>
                   <View style={styles.sortWrap}>
@@ -201,6 +209,47 @@ export default function EventsScreen() {
                 />
               </View>
             ) : null}
+
+            <View style={[styles.cityChipRow, { marginTop: spacing.md, gap: spacing.sm }]}>
+              {SW_ONTARIO_CITIES.map((city) => {
+                const selected = filters.city === city;
+                return (
+                  <Pressable
+                    key={city}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Filter by ${city}`}
+                    onPress={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        city: selected ? null : city,
+                        neighbourhood: null,
+                      }))
+                    }
+                    style={[
+                      styles.cityChip,
+                      {
+                        backgroundColor: selected ? colors.primary : colors.surface,
+                        borderColor: selected ? colors.primary : colors.border,
+                        borderRadius: radius.full,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        typography.caption,
+                        {
+                          color: selected ? colors.onPrimary : colors.textSecondary,
+                          fontWeight: '700',
+                        },
+                      ]}
+                    >
+                      {city}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
             {!showSidebar ? (
               <View
@@ -429,6 +478,19 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     minWidth: 0,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cityChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  cityChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
   },
   headerActions: {
     flexDirection: 'row',

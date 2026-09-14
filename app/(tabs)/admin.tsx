@@ -17,6 +17,7 @@ import {
   MeterList,
   RecentScrapes,
   StackedMixBar,
+  AccountButton,
 } from '../../src/components';
 import {
   useAdminCities,
@@ -74,32 +75,35 @@ export default function AdminScreen() {
             Pipeline health at a glance
           </Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Refresh admin data"
-          onPress={onRefresh}
-          disabled={
-            overviewQuery.isFetching ||
-            citiesQuery.isFetching ||
-            recentQuery.isFetching
-          }
-          style={[
-            styles.refreshBtn,
-            {
-              borderColor: colors.border,
-              borderRadius: radius.full,
-              backgroundColor: colors.surface,
-              opacity:
-                overviewQuery.isFetching ||
-                citiesQuery.isFetching ||
-                recentQuery.isFetching
-                  ? 0.6
-                  : 1,
-            },
-          ]}
-        >
-          <Ionicons name="refresh" size={18} color={colors.textSecondary} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <AccountButton />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Refresh admin data"
+            onPress={onRefresh}
+            disabled={
+              overviewQuery.isFetching ||
+              citiesQuery.isFetching ||
+              recentQuery.isFetching
+            }
+            style={[
+              styles.refreshBtn,
+              {
+                borderColor: colors.border,
+                borderRadius: radius.full,
+                backgroundColor: colors.surface,
+                opacity:
+                  overviewQuery.isFetching ||
+                  citiesQuery.isFetching ||
+                  recentQuery.isFetching
+                    ? 0.6
+                    : 1,
+              },
+            ]}
+          >
+            <Ionicons name="refresh" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
       {isLoading ? (
