@@ -1,6 +1,6 @@
 # EventsApp
 
-Expo client for **EventServer** (`/v1`). Map, events, and admin tabs are unchanged. This app adds email sign-in and favourites.
+Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Profile**. Email sign-in, favourites, and a first-pass **Submit an event** flow live on Profile; Admin is behind Profile.
 
 ## Run
 
@@ -29,6 +29,17 @@ Expected EventServer routes (JSON, prefix `/v1`):
 User model fields used by the client: `email`, `display_name`, `home_lat` / `home_lng`. Passwords never leave the device except as the signup/login payload (EventServer stores `hashed_password`).
 
 If those routes are missing, the sign-in/sign-up screens still render and show a 404/network error instead of a fake local account.
+
+## Submit an event
+
+Signed-in users can crowdsource a listing from **Profile → Submit an event** (title, description, city, venue/address, start time, optional price, category). Submissions show under **My submissions** on Profile, including a local cache so v1 works before EventServer grows a moderation queue.
+
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| `POST` | `/me/events` | Bearer. JSON `{ title, description, city, venue_name, address, starts_at, price_cad, is_free, category_slug }` → a submitted event (`submission_id`, `status`, …) or `{ item }` / `{ event }` |
+| `GET` | `/me/events` | Bearer. `{ items: SubmittedEvent[] }` (or a bare array) |
+
+Suggested EventServer model: pending until staff accept into the public `events` table. If these routes 404, the client still keeps the submission on-device and labels it “Saved on device”.
 
 ## Favourites
 

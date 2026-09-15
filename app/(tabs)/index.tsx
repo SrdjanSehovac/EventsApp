@@ -13,8 +13,6 @@ import type { Region } from 'react-native-maps';
 import {
   EventsMap,
   MapEventSheet,
-  AccountButton,
-  FavouritesButton,
   type EventsMapHandle,
 } from '../../src/components';
 import { useMapEvents, useUserGeo } from '../../src/hooks';
@@ -100,7 +98,7 @@ export default function MapScreen() {
       !mapQuery.isPlaceholderData);
   const isSearching = mapQuery.isFetching && !mapQuery.isLoading;
   const error = mapQuery.error;
-  const bottomInset = tabBar.height + tabBar.fabProtrusion;
+  const bottomInset = tabBar.height;
   const pins = mapQuery.data?.items ?? [];
 
   const onRegionChangeComplete = useCallback((region: Region) => {
@@ -197,10 +195,6 @@ export default function MapScreen() {
                     : 'Loading today’s events…'}
               </Text>
             </View>
-            <View style={[styles.headerIcons, { gap: spacing.sm }]}>
-              <FavouritesButton />
-              <AccountButton />
-            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -289,7 +283,7 @@ const styles = StyleSheet.create({
   },
   headerCard: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
@@ -297,10 +291,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   searchWrap: {
     position: 'absolute',

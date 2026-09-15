@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme } from '../theme';
+import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
 import { FavouriteButton } from './FavouriteButton';
 
@@ -46,6 +46,7 @@ export function EventCard({ item }: EventCardProps) {
   const ended = isEnded(item.status);
   const showImage = Boolean(item.image_url) && !imageFailed;
   const actionLabel = ended ? 'View Recap' : 'Get Ticket';
+  const categoryColor = colorForCategory(item.primary_category);
 
   async function openSource() {
     if (!item.source_url) return;
@@ -88,10 +89,18 @@ export function EventCard({ item }: EventCardProps) {
             style={[
               styles.image,
               styles.imageFallback,
-              { backgroundColor: colors.surfaceElevated },
+              {
+                backgroundColor: item.primary_category
+                  ? tintForCategory(item.primary_category, '33')
+                  : colors.primaryMuted,
+              },
             ]}
           >
-            <Ionicons name="calendar" size={32} color={colors.textMuted} />
+            <Ionicons
+              name="calendar"
+              size={32}
+              color={item.primary_category ? categoryColor : colors.primary}
+            />
           </View>
         )}
 
@@ -127,14 +136,14 @@ export function EventCard({ item }: EventCardProps) {
             style={[
               styles.badge,
               styles.categoryBadge,
-              { backgroundColor: colors.primaryMuted },
+              { backgroundColor: categoryColor },
             ]}
           >
             <Text
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: colors.primary, fontSize: 11, fontWeight: '600' },
+                { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
               ]}
             >
               {item.primary_category.name}
@@ -220,7 +229,9 @@ export function EventCard({ item }: EventCardProps) {
             </Text>
           </Pressable>
 
-          <FavouriteButton item={item} />
+          <View style={{ marginRight: 10 }}>
+            <FavouriteButton item={item} />
+          </View>
 
           <Pressable
             accessibilityRole="button"

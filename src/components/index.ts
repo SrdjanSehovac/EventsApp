@@ -1,6 +1,8 @@
 export { EventsMap } from './EventsMap';
 export type { EventsMapHandle } from './EventsMap';
 export { EventCard } from './EventCard';
+export { MyCalendar } from './MyCalendar';
+export { MySubmissions } from './MySubmissions';
 export { MapEventSheet } from './MapEventSheet';
 export { AccountButton, FavouritesButton } from './AccountButton';
 export { FavouriteButton } from './FavouriteButton';

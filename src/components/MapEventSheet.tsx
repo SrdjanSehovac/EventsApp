@@ -92,7 +92,7 @@ export function MapEventSheet({
           style={[
             styles.close,
             {
-              backgroundColor: colors.surfaceElevated,
+              backgroundColor: colors.surface,
               borderColor: colors.border,
             },
           ]}
@@ -113,11 +113,12 @@ const styles = StyleSheet.create({
   },
   cardWrap: {
     position: 'relative',
+    paddingTop: 18,
   },
   close: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 0,
+    right: 8,
     zIndex: 2,
     width: 32,
     height: 32,
