@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
+import { FavouriteButton } from './FavouriteButton';
 
 type EventCardProps = {
   item: EventListItem;
@@ -218,6 +219,8 @@ export function EventCard({ item }: EventCardProps) {
               {actionLabel}
             </Text>
           </Pressable>
+
+          <FavouriteButton item={item} />
 
           <Pressable
             accessibilityRole="button"
