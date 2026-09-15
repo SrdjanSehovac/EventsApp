@@ -89,10 +89,18 @@ export function EventCard({ item }: EventCardProps) {
             style={[
               styles.image,
               styles.imageFallback,
-              { backgroundColor: colors.primaryMuted },
+              {
+                backgroundColor: item.primary_category
+                  ? tintForCategory(item.primary_category, '33')
+                  : colors.primaryMuted,
+              },
             ]}
           >
-            <Ionicons name="calendar" size={32} color={colors.primary} />
+            <Ionicons
+              name="calendar"
+              size={32}
+              color={item.primary_category ? categoryColor : colors.primary}
+            />
           </View>
         )}
 
@@ -128,14 +136,14 @@ export function EventCard({ item }: EventCardProps) {
             style={[
               styles.badge,
               styles.categoryBadge,
-              { backgroundColor: tintForCategory(item.primary_category, 'F2') },
+              { backgroundColor: categoryColor },
             ]}
           >
             <Text
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: categoryColor, fontSize: 11, fontWeight: '700' },
+                { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
               ]}
             >
               {item.primary_category.name}

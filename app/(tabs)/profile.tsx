@@ -87,7 +87,7 @@ export default function ProfileScreen() {
             ) : (
               <>
                 <Text style={[typography.heading, { color: colors.text }]}>
-                  Welcome in
+                  Welcome
                 </Text>
                 <Text
                   style={[

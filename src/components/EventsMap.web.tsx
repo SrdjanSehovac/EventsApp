@@ -122,9 +122,9 @@ function buildLeafletHtml(
   <script>
     const pins = ${JSON.stringify(markers)};
     const map = L.map('map', { zoomControl: true }).setView([${centerLat}, ${centerLng}], ${zoom});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap &copy; CARTO'
+      attribution: '&copy; OpenStreetMap, HOT'
     }).addTo(map);
     for (const p of pins) {
       const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.live ? ' live' : '');
