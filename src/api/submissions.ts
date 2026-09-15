@@ -4,7 +4,8 @@ import type { SubmitEventInput, SubmittedEvent } from '../types/submissions';
 /**
  * Crowdsourced events contract (expected under `/v1`, Bearer required):
  *   POST /me/events  { title, description, city, venue_name, address,
- *                     starts_at, price_cad, is_free, category_slug }
+ *                     starts_at, price_cad, is_free, category_slug,
+ *                     photo_urls?, video_url?, bio? }
  *                   → SubmittedEvent (or `{ item }` / `{ event }`)
  *   GET  /me/events  → `{ items: SubmittedEvent[] }` (or a bare array)
  *
@@ -49,6 +50,9 @@ function asSubmitted(
     is_free: data.is_free ?? fallback.is_free,
     category_slug: data.category_slug ?? fallback.category_slug ?? null,
     category_name: data.category_name ?? fallback.category_name ?? null,
+    photo_urls: data.photo_urls ?? fallback.photo_urls ?? [],
+    video_url: data.video_url ?? fallback.video_url ?? null,
+    bio: data.bio ?? fallback.bio ?? null,
     status: data.status ?? 'pending',
     created_at: data.created_at ?? new Date().toISOString(),
     source: 'server',
@@ -71,6 +75,9 @@ function normalizeList(raw: RawList): SubmittedEvent[] {
       price_cad: item.price_cad ?? null,
       category_slug: item.category_slug ?? null,
       category_name: item.category_name ?? null,
+      photo_urls: item.photo_urls ?? [],
+      video_url: item.video_url ?? null,
+      bio: item.bio ?? null,
     }),
   );
 }
@@ -97,6 +104,9 @@ export async function submitEvent(input: SubmitEventInput): Promise<SubmittedEve
       price_cad: input.is_free ? 0 : input.price_cad ?? null,
       is_free: input.is_free,
       category_slug: input.category_slug || null,
+      photo_urls: input.photo_urls?.length ? input.photo_urls : null,
+      video_url: input.video_url || null,
+      bio: input.bio?.trim() || null,
     },
   });
 

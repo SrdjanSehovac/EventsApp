@@ -3,3 +3,5 @@ export type * from './events';
 export type * from './categories';
 export type * from './admin';
 export type * from './auth';
+export type * from './business';
+export type * from './submissions';

@@ -3,21 +3,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { ApiError } from '../../src/api/client';
+import { BusinessCard } from '../../src/components/BusinessCard';
 import { MyCalendar } from '../../src/components/MyCalendar';
 import { MySubmissions } from '../../src/components/MySubmissions';
-import { useAuth, useFavourites, useMySubmissions } from '../../src/hooks';
+import { useAuth, useFavourites, useMyBusiness, useMySubmissions } from '../../src/hooks';
 import { Screen } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 
-function favouritesError(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Favourites are not available yet on EventServer.';
-    }
-    return error.message;
+function shouldShowFavouritesError(error: unknown) {
+  if (!error) return false;
+  if (error instanceof ApiError && (error.status === 404 || error.status === 501)) {
+    return false;
   }
-  if (error instanceof Error) return error.message;
-  return 'Could not load saved events.';
+  if (
+    error instanceof Error &&
+    /failed to fetch|network request failed|load failed/i.test(error.message)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export default function ProfileScreen() {
@@ -26,6 +30,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const favouritesQuery = useFavourites(isSignedIn);
   const submissionsQuery = useMySubmissions(isSignedIn);
+  const businessQuery = useMyBusiness(isSignedIn);
   const initial = user?.display_name?.trim()?.[0]?.toUpperCase() ?? '?';
 
   return (
@@ -41,7 +46,7 @@ export default function ProfileScreen() {
             { color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
           ]}
         >
-          Account, calendar, and submissions
+          Account, calendar, submissions, and business posting
         </Text>
 
         <View
@@ -160,14 +165,25 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {favouritesQuery.error ? (
+        <View style={{ marginBottom: spacing.lg }}>
+          <BusinessCard
+            profile={businessQuery.data}
+            signedIn={isSignedIn}
+            loading={isSignedIn && businessQuery.isLoading}
+            onSignIn={() => router.push('/sign-in')}
+          />
+        </View>
+
+        {shouldShowFavouritesError(favouritesQuery.error) ? (
           <Text
             style={[
               typography.caption,
               { color: colors.danger, marginBottom: spacing.md },
             ]}
           >
-            {favouritesError(favouritesQuery.error)}
+            {favouritesQuery.error instanceof Error
+              ? favouritesQuery.error.message
+              : 'Could not load saved events.'}
           </Text>
         ) : null}
 

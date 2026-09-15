@@ -9,6 +9,9 @@ export type SubmitEventInput = {
   is_free: boolean;
   category_slug?: string | null;
   category_name?: string | null;
+  photo_urls?: string[];
+  video_url?: string | null;
+  bio?: string | null;
 };
 
 export type SubmittedEvent = SubmitEventInput & {

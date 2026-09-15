@@ -1,6 +1,6 @@
 # EventsApp
 
-Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Profile**. Email sign-in, favourites, and a first-pass **Submit an event** flow live on Profile; Admin is behind Profile.
+Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Profile**. Email sign-in, favourites, **Submit an event**, and **Become a business** live on Profile; Admin is behind Profile.
 
 ## Run
 
@@ -39,7 +39,24 @@ Signed-in users can crowdsource a listing from **Profile → Submit an event** (
 | `POST` | `/me/events` | Bearer. JSON `{ title, description, city, venue_name, address, starts_at, price_cad, is_free, category_slug }` → a submitted event (`submission_id`, `status`, …) or `{ item }` / `{ event }` |
 | `GET` | `/me/events` | Bearer. `{ items: SubmittedEvent[] }` (or a bare array) |
 
-Suggested EventServer model: pending until staff accept into the public `events` table. If these routes 404, the client still keeps the submission on-device and labels it “Saved on device”.
+Suggested EventServer model: pending until staff accept into the public `events` table. If these routes 404, the client still keeps the submission on-device and labels it “Saved on device”. Verified businesses can also send `photo_urls`, `video_url`, and `bio` on the same POST (library picker on device, or pasted URLs — event media only, never an ID photo).
+
+## Become a business (DIGITAL proof)
+
+Low-friction **digital** verification: website + business email. **No government ID upload, face scan, or selfie check** — the app will not add those flows.
+
+From **Profile → Post as a business / Become a business**: business name, website, business email, optional phone, city chips (Toronto / Ottawa / London / Mississauga), and what you are (venue / promoter / retail / other). Copy on the form: *Verify your business email — same domain as your website works best. No ID selfie required.*
+
+Status screen tracks `pending_email` → `pending_review` → `verified` | `rejected`. Email links can open `eventsapp://business-verify?token=…` (or `/business-verify?token=` / `?code=`). When verified, Profile shows **Posting unlocked** and Submit event gains photos, optional short video URL, and bio.
+
+| Method | Path | Body / notes |
+| --- | --- | --- |
+| `POST` | `/me/business/apply` | Bearer. JSON `{ business_name, website, business_email, phone, city, kind }`. `kind` is `venue` \| `promoter` \| `retail` \| `other`. → a business application (`application_id`, `status`, `email_verified`, …) or `{ item }` / `{ business }` / `{ application }` |
+| `GET` | `/me/business` | Bearer. Current application, or **404** if this user has none |
+| `POST` | `/me/business/verify-email` | Bearer. `{ token }` from the emailed link **or** `{ code }` typed from the message. Moves `pending_email` → `pending_review` (or `verified` if EventServer auto-approves domain match) |
+| `POST` | `/me/business/resend-verification` | Bearer. Optional `{ business_email }`. Re-sends the mailbox check |
+
+Suggested EventServer proof: confirm the mailbox, and prefer / auto-approve when the email domain matches the website host. Staff review is for mismatches — still digital, still no KYC camera. If these routes 404/501, the client caches the application on-device (same pattern as Submit event) and the status UI still works.
 
 ## Favourites
 

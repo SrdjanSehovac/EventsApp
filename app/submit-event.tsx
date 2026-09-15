@@ -9,9 +9,9 @@ import {
 import { useRouter } from 'expo-router';
 
 import { ApiError } from '../src/api/client';
-import { AuthField, AuthScreen } from '../src/components';
+import { AuthField, AuthScreen, EventMediaFields } from '../src/components';
 import { SW_ONTARIO_CITIES } from '../src/config/cities';
-import { useAuth, useCategories } from '../src/hooks';
+import { useAuth, useCategories, useMyBusiness } from '../src/hooks';
 import { useSubmitEvent } from '../src/hooks/submissions';
 import { colorForCategory, useTheme } from '../src/theme';
 
@@ -63,6 +63,9 @@ export default function SubmitEventScreen() {
   const router = useRouter();
   const submit = useSubmitEvent();
   const categoriesQuery = useCategories();
+  const businessQuery = useMyBusiness(isSignedIn);
+  const verifiedBusiness =
+    businessQuery.data?.status === 'verified' ? businessQuery.data : null;
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -76,6 +79,9 @@ export default function SubmitEventScreen() {
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [bio, setBio] = useState('');
 
   const categories = useMemo(() => {
     const items = categoriesQuery.data?.items ?? [];
@@ -114,6 +120,9 @@ export default function SubmitEventScreen() {
         price_cad: isFree ? 0 : priceCad,
         category_slug: categorySlug,
         category_name: selectedCategory?.name ?? null,
+        photo_urls: verifiedBusiness ? photoUrls : undefined,
+        video_url: verifiedBusiness ? videoUrl.trim() || null : undefined,
+        bio: verifiedBusiness ? bio.trim() || null : undefined,
       });
       setDone(true);
     } catch (err) {
@@ -175,7 +184,11 @@ export default function SubmitEventScreen() {
   return (
     <AuthScreen
       title="Submit event"
-      subtitle="Share a night out, market, or show. We’ll keep it on Profile while EventServer reviews it."
+      subtitle={
+        verifiedBusiness
+          ? `Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`
+          : 'Share a night out, market, or show. We’ll keep it on Profile while EventServer reviews it.'
+      }
     >
       <AuthField
         label="TITLE"
@@ -329,6 +342,17 @@ export default function SubmitEventScreen() {
           keyboardType="decimal-pad"
         />
       )}
+
+      {verifiedBusiness ? (
+        <EventMediaFields
+          photoUrls={photoUrls}
+          onChangePhotos={setPhotoUrls}
+          videoUrl={videoUrl}
+          onChangeVideo={setVideoUrl}
+          bio={bio}
+          onChangeBio={setBio}
+        />
+      ) : null}
 
       {error ? (
         <Text style={[typography.body, { color: colors.danger, marginBottom: spacing.md }]}>
