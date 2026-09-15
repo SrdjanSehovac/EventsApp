@@ -44,7 +44,15 @@
         }
       ],
       "react-native-maps",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach photos to events you post as a verified business.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

@@ -57,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setStatus('signedOut');
     queryClient.removeQueries({ queryKey: ['favourites'] });
+    queryClient.removeQueries({ queryKey: ['business'] });
+    queryClient.removeQueries({ queryKey: ['submissions'] });
   }, [queryClient]);
 
   const applySignedIn = useCallback(async (nextToken: string | null, nextUser: AuthUser) => {
@@ -65,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextUser);
     setStatus('signedIn');
     void queryClient.invalidateQueries({ queryKey: ['favourites'] });
+    void queryClient.invalidateQueries({ queryKey: ['business'] });
   }, [queryClient]);
 
   useEffect(() => {
