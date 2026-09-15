@@ -16,21 +16,28 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="events"
-        options={{
-          title: 'Events',
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: 'Map',
         }}
       />
       <Tabs.Screen
+        name="events"
+        options={{
+          title: 'List',
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+        }}
+      />
+      <Tabs.Screen
         name="admin"
         options={{
           title: 'Admin',
+          href: null,
         }}
       />
     </Tabs>

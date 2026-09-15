@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
-import { useTheme } from '../theme';
+import { colorForCategory, useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import { isEventLive } from '../utils/eventLive';
@@ -40,7 +40,8 @@ type PinMarkerProps = {
   selected: boolean;
   live: boolean;
   forceTracks: boolean;
-  primaryColor: string;
+  pinStroke: string;
+  pinOutline: string;
   onPress: (pin: EventMapPin) => void;
 };
 
@@ -49,18 +50,19 @@ const PinMarker = memo(function PinMarker({
   selected,
   live,
   forceTracks,
-  primaryColor,
+  pinStroke,
+  pinOutline,
   onPress,
 }: PinMarkerProps) {
   const pulse = useRef(new Animated.Value(0)).current;
   const [layoutReady, setLayoutReady] = useState(false);
+  const fill = colorForCategory(pin.primary_category);
 
-  // Snapshot custom views once after mount; keep tracking while live/selected.
   useEffect(() => {
     setLayoutReady(false);
     const timer = setTimeout(() => setLayoutReady(true), 400);
     return () => clearTimeout(timer);
-  }, [pin.event_id, selected, live]);
+  }, [pin.event_id, selected, live, fill]);
 
   useEffect(() => {
     if (!live) {
@@ -72,7 +74,6 @@ const PinMarker = memo(function PinMarker({
         toValue: 1,
         duration: 1400,
         easing: Easing.out(Easing.ease),
-        // Maps snapshot the view; JS-driven updates keep tracksViewChanges in sync.
         useNativeDriver: false,
       }),
     );
@@ -98,10 +99,8 @@ const PinMarker = memo(function PinMarker({
     ],
   };
 
-  const size = selected ? 16 : 12;
-  const color = selected || live ? primaryColor : '#64748B';
-  const tracksViewChanges =
-    live || selected || forceTracks || !layoutReady;
+  const tracksViewChanges = live || selected || forceTracks || !layoutReady;
+  const headSize = selected ? 22 : 16;
 
   return (
     <Marker
@@ -109,37 +108,73 @@ const PinMarker = memo(function PinMarker({
         latitude: pin.latitude,
         longitude: pin.longitude,
       }}
-      anchor={{ x: 0.5, y: 0.5 }}
-      zIndex={selected ? 3 : live ? 2 : 1}
+      anchor={{ x: 0.5, y: selected ? 1 : 0.5 }}
+      zIndex={selected ? 4 : live ? 3 : 1}
       tracksViewChanges={tracksViewChanges}
       tappable
       stopPropagation
       onPress={() => onPress(pin)}
     >
-      <View style={styles.markerHit} pointerEvents="none">
+      <View
+        style={[styles.markerHit, selected && styles.markerHitSelected]}
+        pointerEvents="none"
+      >
         {live ? (
           <Animated.View
             pointerEvents="none"
             style={[
               styles.pulseRing,
-              { borderColor: primaryColor },
+              { borderColor: fill },
               ringStyle,
             ]}
           />
         ) : null}
-        <View
-          pointerEvents="none"
-          style={[
-            styles.dot,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              backgroundColor: color,
-              borderColor: '#FFFFFF',
-            },
-          ]}
-        />
+        {selected ? (
+          <View style={styles.pinColumn}>
+            <View
+              style={[
+                styles.pinHead,
+                {
+                  width: headSize,
+                  height: headSize,
+                  borderRadius: headSize / 2,
+                  backgroundColor: fill,
+                  borderColor: pinStroke,
+                  shadowColor: pinOutline,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.pinCore,
+                  { backgroundColor: pinStroke, borderColor: pinOutline },
+                ]}
+              />
+            </View>
+            <View
+              style={[
+                styles.pinTip,
+                {
+                  borderTopColor: fill,
+                },
+              ]}
+            />
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.dot,
+              {
+                width: headSize,
+                height: headSize,
+                borderRadius: headSize / 2,
+                backgroundColor: fill,
+                borderColor: pinStroke,
+                shadowColor: pinOutline,
+              },
+            ]}
+          />
+        )}
       </View>
     </Marker>
   );
@@ -187,7 +222,6 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       }
     }, [selectedEventId]);
 
-    // Re-check live windows so pulses start/stop without a refetch.
     useEffect(() => {
       const timer = setInterval(() => setNowMs(Date.now()), 60_000);
       return () => clearInterval(timer);
@@ -205,7 +239,6 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           showsMyLocationButton={false}
           onRegionChangeComplete={onRegionChangeComplete}
           onPress={() => {
-            // Marker taps often also bubble a map press; ignore the echo.
             if (Date.now() < ignoreMapPressUntilRef.current) return;
             onMapPress?.();
           }}
@@ -219,7 +252,8 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
                 pin={pin}
                 selected={selected}
                 live={live}
-                primaryColor={colors.primary}
+                pinStroke={colors.pinStroke}
+                pinOutline={colors.pinOutline}
                 forceTracks={pin.event_id === redrawId}
                 onPress={(p) => {
                   ignoreMapPressUntilRef.current = Date.now() + 400;
@@ -252,7 +286,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,246,238,0.4)',
   },
   markerHit: {
     width: 44,
@@ -260,14 +294,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  markerHitSelected: {
+    height: 52,
+    justifyContent: 'flex-end',
+  },
   pulseRing: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
   },
+  pinColumn: {
+    alignItems: 'center',
+  },
+  pinHead: {
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.45,
+    shadowRadius: 2,
+    elevation: 4,
+  },
+  pinCore: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  pinTip: {
+    width: 0,
+    height: 0,
+    marginTop: -3,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
   dot: {
-    borderWidth: 2,
+    borderWidth: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.4,
+    shadowRadius: 1.5,
+    elevation: 3,
   },
 });

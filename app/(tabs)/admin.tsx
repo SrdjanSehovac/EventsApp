@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import {
   CityExplorer,
@@ -17,7 +18,6 @@ import {
   MeterList,
   RecentScrapes,
   StackedMixBar,
-  AccountButton,
 } from '../../src/components';
 import {
   useAdminCities,
@@ -35,6 +35,7 @@ function formatPct(share: number | null): string | undefined {
 export default function AdminScreen() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const { isPhone } = useResponsive();
+  const router = useRouter();
   const overviewQuery = useAdminOverview();
   const citiesQuery = useAdminCities();
   const recentQuery = useAdminEvents({
@@ -62,6 +63,21 @@ export default function AdminScreen() {
     <Screen>
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to profile"
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/profile');
+            }}
+            hitSlop={8}
+            style={styles.backRow}
+          >
+            <Ionicons name="chevron-back" size={18} color={colors.primary} />
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
+              Profile
+            </Text>
+          </Pressable>
           <Text style={[typography.title, { color: colors.text }]}>Admin</Text>
           <Text
             style={[
@@ -76,7 +92,6 @@ export default function AdminScreen() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <AccountButton />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Refresh admin data"
@@ -247,6 +262,12 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    marginLeft: -4,
   },
   refreshBtn: {
     width: 40,

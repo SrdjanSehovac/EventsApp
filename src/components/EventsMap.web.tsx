@@ -16,9 +16,10 @@ import {
 } from 'react-native';
 import type { Region } from 'react-native-maps';
 
-import { useTheme } from '../theme';
+import { colorForCategory, useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
+import { isEventLive } from '../utils/eventLive';
 
 export type EventsMapHandle = {
   animateToRegion: (region: Region, durationMs?: number) => void;
@@ -35,20 +36,30 @@ type EventsMapProps = {
   onMapPress?: () => void;
 };
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 function buildLeafletHtml(
   pins: EventMapPin[],
   region: Region,
   selectedEventId: string | null | undefined,
 ): string {
+  const nowMs = Date.now();
   const markers = pins
     .filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
     .map((p) => ({
       id: p.event_id,
       lat: Number(p.latitude),
       lng: Number(p.longitude),
-      title: p.title ?? 'Event',
+      title: escapeHtml(p.title ?? 'Event'),
       selected: p.event_id === selectedEventId,
+      live: isEventLive(p, nowMs),
+      color: colorForCategory(p.primary_category),
     }));
 
   const centerLat = region.latitude;
@@ -66,8 +77,44 @@ function buildLeafletHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { height: 100%; margin: 0; background: #e8eef5; }
+    html, body, #map { height: 100%; margin: 0; background: #f4efe6; }
     .pin-label { font: 12px/1.2 system-ui, sans-serif; }
+    .evt-wrap { position: relative; width: 28px; height: 36px; }
+    .evt-dot {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--c, #E23E57);
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 1.5px rgba(43,29,22,.55), 0 2px 5px rgba(43,29,22,.28);
+      position: absolute; left: 6px; top: 8px;
+    }
+    .evt-wrap.live .evt-dot::after {
+      content: '';
+      position: absolute; inset: -7px; border-radius: 50%;
+      border: 2px solid var(--c, #E23E57);
+      animation: pulse 1.4s ease-out infinite;
+    }
+    .evt-wrap.selected { height: 40px; }
+    .evt-wrap.selected .evt-dot {
+      width: 22px; height: 22px; left: 3px; top: 0;
+      box-shadow: 0 0 0 3px rgba(226,62,87,.28), 0 0 0 5px #fff, 0 3px 8px rgba(43,29,22,.35);
+    }
+    .evt-wrap.selected .evt-core {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #fff; border: 1px solid rgba(43,29,22,.55);
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    }
+    .evt-wrap.selected .evt-tip {
+      width: 0; height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 10px solid var(--c, #E23E57);
+      position: absolute; left: 7px; top: 18px;
+      filter: drop-shadow(0 1px 1px rgba(43,29,22,.35));
+    }
+    @keyframes pulse {
+      from { opacity: .55; transform: scale(1); }
+      to { opacity: 0; transform: scale(1.8); }
+    }
   </style>
 </head>
 <body>
@@ -75,25 +122,26 @@ function buildLeafletHtml(
   <script>
     const pins = ${JSON.stringify(markers)};
     const map = L.map('map', { zoomControl: true }).setView([${centerLat}, ${centerLng}], ${zoom});
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap &copy; CARTO'
     }).addTo(map);
-    const byId = {};
     for (const p of pins) {
-      const color = p.selected ? '#e11d48' : '#2563eb';
-      const marker = L.circleMarker([p.lat, p.lng], {
-        radius: p.selected ? 11 : 8,
-        color: '#fff',
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.95,
-      }).addTo(map);
-      marker.bindPopup('<div class="pin-label"><strong>' + p.title.replace(/</g,'&lt;') + '</strong></div>');
+      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.live ? ' live' : '');
+      const html = p.selected
+        ? '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-dot"><div class="evt-core"></div></div><div class="evt-tip"></div></div>'
+        : '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-dot"></div></div>';
+      const icon = L.divIcon({
+        className: '',
+        html,
+        iconSize: p.selected ? [28, 40] : [28, 32],
+        iconAnchor: p.selected ? [14, 38] : [14, 16],
+      });
+      const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.live ? 400 : 0 }).addTo(map);
+      marker.bindPopup('<div class="pin-label"><strong>' + p.title + '</strong></div>');
       marker.on('click', () => {
         window.parent.postMessage({ type: 'map-pin', eventId: p.id }, '*');
       });
-      byId[p.id] = marker;
     }
     window.addEventListener('message', (ev) => {
       if (!ev.data || ev.data.type !== 'map-animate') return;
@@ -190,7 +238,6 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
 
     return (
       <View style={styles.container}>
-        {/* @ts-expect-error iframe is valid on react-native-web */}
         <iframe
           ref={iframeRef as never}
           title="Events map"
@@ -216,12 +263,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#e8eef5',
+    backgroundColor: '#f4efe6',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,246,238,0.4)',
   },
 });

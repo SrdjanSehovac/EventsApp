@@ -20,8 +20,6 @@ import {
   EventFilters,
   EMPTY_FILTERS,
   SelectField,
-  AccountButton,
-  FavouritesButton,
   countActiveFilters,
   filtersToParams,
   type EventsFilterState,
@@ -36,7 +34,7 @@ import {
   useUserGeo,
 } from '../../src/hooks';
 import { useResponsive } from '../../src/layout';
-import { useTheme } from '../../src/theme';
+import { colorForCategory, tintForCategory, useTheme } from '../../src/theme';
 import type { PublicSortField } from '../../src/types/events';
 
 const SORT_OPTIONS: { label: string; value: PublicSortField }[] = [
@@ -86,7 +84,7 @@ export default function EventsScreen() {
   const columns = isDesktop ? 3 : isPhone ? 1 : 2;
   const showSidebar = isDesktop;
   const activeFilterCount = countActiveFilters(filters);
-  const bottomClearance = tabBar.height + tabBar.fabProtrusion + spacing.lg;
+  const bottomClearance = tabBar.height + spacing.lg;
 
   const items = eventsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const total = eventsQuery.data?.pages[0]?.meta.total ?? 0;
@@ -141,7 +139,7 @@ export default function EventsScreen() {
             <View style={styles.titleRow}>
               <View style={styles.titleBlock}>
                 <Text style={[typography.title, { color: colors.text }]}>
-                  Explore Events
+                  Events
                 </Text>
                 <Text
                   style={[
@@ -158,11 +156,6 @@ export default function EventsScreen() {
                       : ` · ${total} events`
                     : ''}
                 </Text>
-              </View>
-
-              <View style={[styles.headerIcons, { gap: spacing.sm }]}>
-                <FavouritesButton />
-                <AccountButton />
               </View>
 
               {showSidebar ? (
@@ -250,6 +243,56 @@ export default function EventsScreen() {
                 );
               })}
             </View>
+
+            {!showSidebar && categories.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginTop: spacing.sm }}
+                contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.md }}
+              >
+                {categories.map((category) => {
+                  const selected = filters.categorySlugs.includes(category.slug);
+                  const color = colorForCategory(category);
+                  return (
+                    <Pressable
+                      key={category.category_id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Filter by ${category.name}`}
+                      onPress={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          categorySlugs: prev.categorySlugs.includes(category.slug)
+                            ? prev.categorySlugs.filter((slug) => slug !== category.slug)
+                            : [...prev.categorySlugs, category.slug],
+                        }))
+                      }
+                      style={[
+                        styles.cityChip,
+                        {
+                          backgroundColor: selected ? color : tintForCategory(category, '22'),
+                          borderColor: color,
+                          borderRadius: radius.full,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          typography.caption,
+                          {
+                            color: selected ? '#FFFFFF' : color,
+                            fontWeight: '700',
+                          },
+                        ]}
+                      >
+                        {category.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
 
             {!showSidebar ? (
               <View
@@ -479,17 +522,13 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   cityChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   cityChip: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderWidth: 1,
   },
   headerActions: {

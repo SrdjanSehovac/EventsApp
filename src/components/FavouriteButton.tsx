@@ -79,6 +79,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderRadius: 999,
-    marginRight: 10,
   },
 });
