@@ -175,7 +175,7 @@ export default function SubmitEventScreen() {
   return (
     <AuthScreen
       title="Submit event"
-      subtitle="First pass for crowdsourcing. EventServer can moderate via POST /v1/me/events."
+      subtitle="Share a night out, market, or show. We’ll keep it on Profile while EventServer reviews it."
     >
       <AuthField
         label="TITLE"
