@@ -29,18 +29,15 @@ function errorMessage(error: unknown) {
 
 type ApplyFormProps = {
   initial?: BusinessProfile | null;
-  fallbackEmail?: string;
 };
 
-function ApplyForm({ initial, fallbackEmail }: ApplyFormProps) {
+function ApplyForm({ initial }: ApplyFormProps) {
   const { colors, typography, spacing, radius } = useTheme();
   const router = useRouter();
   const apply = useApplyAsBusiness();
   const [businessName, setBusinessName] = useState(initial?.business_name ?? '');
   const [website, setWebsite] = useState(initial?.website ?? '');
-  const [businessEmail, setBusinessEmail] = useState(
-    initial?.business_email ?? fallbackEmail ?? '',
-  );
+  const [businessEmail, setBusinessEmail] = useState(initial?.business_email ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
   const [city, setCity] = useState<string>(initial?.city ?? SW_ONTARIO_CITIES[0]);
   const [kind, setKind] = useState<BusinessKind>(initial?.kind ?? 'venue');
@@ -273,7 +270,7 @@ function ApplyForm({ initial, fallbackEmail }: ApplyFormProps) {
 
 export default function BecomeBusinessScreen() {
   const { colors, typography, radius } = useTheme();
-  const { isSignedIn, status, user } = useAuth();
+  const { isSignedIn, status } = useAuth();
   const router = useRouter();
   const businessQuery = useMyBusiness(isSignedIn);
   const existing = businessQuery.data;
@@ -335,7 +332,7 @@ export default function BecomeBusinessScreen() {
     );
   }
 
-  return <ApplyForm initial={existing} fallbackEmail={user?.email} />;
+  return <ApplyForm initial={existing} />;
 }
 
 const styles = StyleSheet.create({

@@ -10,15 +10,18 @@ import { useAuth, useFavourites, useMyBusiness, useMySubmissions } from '../../s
 import { Screen } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 
-function favouritesError(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Favourites are not available yet on EventServer.';
-    }
-    return error.message;
+function shouldShowFavouritesError(error: unknown) {
+  if (!error) return false;
+  if (error instanceof ApiError && (error.status === 404 || error.status === 501)) {
+    return false;
   }
-  if (error instanceof Error) return error.message;
-  return 'Could not load saved events.';
+  if (
+    error instanceof Error &&
+    /failed to fetch|network request failed|load failed/i.test(error.message)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export default function ProfileScreen() {
@@ -171,14 +174,16 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {favouritesQuery.error ? (
+        {shouldShowFavouritesError(favouritesQuery.error) ? (
           <Text
             style={[
               typography.caption,
               { color: colors.danger, marginBottom: spacing.md },
             ]}
           >
-            {favouritesError(favouritesQuery.error)}
+            {favouritesQuery.error instanceof Error
+              ? favouritesQuery.error.message
+              : 'Could not load saved events.'}
           </Text>
         ) : null}
 
