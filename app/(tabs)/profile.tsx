@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 
 import { ApiError } from '../../src/api/client';
 import { MyCalendar } from '../../src/components/MyCalendar';
-import { useAuth, useFavourites } from '../../src/hooks';
+import { MySubmissions } from '../../src/components/MySubmissions';
+import { useAuth, useFavourites, useMySubmissions } from '../../src/hooks';
 import { Screen } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 
@@ -24,6 +25,7 @@ export default function ProfileScreen() {
   const { user, isSignedIn, status, signOut } = useAuth();
   const router = useRouter();
   const favouritesQuery = useFavourites(isSignedIn);
+  const submissionsQuery = useMySubmissions(isSignedIn);
   const initial = user?.display_name?.trim()?.[0]?.toUpperCase() ?? '?';
 
   return (
@@ -39,7 +41,7 @@ export default function ProfileScreen() {
             { color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
           ]}
         >
-          Account, saved events, and admin tools
+          Account, calendar, and submissions
         </Text>
 
         <View
@@ -178,6 +180,14 @@ export default function ProfileScreen() {
             onSignIn={() => router.push('/sign-in')}
           />
         )}
+
+        <View style={{ height: spacing.lg }} />
+
+        <MySubmissions
+          items={submissionsQuery.data ?? []}
+          signedIn={isSignedIn}
+          onSignIn={() => router.push('/sign-in')}
+        />
 
         {isSignedIn ? (
           <Pressable
