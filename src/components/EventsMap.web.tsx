@@ -161,8 +161,8 @@ function buildLeafletHtml(
         iconAnchor: [44, 38],
       });
       const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.count > 1 ? 500 : p.live ? 400 : 0 }).addTo(map);
-      marker.bindPopup('<div class="pin-label"><strong>' + p.title + '</strong></div>');
-      marker.on('click', () => {
+      marker.on('click', (ev) => {
+        L.DomEvent.stopPropagation(ev);
         if (p.count > 1 && p.zoomLat != null) {
           window.parent.postMessage({
             type: 'map-cluster',
@@ -215,6 +215,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
   ) {
     const { colors } = useTheme();
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
+    const ignoreMapPressUntilRef = useRef(0);
     const pinsById = useMemo(() => {
       const map = new Map<string, EventMapPin>();
       for (const p of pins) map.set(p.event_id, p);
@@ -246,9 +247,11 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
         const data = event.data;
         if (!data || typeof data !== 'object') return;
         if (data.type === 'map-pin' && typeof data.eventId === 'string') {
+          ignoreMapPressUntilRef.current = Date.now() + 500;
           const pin = pinsById.get(data.eventId);
           if (pin) onMarkerPress?.(pin);
         } else if (data.type === 'map-press') {
+          if (Date.now() < ignoreMapPressUntilRef.current) return;
           onMapPress?.();
         } else if (data.type === 'map-cluster') {
           onRegionChangeComplete?.({

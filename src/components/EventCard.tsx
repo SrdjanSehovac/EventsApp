@@ -81,10 +81,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
 
   if (variant === 'listing') {
     return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${item.title}`}
-        onPress={openSource}
+      <View
         style={[
           styles.listing,
           shadows.card,
@@ -94,53 +91,60 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           },
         ]}
       >
-        <View style={styles.listingImage}>{hero}</View>
-        <View style={styles.listingBody}>
-          <View style={styles.listingTitleRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.title}`}
+          onPress={openSource}
+          style={styles.listingMain}
+        >
+          <View style={styles.listingImage}>{hero}</View>
+          <View style={styles.listingBody}>
             <Text
               numberOfLines={2}
               style={[
                 typography.body,
-                { color: colors.text, fontWeight: '700', flex: 1, paddingRight: 8 },
+                { color: colors.text, fontWeight: '700', paddingRight: 28 },
               ]}
             >
               {item.title}
             </Text>
-            <FavouriteButton item={item} variant="plain" />
-          </View>
-          <Text
-            numberOfLines={1}
-            style={[
-              typography.caption,
-              { color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
-            ]}
-          >
-            {facts}
-          </Text>
-          {item.primary_category ? (
             <Text
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: categoryColor, marginTop: 4, fontWeight: '700' },
+                { color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
               ]}
             >
-              {item.primary_category.name}
+              {facts}
             </Text>
-          ) : null}
-          {item.summary ? (
-            <Text
-              numberOfLines={2}
-              style={[
-                typography.caption,
-                { color: colors.textMuted, marginTop: 4 },
-              ]}
-            >
-              {item.summary}
-            </Text>
-          ) : null}
+            {item.primary_category ? (
+              <Text
+                numberOfLines={1}
+                style={[
+                  typography.caption,
+                  { color: categoryColor, marginTop: 4, fontWeight: '700' },
+                ]}
+              >
+                {item.primary_category.name}
+              </Text>
+            ) : null}
+            {item.summary ? (
+              <Text
+                numberOfLines={2}
+                style={[
+                  typography.caption,
+                  { color: colors.textMuted, marginTop: 4 },
+                ]}
+              >
+                {item.summary}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+        <View style={styles.listingHeart}>
+          <FavouriteButton item={item} variant="plain" />
         </View>
-      </Pressable>
+      </View>
     );
   }
 
@@ -385,6 +389,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     minHeight: 118,
+    position: 'relative',
+  },
+  listingMain: {
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
   },
   listingImage: {
     width: 118,
@@ -394,10 +404,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    paddingRight: 40,
     justifyContent: 'center',
   },
-  listingTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  listingHeart: {
+    position: 'absolute',
+    top: 6,
+    right: 4,
   },
 });
