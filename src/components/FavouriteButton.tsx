@@ -68,14 +68,14 @@ export function FavouriteButton({
         overlay
           ? { backgroundColor: colors.surface, borderWidth: 0 }
           : plain
-            ? { borderWidth: 0, width: 32, height: 32 }
+            ? { borderWidth: 0, width: 36, height: 36 }
             : { borderColor: colors.border },
         { opacity: toggle.isPending ? 0.6 : 1 },
       ]}
     >
       <Ionicons
         name={isFavourite ? 'heart' : 'heart-outline'}
-        size={overlay || plain ? 22 : 16}
+        size={overlay || plain ? 24 : 16}
         color={colors.danger}
       />
     </Pressable>

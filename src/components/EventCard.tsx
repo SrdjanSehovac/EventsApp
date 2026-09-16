@@ -13,11 +13,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
 import {
-  formatEventPlace,
   formatEventPrice,
   formatFactsRow,
-  formatMetaRow,
+  formatPinTime,
+  formatPlaceLine,
   formatPriceLike,
+  formatRelativeWhen,
 } from '../utils/eventFormat';
 import { FavouriteButton } from './FavouriteButton';
 
@@ -42,8 +43,10 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const facts = formatFactsRow(item);
   const price = formatEventPrice(item);
   const priceLike = formatPriceLike(item);
-  const place = formatEventPlace(item);
-  const meta = formatMetaRow(item);
+  const placeLine = formatPlaceLine(item);
+  const whenLabel = formatPinTime(item.starts_at);
+  const relative = formatRelativeWhen(item.starts_at);
+  const categoryName = item.primary_category?.name;
 
   async function openSource() {
     if (!item.source_url) return;
@@ -111,7 +114,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               numberOfLines={1}
               style={[
                 typography.heading,
-                { color: colors.primary, fontSize: 20, lineHeight: 24 },
+                { color: colors.primary, fontSize: 22, lineHeight: 26 },
               ]}
             >
               {priceLike}
@@ -120,21 +123,65 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: colors.text, marginTop: 4, fontWeight: '600' },
+                { color: colors.text, marginTop: 3, fontWeight: '700', fontSize: 13 },
               ]}
             >
-              {place}
+              {item.title}
             </Text>
             <Text
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: colors.textSecondary, marginTop: 3 },
+                { color: colors.textSecondary, marginTop: 1, fontSize: 12 },
               ]}
             >
-              {item.title}
-              {meta ? ` · ${meta}` : ''}
+              {item.neighbourhood && item.city
+                ? `(${item.neighbourhood}), ${item.city}`
+                : placeLine}
             </Text>
+            <View style={styles.metaIcons}>
+              {whenLabel ? (
+                <View style={styles.metaChip}>
+                  <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      typography.caption,
+                      { color: colors.textSecondary, fontSize: 12, marginLeft: 4 },
+                    ]}
+                  >
+                    {whenLabel}
+                  </Text>
+                </View>
+              ) : null}
+              {categoryName ? (
+                <View style={styles.metaChip}>
+                  <Ionicons name="pricetag-outline" size={13} color={colors.textSecondary} />
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      typography.caption,
+                      { color: colors.textSecondary, fontSize: 12, marginLeft: 4 },
+                    ]}
+                  >
+                    {categoryName}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            {relative ? (
+              <View style={styles.agoRow}>
+                <View style={[styles.agoDot, { backgroundColor: colors.primary }]} />
+                <Text
+                  style={[
+                    typography.caption,
+                    { color: colors.textSecondary, fontSize: 12 },
+                  ]}
+                >
+                  {relative}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </Pressable>
         <View style={styles.listingHeart}>
@@ -384,9 +431,9 @@ const styles = StyleSheet.create({
   listing: {
     flexDirection: 'row',
     overflow: 'hidden',
-    minHeight: 88,
+    minHeight: 108,
     position: 'relative',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
@@ -394,11 +441,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     minWidth: 0,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   listingImage: {
-    width: 96,
-    height: 72,
+    width: 112,
+    height: 84,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -406,11 +453,34 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 12,
     paddingRight: 36,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   listingHeart: {
     position: 'absolute',
-    top: 8,
-    right: 4,
+    top: 6,
+    right: 2,
+  },
+  metaIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 6,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: '58%',
+  },
+  agoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+  },
+  agoDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });

@@ -92,3 +92,37 @@ export function formatMetaRow(
   ].filter((part): part is string => Boolean(part));
   return parts.join(' · ');
 }
+
+/** Relative start label for the listing status dot (realtor “2 hours ago”). */
+export function formatRelativeWhen(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const now = Date.now();
+  const diffMs = date.getTime() - now;
+  const absMin = Math.round(Math.abs(diffMs) / 60_000);
+
+  if (Math.abs(diffMs) < 60_000) {
+    return diffMs >= 0 ? 'Starting now' : 'Just started';
+  }
+  if (absMin < 60) {
+    return diffMs >= 0 ? `in ${absMin} min` : `${absMin} min ago`;
+  }
+
+  const absHr = Math.round(absMin / 60);
+  if (absHr < 24) {
+    return diffMs >= 0
+      ? `in ${absHr} hour${absHr === 1 ? '' : 's'}`
+      : `${absHr} hour${absHr === 1 ? '' : 's'} ago`;
+  }
+
+  return formatPinTime(value);
+}
+
+export function formatPlaceLine(item: PlaceLike): string {
+  if (item.neighbourhood && item.city) {
+    return `${item.neighbourhood}, ${item.city}`;
+  }
+  return item.neighbourhood || item.city || 'Location TBD';
+}

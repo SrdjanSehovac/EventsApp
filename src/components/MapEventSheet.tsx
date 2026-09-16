@@ -24,6 +24,7 @@ export function pinToListItem(pin: EventMapPin): EventListItem {
     ends_at: pin.ends_at,
     is_free: pin.is_free,
     neighbourhood: pin.neighbourhood,
+    city: pin.city,
     primary_category: pin.primary_category,
     image_url: pin.image_url,
     latitude: pin.latitude,
@@ -82,7 +83,6 @@ export function MapEventSheet({
         styles.sheet,
         {
           bottom: bottomInset + spacing.sm,
-          paddingHorizontal: spacing.md,
         },
       ]}
       pointerEvents="box-none"
@@ -95,7 +95,7 @@ export function MapEventSheet({
         ]}
       >
         <View style={styles.headerRow}>
-          <Text style={[typography.body, { color: colors.text, fontWeight: '800' }]}>
+          <Text style={[typography.body, { color: colors.text, fontWeight: '800', fontSize: 16 }]}>
             {count} {count === 1 ? 'Event' : 'Events'}
           </Text>
           <Pressable
@@ -132,9 +132,9 @@ export function MapEventSheet({
 const styles = StyleSheet.create({
   sheet: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    maxHeight: '48%',
+    left: 10,
+    right: 10,
+    maxHeight: '52%',
   },
   panel: {
     borderRadius: 8,

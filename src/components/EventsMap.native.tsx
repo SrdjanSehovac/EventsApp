@@ -65,7 +65,7 @@ const PinMarker = memo(function PinMarker({
   const [layoutReady, setLayoutReady] = useState(false);
   const fill = pinFill;
   const label = String(cluster.count);
-  const size = cluster.count > 9 ? 40 : cluster.count > 1 ? 36 : 28;
+  const size = cluster.count > 9 ? 38 : cluster.count > 1 ? 34 : 28;
 
   useEffect(() => {
     setLayoutReady(false);
@@ -141,15 +141,15 @@ const PinMarker = memo(function PinMarker({
             {
               width: size,
               height: size,
-              borderRadius: size / 2,
               backgroundColor: fill,
               borderColor: pinStroke,
             },
           ]}
         >
-          <Text style={styles.badgeText}>{label}</Text>
+          <Text style={[styles.badgeText, { fontSize: cluster.count > 1 ? 13 : 12 }]}>
+            {label}
+          </Text>
         </View>
-        <View style={[styles.caret, { borderTopColor: fill }]} />
       </View>
     </Marker>
   );
@@ -285,7 +285,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markerHit: {
+    width: 44,
+    height: 48,
     alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   pulseRing: {
     position: 'absolute',
@@ -293,16 +296,21 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    top: 6,
+    top: 8,
   },
   teardrop: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 2.5,
+    borderTopLeftRadius: 999,
+    borderTopRightRadius: 999,
+    borderBottomRightRadius: 999,
+    borderBottomLeftRadius: 6,
+    transform: [{ rotate: '-45deg' }],
     shadowColor: '#111827',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
+    shadowOffset: { width: 1, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
     elevation: 4,
   },
   teardropSelected: {
@@ -312,15 +320,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '800',
-  },
-  caret: {
-    width: 0,
-    height: 0,
-    marginTop: -2,
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 9,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    transform: [{ rotate: '45deg' }],
   },
 });

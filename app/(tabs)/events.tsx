@@ -106,7 +106,12 @@ export default function EventsScreen() {
       <View style={styles.split}>
         <View style={styles.listPane}>
           <View style={styles.listMeta}>
-            <Text style={[typography.body, { color: colors.text, fontWeight: '800' }]}>
+            <Text
+              style={[
+                typography.heading,
+                { color: colors.text, fontWeight: '800', fontSize: 20 },
+              ]}
+            >
               Results: {eventsQuery.data ? total.toLocaleString() : '—'} Events
             </Text>
             <View style={styles.sortRow}>
@@ -206,7 +211,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mapStrip: {
-    width: 108,
+    width: 118,
     position: 'relative',
     borderLeftWidth: StyleSheet.hairlineWidth,
     borderLeftColor: '#D5E5E1',

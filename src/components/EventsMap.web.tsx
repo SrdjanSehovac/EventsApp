@@ -87,38 +87,32 @@ function buildLeafletHtml(
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; background: #eef4f2; }
-    .evt-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-    .evt-head {
+    .evt-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+    .evt-pin {
+      width: 30px;
+      height: 30px;
       background: #252A3A;
       color: #fff;
-      font: 800 12px/1 system-ui, sans-serif;
-      min-width: 32px;
-      height: 32px;
-      padding: 0 7px;
-      border-radius: 16px;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(17,24,39,.35);
+      border: 2.5px solid #fff;
+      border-radius: 50% 50% 50% 6px;
+      transform: rotate(-45deg);
+      box-shadow: 1px 2px 5px rgba(17,24,39,.4);
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    .evt-wrap.selected .evt-head {
-      box-shadow: 0 0 0 3px rgba(11,110,100,.35), 0 3px 8px rgba(17,24,39,.4);
+    .evt-pin span {
+      transform: rotate(45deg);
+      font: 800 12px/1 system-ui, sans-serif;
     }
-    .evt-wrap.cluster .evt-head {
-      min-width: 36px;
+    .evt-wrap.selected .evt-pin {
+      box-shadow: 0 0 0 3px rgba(11,110,100,.4), 1px 2px 6px rgba(17,24,39,.45);
+    }
+    .evt-wrap.cluster .evt-pin {
+      width: 36px;
       height: 36px;
-      border-radius: 18px;
-      font-size: 13px;
     }
-    .evt-caret {
-      width: 0; height: 0;
-      border-left: 7px solid transparent;
-      border-right: 7px solid transparent;
-      border-top: 9px solid #252A3A;
-      margin-top: -2px;
-      filter: drop-shadow(0 1px 1px rgba(17,24,39,.25));
-    }
+    .evt-wrap.cluster .evt-pin span { font-size: 13px; }
   </style>
 </head>
 <body>
@@ -137,12 +131,12 @@ function buildLeafletHtml(
     (${satellite} ? sat : osm).addTo(map);
     for (const p of pins) {
       const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.count > 1 ? ' cluster' : '');
-      const html = '<div class="' + cls + '"><div class="evt-head">' + p.label + '</div><div class="evt-caret"></div></div>';
+      const html = '<div class="' + cls + '"><div class="evt-pin"><span>' + p.label + '</span></div></div>';
       const icon = L.divIcon({
         className: '',
         html,
         iconSize: [40, 44],
-        iconAnchor: [20, 42],
+        iconAnchor: [20, 40],
       });
       const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.count > 1 ? 500 : 0 }).addTo(map);
       marker.on('click', (ev) => {
