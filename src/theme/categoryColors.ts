@@ -46,7 +46,7 @@ const NAMED_COLORS: Record<string, string> = {
   tech: '#0F766E',
 };
 
-const DEFAULT_PIN = '#0E8A7D';
+const DEFAULT_PIN = '#E23E57';
 
 function hashKey(key: string): number {
   let hash = 0;

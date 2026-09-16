@@ -10,7 +10,7 @@ export type PinCluster = {
   pins: EventMapPin[];
 };
 
-/** Zoomed-in enough that individual teardrops stay separate. */
+/** Zoomed-in enough that individual pins stay separate. */
 const CLUSTER_DELTA = 0.03;
 
 export function clusterPins(

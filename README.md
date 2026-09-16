@@ -4,7 +4,7 @@ Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Saved*
 
 ## UX direction
 
-Mobile browse follows a listing-map pattern (homes → events): strong header + white pill search, Map/Satellite, dark teardrop cluster pins with counts, a listing preview on pin tap, and a list pane beside the map with a collapse chevron. Visuals use a clean light surface and teal accent. Not affiliated with REALTOR.ca; no third-party trademarks or MLS branding.
+Browse is **map-first**, with search + filters, pin → card, scannable list rows, and a heart to save — the usual listing-map *interaction* model, applied to events. Visuals stay EventsApp: warm cream surfaces, coral primary, category-coloured pins (time / Free / `$`), rounded cards. Not a visual clone of REALTOR.ca; no third-party logos, trademarks, teardrop pin art, or MLS chrome.
 
 ## Run
 

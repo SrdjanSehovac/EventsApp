@@ -95,8 +95,8 @@ export function MapEventSheet({
         ]}
       >
         <View style={styles.headerRow}>
-          <Text style={[typography.body, { color: colors.text, fontWeight: '800', fontSize: 16 }]}>
-            {count} {count === 1 ? 'Event' : 'Events'}
+          <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
+            {count} {count === 1 ? 'event' : 'events'}
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     maxHeight: '52%',
   },
   panel: {
-    borderRadius: 8,
+    borderRadius: 20,
     overflow: 'hidden',
   },
   headerRow: {

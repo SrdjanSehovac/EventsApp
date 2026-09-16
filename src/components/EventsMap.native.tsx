@@ -17,11 +17,12 @@ import {
 } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
-import { useTheme } from '../theme';
+import { colorForCategory, useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import { clusterPins, type PinCluster } from '../utils/clusterPins';
 import { isEventLive } from '../utils/eventLive';
+import { formatPinBadge } from '../utils/eventFormat';
 import type { MapBaseType } from '../browse';
 
 export type EventsMapHandle = {
@@ -47,8 +48,8 @@ type PinMarkerProps = {
   selected: boolean;
   live: boolean;
   forceTracks: boolean;
-  pinFill: string;
   pinStroke: string;
+  pinOutline: string;
   onPress: (cluster: PinCluster) => void;
 };
 
@@ -57,15 +58,15 @@ const PinMarker = memo(function PinMarker({
   selected,
   live,
   forceTracks,
-  pinFill,
   pinStroke,
+  pinOutline,
   onPress,
 }: PinMarkerProps) {
   const pulse = useRef(new Animated.Value(0)).current;
   const [layoutReady, setLayoutReady] = useState(false);
-  const fill = pinFill;
-  const label = String(cluster.count);
-  const size = cluster.count > 9 ? 38 : cluster.count > 1 ? 34 : 28;
+  const pin = cluster.pins[0];
+  const fill = colorForCategory(pin?.primary_category);
+  const label = cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin);
 
   useEffect(() => {
     setLayoutReady(false);
@@ -136,20 +137,27 @@ const PinMarker = memo(function PinMarker({
         ) : null}
         <View
           style={[
-            styles.teardrop,
-            selected && styles.teardropSelected,
+            cluster.count > 1 ? styles.cluster : styles.badge,
+            selected && styles.badgeSelected,
             {
-              width: size,
-              height: size,
               backgroundColor: fill,
               borderColor: pinStroke,
+              shadowColor: pinOutline,
             },
           ]}
         >
-          <Text style={[styles.badgeText, { fontSize: cluster.count > 1 ? 13 : 12 }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.badgeText,
+              cluster.count > 1 && styles.clusterText,
+              selected && styles.badgeTextSelected,
+            ]}
+          >
             {label}
           </Text>
         </View>
+        <View style={[styles.caret, { borderTopColor: fill }]} />
       </View>
     </Marker>
   );
@@ -240,7 +248,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
                 selected={selected}
                 live={live}
                 pinStroke={colors.pinStroke}
-                pinFill={colors.pinFill}
+                pinOutline={colors.pinOutline}
                 forceTracks={cluster.id === redrawId}
                 onPress={(next) => {
                   ignoreMapPressUntilRef.current = Date.now() + 400;
@@ -285,10 +293,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markerHit: {
-    width: 44,
-    height: 48,
     alignItems: 'center',
-    justifyContent: 'flex-end',
   },
   pulseRing: {
     position: 'absolute',
@@ -296,30 +301,55 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    top: 8,
+    top: 6,
   },
-  teardrop: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2.5,
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
-    borderBottomRightRadius: 999,
-    borderBottomLeftRadius: 6,
-    transform: [{ rotate: '-45deg' }],
-    shadowColor: '#111827',
-    shadowOffset: { width: 1, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 2,
+    maxWidth: 128,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
     elevation: 4,
   },
-  teardropSelected: {
+  badgeSelected: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  cluster: {
+    minWidth: 32,
+    minHeight: 32,
+    paddingHorizontal: 8,
+    borderRadius: 16,
     borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
+    elevation: 4,
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '800',
-    transform: [{ rotate: '45deg' }],
+  },
+  badgeTextSelected: {
+    fontSize: 12,
+  },
+  clusterText: {
+    fontSize: 13,
+  },
+  caret: {
+    width: 0,
+    height: 0,
+    marginTop: -1,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
 });

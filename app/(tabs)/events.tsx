@@ -104,19 +104,19 @@ export default function EventsScreen() {
         filterCount={activeFilterCount}
       />
       <View style={styles.split}>
-        <View style={styles.listPane}>
+        <View style={[styles.listPane, { backgroundColor: colors.background }]}>
           <View style={styles.listMeta}>
             <Text
               style={[
                 typography.heading,
-                { color: colors.text, fontWeight: '800', fontSize: 20 },
+                { color: colors.text, fontSize: 18 },
               ]}
             >
-              Results: {eventsQuery.data ? total.toLocaleString() : '—'} Events
+              {eventsQuery.data ? `${total.toLocaleString()} nearby` : 'Nearby events'}
             </Text>
             <View style={styles.sortRow}>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                Sort By
+                Sort
               </Text>
               <View style={styles.sortWrap}>
                 <SelectField
@@ -188,7 +188,6 @@ const styles = StyleSheet.create({
   listPane: {
     flex: 1,
     minWidth: 0,
-    backgroundColor: '#FFFFFF',
   },
   listMeta: {
     paddingHorizontal: 14,
@@ -214,6 +213,6 @@ const styles = StyleSheet.create({
     width: 118,
     position: 'relative',
     borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: '#D5E5E1',
+    borderLeftColor: '#F0DCC8',
   },
 });

@@ -17,10 +17,12 @@ import {
 import type { Region } from 'react-native-maps';
 
 import type { MapBaseType } from '../browse';
-import { useTheme } from '../theme';
+import { colorForCategory, useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import { clusterPins } from '../utils/clusterPins';
+import { isEventLive } from '../utils/eventLive';
+import { formatPinBadge } from '../utils/eventFormat';
 
 export type EventsMapHandle = {
   animateToRegion: (region: Region, durationMs?: number) => void;
@@ -55,6 +57,7 @@ function buildLeafletHtml(
   mapType: MapBaseType,
 ): string {
   const clusters = clusterPins(pins, region);
+  const nowMs = Date.now();
   const markers = clusters.map((cluster) => {
     const pin = cluster.pins[0];
     return {
@@ -65,8 +68,12 @@ function buildLeafletHtml(
       lng: cluster.longitude,
       count: cluster.count,
       title: escapeHtml(pin.title ?? 'Event'),
-      label: String(cluster.count),
+      label: escapeHtml(
+        cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin),
+      ),
       selected: cluster.pins.some((item) => item.event_id === selectedEventId),
+      live: cluster.count === 1 && isEventLive(pin, nowMs),
+      color: colorForCategory(pin.primary_category),
     };
   });
 
@@ -86,33 +93,44 @@ function buildLeafletHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { height: 100%; margin: 0; background: #eef4f2; }
-    .evt-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
-    .evt-pin {
-      width: 30px;
-      height: 30px;
-      background: #252A3A;
+    html, body, #map { height: 100%; margin: 0; background: #fff6ee; }
+    .evt-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+    .evt-badge {
+      background: var(--c, #E23E57);
       color: #fff;
-      border: 2.5px solid #fff;
-      border-radius: 50% 50% 50% 6px;
-      transform: rotate(-45deg);
-      box-shadow: 1px 2px 5px rgba(17,24,39,.4);
+      font: 800 11px/1.2 system-ui, sans-serif;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(59,31,20,.28);
+      white-space: nowrap;
+      max-width: 132px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .evt-wrap.selected .evt-badge {
+      font-size: 12px;
+      padding: 5px 10px;
+      box-shadow: 0 0 0 3px rgba(226,62,87,.28), 0 3px 8px rgba(59,31,20,.35);
+    }
+    .evt-wrap.cluster .evt-badge {
+      min-width: 32px;
+      min-height: 32px;
+      border-radius: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 13px;
+      padding: 0 8px;
     }
-    .evt-pin span {
-      transform: rotate(45deg);
-      font: 800 12px/1 system-ui, sans-serif;
+    .evt-caret {
+      width: 0; height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 7px solid var(--c, #E23E57);
+      margin-top: -1px;
+      filter: drop-shadow(0 1px 1px rgba(59,31,20,.25));
     }
-    .evt-wrap.selected .evt-pin {
-      box-shadow: 0 0 0 3px rgba(11,110,100,.4), 1px 2px 6px rgba(17,24,39,.45);
-    }
-    .evt-wrap.cluster .evt-pin {
-      width: 36px;
-      height: 36px;
-    }
-    .evt-wrap.cluster .evt-pin span { font-size: 13px; }
   </style>
 </head>
 <body>
@@ -130,13 +148,13 @@ function buildLeafletHtml(
     });
     (${satellite} ? sat : osm).addTo(map);
     for (const p of pins) {
-      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.count > 1 ? ' cluster' : '');
-      const html = '<div class="' + cls + '"><div class="evt-pin"><span>' + p.label + '</span></div></div>';
+      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.live ? ' live' : '') + (p.count > 1 ? ' cluster' : '');
+      const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
       const icon = L.divIcon({
         className: '',
         html,
-        iconSize: [40, 44],
-        iconAnchor: [20, 40],
+        iconSize: [88, 40],
+        iconAnchor: [44, 38],
       });
       const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.count > 1 ? 500 : 0 }).addTo(map);
       marker.on('click', (ev) => {

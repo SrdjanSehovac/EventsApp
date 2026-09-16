@@ -78,7 +78,7 @@ export function formatPinBadge(item: PriceLike & WhenLike): string {
   return parts.length > 0 ? parts.join(' · ') : 'Event';
 }
 
-/** Large listing fact — realtor price equivalent. */
+/** Large listing fact — Free / $ / start time. */
 export function formatPriceLike(item: PriceLike & WhenLike): string {
   return formatEventPrice(item) ?? formatPinTime(item.starts_at) ?? 'Soon';
 }
@@ -93,7 +93,6 @@ export function formatMetaRow(
   return parts.join(' · ');
 }
 
-/** Relative start label for the listing status dot (realtor “2 hours ago”). */
 export function formatRelativeWhen(value?: string | null): string | null {
   if (!value) return null;
   const date = new Date(value);

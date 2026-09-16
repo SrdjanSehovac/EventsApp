@@ -12,14 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
-import {
-  formatEventPrice,
-  formatFactsRow,
-  formatPinTime,
-  formatPlaceLine,
-  formatPriceLike,
-  formatRelativeWhen,
-} from '../utils/eventFormat';
+import { formatEventPlace, formatEventPrice, formatFactsRow } from '../utils/eventFormat';
 import { FavouriteButton } from './FavouriteButton';
 
 type EventCardVariant = 'card' | 'listing' | 'preview';
@@ -42,11 +35,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const categoryColor = colorForCategory(item.primary_category);
   const facts = formatFactsRow(item);
   const price = formatEventPrice(item);
-  const priceLike = formatPriceLike(item);
-  const placeLine = formatPlaceLine(item);
-  const whenLabel = formatPinTime(item.starts_at);
-  const relative = formatRelativeWhen(item.starts_at);
-  const categoryName = item.primary_category?.name;
+  const place = formatEventPlace(item);
 
   async function openSource() {
     if (!item.source_url) return;
@@ -96,9 +85,11 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
       <View
         style={[
           styles.listing,
+          shadows.soft,
           {
             backgroundColor: colors.surface,
-            borderBottomColor: colors.hairline,
+            borderRadius: radius.lg,
+            borderColor: colors.hairline,
           },
         ]}
       >
@@ -110,77 +101,71 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
         >
           <View style={styles.listingImage}>{hero}</View>
           <View style={styles.listingBody}>
-            <Text
-              numberOfLines={1}
-              style={[
-                typography.heading,
-                { color: colors.primary, fontSize: 22, lineHeight: 26 },
-              ]}
-            >
-              {priceLike}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={[
-                typography.caption,
-                { color: colors.text, marginTop: 3, fontWeight: '700', fontSize: 13 },
-              ]}
-            >
-              {item.title}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={[
-                typography.caption,
-                { color: colors.textSecondary, marginTop: 1, fontSize: 12 },
-              ]}
-            >
-              {item.neighbourhood && item.city
-                ? `(${item.neighbourhood}), ${item.city}`
-                : placeLine}
-            </Text>
-            <View style={styles.metaIcons}>
-              {whenLabel ? (
-                <View style={styles.metaChip}>
-                  <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      typography.caption,
-                      { color: colors.textSecondary, fontSize: 12, marginLeft: 4 },
-                    ]}
-                  >
-                    {whenLabel}
-                  </Text>
-                </View>
-              ) : null}
-              {categoryName ? (
-                <View style={styles.metaChip}>
-                  <Ionicons name="pricetag-outline" size={13} color={colors.textSecondary} />
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      typography.caption,
-                      { color: colors.textSecondary, fontSize: 12, marginLeft: 4 },
-                    ]}
-                  >
-                    {categoryName}
-                  </Text>
-                </View>
-              ) : null}
+            <View style={styles.listingTitleRow}>
+              <Text
+                numberOfLines={2}
+                style={[
+                  typography.body,
+                  {
+                    color: colors.text,
+                    fontWeight: '700',
+                    flex: 1,
+                    paddingRight: 8,
+                  },
+                ]}
+              >
+                {item.title}
+              </Text>
             </View>
-            {relative ? (
-              <View style={styles.agoRow}>
-                <View style={[styles.agoDot, { backgroundColor: colors.primary }]} />
-                <Text
+            <Text
+              numberOfLines={1}
+              style={[
+                typography.caption,
+                { color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
+              ]}
+            >
+              {facts}
+            </Text>
+            <View style={styles.listingMeta}>
+              {price ? (
+                <View
                   style={[
-                    typography.caption,
-                    { color: colors.textSecondary, fontSize: 12 },
+                    styles.priceChip,
+                    { backgroundColor: colors.primaryMuted },
                   ]}
                 >
-                  {relative}
+                  <Text
+                    style={[
+                      typography.caption,
+                      { color: colors.primary, fontWeight: '800', fontSize: 12 },
+                    ]}
+                  >
+                    {price}
+                  </Text>
+                </View>
+              ) : null}
+              {item.primary_category ? (
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    typography.caption,
+                    { color: categoryColor, fontWeight: '700', flexShrink: 1 },
+                  ]}
+                >
+                  {item.primary_category.name}
                 </Text>
-              </View>
+              ) : null}
+            </View>
+            {place && place !== 'Location TBD' ? (
+              <Text
+                numberOfLines={1}
+                style={[
+                  typography.caption,
+                  { color: colors.textMuted, marginTop: 4 },
+                ]}
+              >
+                {place}
+              </Text>
             ) : null}
           </View>
         </Pressable>
@@ -431,56 +416,48 @@ const styles = StyleSheet.create({
   listing: {
     flexDirection: 'row',
     overflow: 'hidden',
-    minHeight: 108,
+    minHeight: 96,
     position: 'relative',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   listingMain: {
     flex: 1,
     flexDirection: 'row',
     minWidth: 0,
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
   },
   listingImage: {
-    width: 112,
-    height: 84,
-    borderRadius: 4,
+    width: 108,
+    minHeight: 96,
     overflow: 'hidden',
   },
   listingBody: {
     flex: 1,
     paddingHorizontal: 12,
-    paddingRight: 36,
-    justifyContent: 'flex-start',
+    paddingVertical: 10,
+    paddingRight: 40,
+    justifyContent: 'center',
+  },
+  listingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  listingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  priceChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
   },
   listingHeart: {
     position: 'absolute',
     top: 6,
-    right: 2,
-  },
-  metaIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 6,
-  },
-  metaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '58%',
-  },
-  agoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 6,
-  },
-  agoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    right: 4,
   },
 });

@@ -6,17 +6,17 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { Region } from 'react-native-maps';
 
 import { useBrowse } from '../../src/browse';
 import {
-  BrowseHeader,
+  BrowseSearchBar,
   EventsMap,
   FilterSheet,
   ListPaneChevron,
   MapEventSheet,
-  MapTypeToggle,
   countActiveFilters,
   filtersToMapParams,
   type EventsMapHandle,
@@ -171,17 +171,11 @@ export default function MapScreen() {
       ? error.message
       : 'Failed to load map events'
     : mapQuery.data
-      ? `${pins.length} Events`
+      ? `${pins.length} event${pins.length === 1 ? '' : 's'} nearby`
       : 'Loading…';
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <BrowseHeader
-        value={filters.q}
-        onChangeText={(q) => patchFilters({ q })}
-        onPressFilters={() => setFiltersOpen(true)}
-        filterCount={filterCount}
-      />
       <View style={styles.mapStage}>
         <EventsMap
           ref={mapRef}
@@ -198,20 +192,25 @@ export default function MapScreen() {
           onMapPress={() => setSelectedPins(null)}
         />
 
-        <View style={styles.mapChrome} pointerEvents="box-none">
-          <MapTypeToggle />
+        <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
+          <BrowseSearchBar
+            value={filters.q}
+            onChangeText={(q) => patchFilters({ q })}
+            onPressFilters={() => setFiltersOpen(true)}
+            filterCount={filterCount}
+          />
           <View
             style={[
               styles.countChip,
               shadows.soft,
-              { backgroundColor: colors.surface, borderRadius: radius.sm },
+              { backgroundColor: colors.surface, borderRadius: radius.full },
             ]}
           >
             <Text
               style={[
                 typography.caption,
                 {
-                  color: error ? colors.danger : colors.text,
+                  color: error ? colors.danger : colors.textSecondary,
                   fontWeight: '700',
                 },
               ]}
@@ -219,7 +218,7 @@ export default function MapScreen() {
               {statusLabel}
             </Text>
           </View>
-        </View>
+        </SafeAreaView>
 
         {areaDirty ? (
           <View style={styles.searchWrap} pointerEvents="box-none">
@@ -321,22 +320,23 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  mapChrome: {
+  header: {
     position: 'absolute',
-    top: 10,
-    left: 36,
-    right: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 10,
   },
   countChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   searchWrap: {
     position: 'absolute',
-    top: 54,
+    top: 126,
     left: 0,
     right: 0,
     alignItems: 'center',
