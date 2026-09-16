@@ -11,11 +11,15 @@ export { AccountButton, FavouritesButton } from './AccountButton';
 export { FavouriteButton } from './FavouriteButton';
 export { AuthScreen } from './AuthScreen';
 export { AuthField } from './AuthField';
+export { BrowseSearchBar } from './BrowseSearchBar';
+export { MapListToggle } from './MapListToggle';
+export { FilterSheet } from './FilterSheet';
 export {
   EventFilters,
   EMPTY_FILTERS,
   countActiveFilters,
   filtersToParams,
+  filtersToMapParams,
 } from './EventFilters';
 export type { EventsFilterState } from './EventFilters';
 export { SelectField } from './SelectField';

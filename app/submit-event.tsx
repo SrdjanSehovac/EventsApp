@@ -163,10 +163,10 @@ export default function SubmitEventScreen() {
 
   if (done) {
     return (
-      <AuthScreen title="Submitted" subtitle="Thanks — it will show under My submissions on Profile.">
+      <AuthScreen title="Submitted" subtitle="Thanks — it will show under My submissions on Saved.">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back to profile"
+          accessibilityLabel="Back to saved"
           onPress={() => router.replace('/profile')}
           style={[
             styles.button,
@@ -174,7 +174,7 @@ export default function SubmitEventScreen() {
           ]}
         >
           <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
-            Back to Profile
+            Back to Saved
           </Text>
         </Pressable>
       </AuthScreen>
@@ -187,7 +187,7 @@ export default function SubmitEventScreen() {
       subtitle={
         verifiedBusiness
           ? `Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`
-          : 'Share a night out, market, or show. We’ll keep it on Profile while EventServer reviews it.'
+          : 'Share a night out, market, or show. We’ll keep it on Saved while EventServer reviews it.'
       }
     >
       <AuthField

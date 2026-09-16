@@ -27,9 +27,9 @@ const TABS: TabMeta[] = [
   },
   {
     name: 'profile',
-    label: 'Profile',
-    icon: 'person-outline',
-    iconFocused: 'person',
+    label: 'Saved',
+    icon: 'heart-outline',
+    iconFocused: 'heart',
   },
 ];
 

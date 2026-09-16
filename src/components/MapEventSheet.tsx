@@ -64,7 +64,7 @@ export function MapEventSheet({
   bottomInset,
   onClose,
 }: MapEventSheetProps) {
-  const { colors, spacing } = useTheme();
+  const { colors, spacing, shadows } = useTheme();
   const detailQuery = useEvent(pin.event_id);
 
   const item =
@@ -91,15 +91,15 @@ export function MapEventSheet({
           hitSlop={8}
           style={[
             styles.close,
+            shadows.soft,
             {
               backgroundColor: colors.surface,
-              borderColor: colors.border,
             },
           ]}
         >
           <Ionicons name="close" size={18} color={colors.textSecondary} />
         </Pressable>
-        <EventCard item={item} />
+        <EventCard item={item} variant="preview" />
       </View>
     </View>
   );
@@ -123,7 +123,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },

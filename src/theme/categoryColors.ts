@@ -2,13 +2,13 @@ import type { CategoryBrief } from '../types/events';
 
 /** Saturated palette used when a slug does not match a named category. */
 const FALLBACK_PALETTE = [
-  '#E23E57',
-  '#2A9D8F',
-  '#7C3AED',
-  '#F4A261',
+  '#0E8A7D',
   '#2563EB',
+  '#7C3AED',
+  '#EA580C',
   '#DB2777',
   '#CA8A04',
+  '#0284C7',
   '#059669',
 ] as const;
 
@@ -46,7 +46,7 @@ const NAMED_COLORS: Record<string, string> = {
   tech: '#0F766E',
 };
 
-const DEFAULT_PIN = '#E23E57';
+const DEFAULT_PIN = '#0E8A7D';
 
 function hashKey(key: string): number {
   let hash = 0;

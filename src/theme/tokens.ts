@@ -1,6 +1,6 @@
 /**
  * Single source of truth for visual design tokens.
- * Adjust colors, spacing, type, and tab metrics here — both modes update together.
+ * Light marketplace shell inspired by listing-map apps (teal accent, not a brand copy).
  */
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -52,13 +52,13 @@ const radius = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
+  xl: 20,
   full: 9999,
 } as const;
 
 const typography = {
-  title: { fontSize: 28, fontWeight: '700' as const, lineHeight: 34 },
-  heading: { fontSize: 20, fontWeight: '600' as const, lineHeight: 26 },
+  title: { fontSize: 26, fontWeight: '700' as const, lineHeight: 32 },
+  heading: { fontSize: 20, fontWeight: '700' as const, lineHeight: 26 },
   body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 22 },
   caption: { fontSize: 13, fontWeight: '500' as const, lineHeight: 18 },
   tabLabel: { fontSize: 11, fontWeight: '600' as const, lineHeight: 14 },
@@ -74,67 +74,74 @@ const tabBarMetrics = {
 
 const shadows = {
   fab: {
-    shadowColor: '#3B1F14',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#08332E',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 8,
   },
   soft: {
-    shadowColor: '#3B1F14',
-    shadowOffset: { width: 0, height: 3 },
+    shadowColor: '#08332E',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  card: {
+    shadowColor: '#08332E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
   },
 } as const;
 
 const lightColors: ThemeColors = {
-  primary: '#E23E57',
-  primaryMuted: '#FFE0E4',
+  primary: '#0E8A7D',
+  primaryMuted: '#D7F4EF',
   onPrimary: '#FFFFFF',
-  accent: '#F4A261',
-  onAccent: '#2B1D16',
-  background: '#FFF6EE',
+  accent: '#0B6E64',
+  onAccent: '#FFFFFF',
+  background: '#F3F7F6',
   surface: '#FFFFFF',
-  surfaceElevated: '#FFF1E4',
-  text: '#2B1D16',
-  textSecondary: '#6B4E3D',
-  textMuted: '#A07C66',
-  border: '#F0DCC8',
-  hairline: '#F3E2D2',
-  tabBar: '#FFFBF7',
-  tabInactive: '#9A7B68',
+  surfaceElevated: '#EEF6F4',
+  text: '#12211F',
+  textSecondary: '#3D5652',
+  textMuted: '#6B817C',
+  border: '#D5E5E1',
+  hairline: '#E4EEEC',
+  tabBar: '#FFFFFF',
+  tabInactive: '#7A908C',
   success: '#0F9F6E',
   warning: '#D97706',
   danger: '#DC2626',
-  overlay: 'rgba(43, 29, 22, 0.42)',
+  overlay: 'rgba(18, 33, 31, 0.45)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#2B1D16',
+  pinOutline: '#12211F',
 };
 
 const darkColors: ThemeColors = {
-  primary: '#FF6B81',
-  primaryMuted: '#4A1F28',
-  onPrimary: '#2B1014',
-  accent: '#F4A261',
-  onAccent: '#2B1D16',
-  background: '#16100C',
-  surface: '#231812',
-  surfaceElevated: '#2F2118',
-  text: '#FFF4EA',
-  textSecondary: '#D9B9A4',
-  textMuted: '#A07C66',
-  border: '#3D2A20',
-  hairline: '#2C1D16',
-  tabBar: '#1C1410',
-  tabInactive: '#B08C76',
+  primary: '#2DD4BF',
+  primaryMuted: '#134E48',
+  onPrimary: '#06201C',
+  accent: '#5EEAD4',
+  onAccent: '#06201C',
+  background: '#0C1413',
+  surface: '#16201E',
+  surfaceElevated: '#1C2A27',
+  text: '#F3FBFA',
+  textSecondary: '#C5D9D5',
+  textMuted: '#8AA39E',
+  border: '#2A3C38',
+  hairline: '#1E2C29',
+  tabBar: '#101917',
+  tabInactive: '#8AA39E',
   success: '#34D399',
   warning: '#FBBF24',
   danger: '#F87171',
   overlay: 'rgba(0, 0, 0, 0.58)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#1A120C',
+  pinOutline: '#0C1413',
 };
 
 export const palettes: Record<ColorSchemeName, ThemeColors> = {

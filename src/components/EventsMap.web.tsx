@@ -19,7 +19,9 @@ import type { Region } from 'react-native-maps';
 import { colorForCategory, useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
+import { clusterPins, regionForCluster } from '../utils/clusterPins';
 import { isEventLive } from '../utils/eventLive';
+import { formatPinBadge } from '../utils/eventFormat';
 
 export type EventsMapHandle = {
   animateToRegion: (region: Region, durationMs?: number) => void;
@@ -31,6 +33,7 @@ type EventsMapProps = {
   userGeo?: UserGeo | null;
   selectedEventId?: string | null;
   isLoading?: boolean;
+  mapRegion?: Region | null;
   onRegionChangeComplete?: (region: Region) => void;
   onMarkerPress?: (pin: EventMapPin) => void;
   onMapPress?: () => void;
@@ -50,17 +53,28 @@ function buildLeafletHtml(
   selectedEventId: string | null | undefined,
 ): string {
   const nowMs = Date.now();
-  const markers = pins
-    .filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude))
-    .map((p) => ({
-      id: p.event_id,
-      lat: Number(p.latitude),
-      lng: Number(p.longitude),
-      title: escapeHtml(p.title ?? 'Event'),
-      selected: p.event_id === selectedEventId,
-      live: isEventLive(p, nowMs),
-      color: colorForCategory(p.primary_category),
-    }));
+  const clusters = clusterPins(pins, region);
+  const markers = clusters.map((cluster) => {
+    const pin = cluster.pins[0];
+    return {
+      id: cluster.count > 1 ? cluster.id : pin.event_id,
+      eventId: pin.event_id,
+      lat: cluster.latitude,
+      lng: cluster.longitude,
+      count: cluster.count,
+      title: escapeHtml(pin.title ?? 'Event'),
+      label: escapeHtml(
+        cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin),
+      ),
+      selected: cluster.count === 1 && pin.event_id === selectedEventId,
+      live: cluster.count === 1 && isEventLive(pin, nowMs),
+      color: colorForCategory(pin.primary_category),
+      zoomLat: cluster.count > 1 ? regionForCluster(cluster).latitude : null,
+      zoomLng: cluster.count > 1 ? regionForCluster(cluster).longitude : null,
+      zoomDelta:
+        cluster.count > 1 ? regionForCluster(cluster).latitudeDelta : null,
+    };
+  });
 
   const centerLat = region.latitude;
   const centerLng = region.longitude;
@@ -77,39 +91,50 @@ function buildLeafletHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { height: 100%; margin: 0; background: #f4efe6; }
+    html, body, #map { height: 100%; margin: 0; background: #eef4f2; }
     .pin-label { font: 12px/1.2 system-ui, sans-serif; }
-    .evt-wrap { position: relative; width: 28px; height: 36px; }
-    .evt-dot {
-      width: 16px; height: 16px; border-radius: 50%;
-      background: var(--c, #E23E57);
-      border: 3px solid #fff;
-      box-shadow: 0 0 0 1.5px rgba(43,29,22,.55), 0 2px 5px rgba(43,29,22,.28);
-      position: absolute; left: 6px; top: 8px;
+    .evt-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+    .evt-badge {
+      background: var(--c, #0E8A7D);
+      color: #fff;
+      font: 800 11px/1.2 system-ui, sans-serif;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(8,51,46,.28);
+      white-space: nowrap;
+      max-width: 132px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .evt-wrap.live .evt-dot::after {
+    .evt-wrap.selected .evt-badge {
+      font-size: 12px;
+      padding: 5px 10px;
+      box-shadow: 0 0 0 3px rgba(14,138,125,.28), 0 3px 8px rgba(8,51,46,.35);
+    }
+    .evt-wrap.cluster .evt-badge {
+      min-width: 32px;
+      min-height: 32px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      padding: 0 8px;
+    }
+    .evt-caret {
+      width: 0; height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 7px solid var(--c, #0E8A7D);
+      margin-top: -1px;
+      filter: drop-shadow(0 1px 1px rgba(8,51,46,.25));
+    }
+    .evt-wrap.live .evt-badge::after {
       content: '';
       position: absolute; inset: -7px; border-radius: 50%;
-      border: 2px solid var(--c, #E23E57);
+      border: 2px solid var(--c, #0E8A7D);
       animation: pulse 1.4s ease-out infinite;
-    }
-    .evt-wrap.selected { height: 40px; }
-    .evt-wrap.selected .evt-dot {
-      width: 22px; height: 22px; left: 3px; top: 0;
-      box-shadow: 0 0 0 3px rgba(226,62,87,.28), 0 0 0 5px #fff, 0 3px 8px rgba(43,29,22,.35);
-    }
-    .evt-wrap.selected .evt-core {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #fff; border: 1px solid rgba(43,29,22,.55);
-      position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-    }
-    .evt-wrap.selected .evt-tip {
-      width: 0; height: 0;
-      border-left: 7px solid transparent;
-      border-right: 7px solid transparent;
-      border-top: 10px solid var(--c, #E23E57);
-      position: absolute; left: 7px; top: 18px;
-      filter: drop-shadow(0 1px 1px rgba(43,29,22,.35));
     }
     @keyframes pulse {
       from { opacity: .55; transform: scale(1); }
@@ -127,20 +152,28 @@ function buildLeafletHtml(
       attribution: '&copy; OpenStreetMap, HOT'
     }).addTo(map);
     for (const p of pins) {
-      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.live ? ' live' : '');
-      const html = p.selected
-        ? '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-dot"><div class="evt-core"></div></div><div class="evt-tip"></div></div>'
-        : '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-dot"></div></div>';
+      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.live ? ' live' : '') + (p.count > 1 ? ' cluster' : '');
+      const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
       const icon = L.divIcon({
         className: '',
         html,
-        iconSize: p.selected ? [28, 40] : [28, 32],
-        iconAnchor: p.selected ? [14, 38] : [14, 16],
+        iconSize: [88, 40],
+        iconAnchor: [44, 38],
       });
-      const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.live ? 400 : 0 }).addTo(map);
+      const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.count > 1 ? 500 : p.live ? 400 : 0 }).addTo(map);
       marker.bindPopup('<div class="pin-label"><strong>' + p.title + '</strong></div>');
       marker.on('click', () => {
-        window.parent.postMessage({ type: 'map-pin', eventId: p.id }, '*');
+        if (p.count > 1 && p.zoomLat != null) {
+          window.parent.postMessage({
+            type: 'map-cluster',
+            latitude: p.zoomLat,
+            longitude: p.zoomLng,
+            latitudeDelta: p.zoomDelta,
+            longitudeDelta: p.zoomDelta,
+          }, '*');
+          return;
+        }
+        window.parent.postMessage({ type: 'map-pin', eventId: p.eventId }, '*');
       });
     }
     window.addEventListener('message', (ev) => {
@@ -173,6 +206,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       initialRegion,
       selectedEventId,
       isLoading = false,
+      mapRegion,
       onRegionChangeComplete,
       onMarkerPress,
       onMapPress,
@@ -216,6 +250,28 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           if (pin) onMarkerPress?.(pin);
         } else if (data.type === 'map-press') {
           onMapPress?.();
+        } else if (data.type === 'map-cluster') {
+          onRegionChangeComplete?.({
+            latitude: data.latitude,
+            longitude: data.longitude,
+            latitudeDelta: data.latitudeDelta,
+            longitudeDelta: data.longitudeDelta,
+          });
+          iframeRef.current?.contentWindow?.postMessage(
+            {
+              type: 'map-animate',
+              lat: data.latitude,
+              lng: data.longitude,
+              zoom: Math.max(
+                11,
+                Math.min(
+                  15,
+                  Math.round(Math.log2(360 / Math.max(data.latitudeDelta, 0.02))),
+                ),
+              ),
+            },
+            '*',
+          );
         } else if (data.type === 'map-region') {
           onRegionChangeComplete?.({
             latitude: data.latitude,
@@ -230,14 +286,14 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
     }, [onMarkerPress, onMapPress, onRegionChangeComplete, pinsById]);
 
     const html = useMemo(
-      () => buildLeafletHtml(pins, initialRegion, selectedEventId),
-      // Rebuild when pin set / selection / center seed changes
+      () => buildLeafletHtml(pins, mapRegion ?? initialRegion, selectedEventId),
+      // Rebuild on pin set / selection / search seed — not every camera pan
       // eslint-disable-next-line react-hooks/exhaustive-deps
       [pins, selectedEventId, initialRegion.latitude, initialRegion.longitude, initialRegion.latitudeDelta],
     );
 
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <iframe
           ref={iframeRef as never}
           title="Events map"
@@ -250,7 +306,13 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           }}
         />
         {isLoading ? (
-          <View style={styles.loadingOverlay} pointerEvents="none">
+          <View
+            style={[
+              styles.loadingOverlay,
+              { backgroundColor: `${colors.background}66` },
+            ]}
+            pointerEvents="none"
+          >
             <ActivityIndicator color={colors.primary} size="large" />
           </View>
         ) : null}
@@ -263,12 +325,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#f4efe6',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,246,238,0.4)',
   },
 });

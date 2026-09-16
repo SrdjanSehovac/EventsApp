@@ -39,15 +39,66 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.xl }}
       >
-        <Text style={[typography.title, { color: colors.text }]}>Profile</Text>
+        <Text style={[typography.title, { color: colors.text }]}>Saved</Text>
         <Text
           style={[
             typography.caption,
             { color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
           ]}
         >
-          Account, calendar, submissions, and business posting
+          Favourites, account, and posting
         </Text>
+
+        {shouldShowFavouritesError(favouritesQuery.error) ? (
+          <Text
+            style={[
+              typography.caption,
+              { color: colors.danger, marginBottom: spacing.md },
+            ]}
+          >
+            {favouritesQuery.error instanceof Error
+              ? favouritesQuery.error.message
+              : 'Could not load saved events.'}
+          </Text>
+        ) : null}
+
+        {isSignedIn && favouritesQuery.isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginBottom: spacing.lg }} />
+        ) : (
+          <MyCalendar
+            items={favouritesQuery.data?.items ?? []}
+            signedIn={isSignedIn}
+            onSignIn={() => router.push('/sign-in')}
+          />
+        )}
+
+        {isSignedIn ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View all favourites"
+            onPress={() => router.push('/favourites')}
+            style={[
+              styles.linkRow,
+              shadows.soft,
+              {
+                marginTop: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: radius.lg,
+              },
+            ]}
+          >
+            <Ionicons name="heart" size={18} color={colors.danger} />
+            <Text
+              style={[
+                typography.body,
+                { color: colors.text, fontWeight: '600', flex: 1, marginLeft: spacing.sm },
+              ]}
+            >
+              All saved events
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
 
         <View
           style={[
@@ -55,16 +106,16 @@ export default function ProfileScreen() {
             shadows.soft,
             {
               backgroundColor: colors.surface,
-              borderColor: colors.border,
               borderRadius: radius.lg,
-              marginBottom: spacing.lg,
+              marginTop: spacing.xl,
+              marginBottom: spacing.md,
             },
           ]}
         >
           <View
             style={[
               styles.avatar,
-              { backgroundColor: colors.primaryMuted, borderColor: colors.primary },
+              { backgroundColor: colors.primaryMuted },
             ]}
           >
             {isSignedIn ? (
@@ -94,7 +145,7 @@ export default function ProfileScreen() {
             ) : (
               <>
                 <Text style={[typography.heading, { color: colors.text }]}>
-                  Welcome
+                  Account
                 </Text>
                 <Text
                   style={[
@@ -102,7 +153,7 @@ export default function ProfileScreen() {
                     { color: colors.textSecondary, marginTop: 2 },
                   ]}
                 >
-                  Sign in to save favourites across devices.
+                  Sign in to save events across devices.
                 </Text>
               </>
             )}
@@ -119,7 +170,7 @@ export default function ProfileScreen() {
               {
                 borderColor: colors.border,
                 backgroundColor: colors.surface,
-                borderRadius: radius.md,
+                borderRadius: radius.full,
                 marginBottom: spacing.lg,
               },
             ]}
@@ -136,7 +187,7 @@ export default function ProfileScreen() {
               onPress={() => router.push('/sign-in')}
               style={[
                 styles.primaryBtn,
-                { backgroundColor: colors.primary, borderRadius: radius.md },
+                { backgroundColor: colors.primary, borderRadius: radius.full },
               ]}
             >
               <Text
@@ -154,7 +205,7 @@ export default function ProfileScreen() {
                 {
                   borderColor: colors.border,
                   backgroundColor: colors.surface,
-                  borderRadius: radius.md,
+                  borderRadius: radius.full,
                 },
               ]}
             >
@@ -174,64 +225,11 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {shouldShowFavouritesError(favouritesQuery.error) ? (
-          <Text
-            style={[
-              typography.caption,
-              { color: colors.danger, marginBottom: spacing.md },
-            ]}
-          >
-            {favouritesQuery.error instanceof Error
-              ? favouritesQuery.error.message
-              : 'Could not load saved events.'}
-          </Text>
-        ) : null}
-
-        {isSignedIn && favouritesQuery.isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginBottom: spacing.lg }} />
-        ) : (
-          <MyCalendar
-            items={favouritesQuery.data?.items ?? []}
-            signedIn={isSignedIn}
-            onSignIn={() => router.push('/sign-in')}
-          />
-        )}
-
-        <View style={{ height: spacing.lg }} />
-
         <MySubmissions
           items={submissionsQuery.data ?? []}
           signedIn={isSignedIn}
           onSignIn={() => router.push('/sign-in')}
         />
-
-        {isSignedIn ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View all favourites"
-            onPress={() => router.push('/favourites')}
-            style={[
-              styles.linkRow,
-              {
-                marginTop: spacing.md,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                borderRadius: radius.md,
-              },
-            ]}
-          >
-            <Ionicons name="heart" size={18} color={colors.primary} />
-            <Text
-              style={[
-                typography.body,
-                { color: colors.text, fontWeight: '600', flex: 1, marginLeft: spacing.sm },
-              ]}
-            >
-              All favourites
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
-        ) : null}
 
         <Pressable
           accessibilityRole="button"
@@ -241,15 +239,14 @@ export default function ProfileScreen() {
             styles.linkRow,
             {
               marginTop: spacing.lg,
-              borderColor: colors.border,
               backgroundColor: colors.surface,
-              borderRadius: radius.md,
+              borderRadius: radius.lg,
             },
           ]}
         >
-          <Ionicons name="settings-outline" size={18} color={colors.textSecondary} />
+          <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
           <View style={{ flex: 1, marginLeft: spacing.sm }}>
-            <Text style={[typography.body, { color: colors.text, fontWeight: '600' }]}>
+            <Text style={[typography.body, { color: colors.textSecondary, fontWeight: '600' }]}>
               Admin tools
             </Text>
             <Text style={[typography.caption, { color: colors.textMuted }]}>
@@ -268,14 +265,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
   },
   avatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -295,6 +290,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 56,
     paddingHorizontal: 14,
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

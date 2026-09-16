@@ -10,6 +10,7 @@ import type { EventListItem } from '../types/events';
 
 type FavouriteButtonProps = {
   item: EventListItem;
+  variant?: 'default' | 'plain' | 'overlay';
 };
 
 function describeFavouriteError(error: unknown) {
@@ -24,8 +25,11 @@ function describeFavouriteError(error: unknown) {
   return 'Could not update favourite.';
 }
 
-export function FavouriteButton({ item }: FavouriteButtonProps) {
-  const { colors } = useTheme();
+export function FavouriteButton({
+  item,
+  variant = 'default',
+}: FavouriteButtonProps) {
+  const { colors, shadows } = useTheme();
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const isFavourite = useIsFavourited(item.event_id);
@@ -48,23 +52,30 @@ export function FavouriteButton({ item }: FavouriteButtonProps) {
     }
   }
 
+  const overlay = variant === 'overlay';
+  const plain = variant === 'plain';
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
       onPress={onPress}
       disabled={toggle.isPending}
+      hitSlop={plain ? 6 : 0}
       style={[
         styles.button,
-        {
-          borderColor: colors.border,
-          opacity: toggle.isPending ? 0.6 : 1,
-        },
+        overlay ? shadows.soft : null,
+        overlay
+          ? { backgroundColor: colors.surface, borderWidth: 0 }
+          : plain
+            ? { borderWidth: 0, width: 32, height: 32 }
+            : { borderColor: colors.border },
+        { opacity: toggle.isPending ? 0.6 : 1 },
       ]}
     >
       <Ionicons
         name={isFavourite ? 'heart' : 'heart-outline'}
-        size={16}
+        size={overlay || plain ? 18 : 16}
         color={isFavourite ? colors.danger : colors.textSecondary}
       />
     </Pressable>

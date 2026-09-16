@@ -10,12 +10,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Region } from 'react-native-maps';
 
+import { useBrowse } from '../../src/browse';
 import {
+  BrowseSearchBar,
   EventsMap,
+  FilterSheet,
   MapEventSheet,
+  MapListToggle,
+  countActiveFilters,
+  filtersToMapParams,
   type EventsMapHandle,
 } from '../../src/components';
-import { useMapEvents, useUserGeo } from '../../src/hooks';
+import { useDebouncedValue, useMapEvents, useUserGeo } from '../../src/hooks';
 import { useTheme } from '../../src/theme';
 import type { EventMapPin } from '../../src/types/events';
 import type { UserGeo } from '../../src/types/common';
@@ -28,10 +34,18 @@ import {
   regionForRadiusKm,
 } from '../../src/utils/mapRegion';
 
+function pinMatchesQuery(pin: EventMapPin, query: string) {
+  if (!query) return true;
+  const haystack = `${pin.title} ${pin.neighbourhood ?? ''}`.toLowerCase();
+  return haystack.includes(query);
+}
+
 export default function MapScreen() {
   const { colors, typography, spacing, radius, shadows, tabBar } = useTheme();
+  const { filters, patchFilters } = useBrowse();
   const geoQuery = useUserGeo();
   const mapRef = useRef<EventsMapHandle>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const resolvedCenter = useMemo<UserGeo | null>(() => {
     if (!geoQuery.isFetched) return null;
@@ -76,15 +90,24 @@ export default function MapScreen() {
     [],
   );
 
-  const mapQuery = useMapEvents(
-    {
-      when: 'today',
+  const mapParams = useMemo(
+    () => ({
+      ...filtersToMapParams(filters),
       radius_km: searchRadiusKm,
       limit: 200,
-    },
-    searchCenter,
-    Boolean(searchCenter),
+    }),
+    [filters, searchRadiusKm],
   );
+
+  const mapQuery = useMapEvents(mapParams, searchCenter, Boolean(searchCenter));
+
+  const debouncedQ = useDebouncedValue(filters.q);
+  const pins = useMemo(() => {
+    const items = mapQuery.data?.items ?? [];
+    const query = debouncedQ.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((pin) => pinMatchesQuery(pin, query));
+  }, [mapQuery.data?.items, debouncedQ]);
 
   const areaDirty =
     mapRegion != null &&
@@ -99,7 +122,7 @@ export default function MapScreen() {
   const isSearching = mapQuery.isFetching && !mapQuery.isLoading;
   const error = mapQuery.error;
   const bottomInset = tabBar.height;
-  const pins = mapQuery.data?.items ?? [];
+  const filterCount = countActiveFilters(filters, { excludeQuery: true });
 
   const onRegionChangeComplete = useCallback((region: Region) => {
     setMapRegion(region);
@@ -153,6 +176,14 @@ export default function MapScreen() {
     );
   }
 
+  const statusLabel = error
+    ? error instanceof Error
+      ? error.message
+      : 'Failed to load map events'
+    : mapQuery.data
+      ? `${pins.length} event${pins.length === 1 ? '' : 's'} in this area`
+      : 'Loading events…';
+
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <EventsMap
@@ -162,40 +193,37 @@ export default function MapScreen() {
         userGeo={geoQuery.data ?? null}
         selectedEventId={selectedPin?.event_id ?? null}
         isLoading={isInitialLoading}
+        mapRegion={mapRegion}
         onRegionChangeComplete={onRegionChangeComplete}
         onMarkerPress={onMarkerPress}
         onMapPress={onMapPress}
       />
 
       <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
+        <BrowseSearchBar
+          value={filters.q}
+          onChangeText={(q) => patchFilters({ q })}
+          onPressFilters={() => setFiltersOpen(true)}
+          filterCount={filterCount}
+        />
         <View
           style={[
-            styles.headerCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-            },
+            styles.countChip,
+            shadows.soft,
+            { backgroundColor: colors.surface, borderRadius: radius.full },
           ]}
         >
-          <View style={styles.headerTitleRow}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[typography.heading, { color: colors.text }]}>Map</Text>
-              <Text
-                style={[
-                  typography.caption,
-                  { color: colors.textSecondary, marginTop: spacing.xs },
-                ]}
-              >
-                {error
-                  ? error instanceof Error
-                    ? error.message
-                    : 'Failed to load map events'
-                  : mapQuery.data
-                    ? `${mapQuery.data.count} events today`
-                    : 'Loading today’s events…'}
-              </Text>
-            </View>
-          </View>
+          <Text
+            style={[
+              typography.caption,
+              {
+                color: error ? colors.danger : colors.textSecondary,
+                fontWeight: '700',
+              },
+            ]}
+          >
+            {statusLabel}
+          </Text>
         </View>
       </SafeAreaView>
 
@@ -208,10 +236,9 @@ export default function MapScreen() {
             disabled={mapQuery.isFetching}
             style={[
               styles.searchButton,
-              shadows.soft,
+              shadows.fab,
               {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
+                backgroundColor: colors.primary,
                 borderRadius: radius.full,
                 opacity: mapQuery.isFetching ? 0.7 : 1,
               },
@@ -219,15 +246,22 @@ export default function MapScreen() {
           >
             {isSearching ? (
               <ActivityIndicator
-                color={colors.primary}
+                color={colors.onPrimary}
                 size="small"
                 style={{ marginRight: spacing.sm }}
               />
-            ) : null}
+            ) : (
+              <Ionicons
+                name="refresh"
+                size={16}
+                color={colors.onPrimary}
+                style={{ marginRight: spacing.sm }}
+              />
+            )}
             <Text
               style={[
                 typography.caption,
-                { color: colors.text, fontWeight: '700' },
+                { color: colors.onPrimary, fontWeight: '800' },
               ]}
             >
               Search this area
@@ -245,8 +279,7 @@ export default function MapScreen() {
           shadows.soft,
           {
             backgroundColor: colors.surface,
-            borderColor: colors.border,
-            bottom: bottomInset + spacing.md,
+            bottom: bottomInset + 64,
           },
         ]}
       >
@@ -259,7 +292,11 @@ export default function MapScreen() {
           bottomInset={bottomInset}
           onClose={() => setSelectedPin(null)}
         />
-      ) : null}
+      ) : (
+        <MapListToggle bottomOffset={bottomInset + spacing.sm} />
+      )}
+
+      <FilterSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} />
     </View>
   );
 }
@@ -280,21 +317,16 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     paddingTop: 8,
+    gap: 10,
   },
-  headerCard: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  countChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   searchWrap: {
     position: 'absolute',
-    top: 110,
+    top: 126,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -304,7 +336,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   recenterButton: {
     position: 'absolute',
@@ -312,7 +343,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -108,7 +108,7 @@ export function MyCalendar({ items, signedIn, onSignIn }: MyCalendarProps) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[typography.heading, { color: colors.text, fontSize: 18 }]}>
-            My Calendar
+            Saved events
           </Text>
           <Text
             style={[
@@ -116,7 +116,7 @@ export function MyCalendar({ items, signedIn, onSignIn }: MyCalendarProps) {
               { color: colors.textSecondary, marginTop: 2 },
             ]}
           >
-            Favourited events, grouped by date
+            Hearted listings, grouped by date
           </Text>
         </View>
       </View>
