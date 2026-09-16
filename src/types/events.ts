@@ -136,6 +136,7 @@ export type EventMapPin = {
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
   neighbourhood?: string | null;
+  city?: string | null;
   distance_m?: number | null;
 };
 

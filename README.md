@@ -1,6 +1,10 @@
 # EventsApp
 
-Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Profile**. Email sign-in, favourites, **Submit an event**, and **Become a business** live on Profile; Admin is behind Profile.
+Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Saved**. Email sign-in, favourites, **Submit an event**, and **Become a business** live on Saved; Admin is behind Saved.
+
+## UX direction
+
+Browse is **map-first**, with search + filters, pin → card, scannable list rows, and a heart to save — the usual listing-map *interaction* model, applied to events. Visuals stay EventsApp: warm cream surfaces, coral primary, category-coloured pins (time / Free / `$`), rounded cards. Not a visual clone of REALTOR.ca; no third-party logos, trademarks, teardrop pin art, or MLS chrome.
 
 ## Run
 
@@ -11,7 +15,7 @@ npx expo start
 
 Point the client at EventServer with `EXPO_PUBLIC_API_URL` (no trailing slash), e.g. `http://192.168.1.10:8000`. Simulators default to `http://localhost:8000` (`10.0.2.2` on Android).
 
-SW Ontario city chips (Toronto, Ottawa, London, Mississauga) sit above the existing city / category / search filters.
+SW Ontario cities (Toronto, Ottawa, London, Mississauga) are available in the filter sheet alongside category, free/ticketed, when, and indoor/outdoor.
 
 ## Auth
 
@@ -32,7 +36,7 @@ If those routes are missing, the sign-in/sign-up screens still render and show a
 
 ## Submit an event
 
-Signed-in users can crowdsource a listing from **Profile → Submit an event** (title, description, city, venue/address, start time, optional price, category). Submissions show under **My submissions** on Profile, including a local cache so v1 works before EventServer grows a moderation queue.
+Signed-in users can crowdsource a listing from **Saved → Submit an event** (title, description, city, venue/address, start time, optional price, category). Submissions show under **My submissions** on Saved, including a local cache so v1 works before EventServer grows a moderation queue.
 
 | Method | Path | Body / notes |
 | --- | --- | --- |
@@ -45,9 +49,9 @@ Suggested EventServer model: pending until staff accept into the public `events`
 
 Low-friction **digital** verification: website + business email. **No government ID upload, face scan, or selfie check** — the app will not add those flows.
 
-From **Profile → Post as a business / Become a business**: business name, website, business email, optional phone, city chips (Toronto / Ottawa / London / Mississauga), and what you are (venue / promoter / retail / other). Copy on the form: *Verify your business email — same domain as your website works best. No ID selfie required.*
+From **Saved → Post as a business / Become a business**: business name, website, business email, optional phone, city chips (Toronto / Ottawa / London / Mississauga), and what you are (venue / promoter / retail / other). Copy on the form: *Verify your business email — same domain as your website works best. No ID selfie required.*
 
-Status screen tracks `pending_email` → `pending_review` → `verified` | `rejected`. Email links can open `eventsapp://business-verify?token=…` (or `/business-verify?token=` / `?code=`). When verified, Profile shows **Posting unlocked** and Submit event gains photos, optional short video URL, and bio.
+Status screen tracks `pending_email` → `pending_review` → `verified` | `rejected`. Email links can open `eventsapp://business-verify?token=…` (or `/business-verify?token=` / `?code=`). When verified, Saved shows **Posting unlocked** and Submit event gains photos, optional short video URL, and bio.
 
 | Method | Path | Body / notes |
 | --- | --- | --- |

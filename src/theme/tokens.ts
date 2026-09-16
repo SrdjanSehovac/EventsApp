@@ -1,6 +1,6 @@
 /**
  * Single source of truth for visual design tokens.
- * Adjust colors, spacing, type, and tab metrics here — both modes update together.
+ * EventsApp brand: warm cream surfaces, coral primary, apricot accent.
  */
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -52,13 +52,13 @@ const radius = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
+  xl: 20,
   full: 9999,
 } as const;
 
 const typography = {
-  title: { fontSize: 28, fontWeight: '700' as const, lineHeight: 34 },
-  heading: { fontSize: 20, fontWeight: '600' as const, lineHeight: 26 },
+  title: { fontSize: 26, fontWeight: '700' as const, lineHeight: 32 },
+  heading: { fontSize: 20, fontWeight: '700' as const, lineHeight: 26 },
   body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 22 },
   caption: { fontSize: 13, fontWeight: '500' as const, lineHeight: 18 },
   tabLabel: { fontSize: 11, fontWeight: '600' as const, lineHeight: 14 },
@@ -75,17 +75,24 @@ const tabBarMetrics = {
 const shadows = {
   fab: {
     shadowColor: '#3B1F14',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.18,
-    shadowRadius: 8,
+    shadowRadius: 12,
     elevation: 8,
   },
   soft: {
     shadowColor: '#3B1F14',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  card: {
+    shadowColor: '#3B1F14',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
   },
 } as const;
 

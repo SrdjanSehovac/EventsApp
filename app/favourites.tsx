@@ -74,7 +74,7 @@ export default function FavouritesScreen() {
           keyExtractor={(item) => item.event_id}
           renderItem={({ item }) => (
             <View style={{ marginBottom: spacing.lg }}>
-              <EventCard item={item} />
+                  <EventCard item={item} variant="listing" />
             </View>
           )}
           ListEmptyComponent={

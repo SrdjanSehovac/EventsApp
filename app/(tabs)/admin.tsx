@@ -65,7 +65,7 @@ export default function AdminScreen() {
         <View style={{ flex: 1 }}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Back to profile"
+            accessibilityLabel="Back to saved"
             onPress={() => {
               if (router.canGoBack()) router.back();
               else router.replace('/profile');
@@ -75,7 +75,7 @@ export default function AdminScreen() {
           >
             <Ionicons name="chevron-back" size={18} color={colors.primary} />
             <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
-              Profile
+              Saved
             </Text>
           </Pressable>
           <Text style={[typography.title, { color: colors.text }]}>Admin</Text>
