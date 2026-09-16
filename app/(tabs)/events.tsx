@@ -84,7 +84,7 @@ export default function EventsScreen() {
 
   const showSidebar = isDesktop;
   const activeFilterCount = countActiveFilters(filters, { excludeQuery: true });
-  const bottomClearance = tabBar.height + spacing.xxl;
+  const bottomClearance = tabBar.height + 80;
 
   const items = eventsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const total = eventsQuery.data?.pages[0]?.meta.total ?? 0;
