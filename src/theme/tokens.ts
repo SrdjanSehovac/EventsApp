@@ -27,6 +27,9 @@ export type ThemeColors = {
   overlay: string;
   pinStroke: string;
   pinOutline: string;
+  header: string;
+  onHeader: string;
+  pinFill: string;
 };
 
 export type ThemeTokens = {
@@ -117,7 +120,10 @@ const lightColors: ThemeColors = {
   danger: '#DC2626',
   overlay: 'rgba(18, 33, 31, 0.45)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#12211F',
+  pinOutline: '#111827',
+  header: '#0B6E64',
+  onHeader: '#FFFFFF',
+  pinFill: '#252A3A',
 };
 
 const darkColors: ThemeColors = {
@@ -142,6 +148,9 @@ const darkColors: ThemeColors = {
   overlay: 'rgba(0, 0, 0, 0.58)',
   pinStroke: '#FFFFFF',
   pinOutline: '#0C1413',
+  header: '#0B6E64',
+  onHeader: '#FFFFFF',
+  pinFill: '#E5E7EB',
 };
 
 export const palettes: Record<ColorSchemeName, ThemeColors> = {

@@ -10,14 +10,14 @@ export type PinCluster = {
   pins: EventMapPin[];
 };
 
-/** Zoomed-in enough that individual listing badges stay readable. */
-const CLUSTER_DELTA = 0.055;
+/** Zoomed-in enough that individual teardrops stay separate. */
+const CLUSTER_DELTA = 0.03;
 
 export function clusterPins(
   pins: EventMapPin[],
   region: Region | null,
 ): PinCluster[] {
-  if (!region || region.latitudeDelta < CLUSTER_DELTA || pins.length < 6) {
+  if (!region || region.latitudeDelta < CLUSTER_DELTA) {
     return pins.map((pin) => ({
       id: pin.event_id,
       latitude: pin.latitude,

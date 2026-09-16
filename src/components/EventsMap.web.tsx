@@ -16,12 +16,11 @@ import {
 } from 'react-native';
 import type { Region } from 'react-native-maps';
 
-import { colorForCategory, useTheme } from '../theme';
+import type { MapBaseType } from '../browse';
+import { useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
-import { clusterPins, regionForCluster } from '../utils/clusterPins';
-import { isEventLive } from '../utils/eventLive';
-import { formatPinBadge } from '../utils/eventFormat';
+import { clusterPins } from '../utils/clusterPins';
 
 export type EventsMapHandle = {
   animateToRegion: (region: Region, durationMs?: number) => void;
@@ -34,8 +33,10 @@ type EventsMapProps = {
   selectedEventId?: string | null;
   isLoading?: boolean;
   mapRegion?: Region | null;
+  mapType?: MapBaseType;
   onRegionChangeComplete?: (region: Region) => void;
   onMarkerPress?: (pin: EventMapPin) => void;
+  onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
 };
 
@@ -51,28 +52,21 @@ function buildLeafletHtml(
   pins: EventMapPin[],
   region: Region,
   selectedEventId: string | null | undefined,
+  mapType: MapBaseType,
 ): string {
-  const nowMs = Date.now();
   const clusters = clusterPins(pins, region);
   const markers = clusters.map((cluster) => {
     const pin = cluster.pins[0];
     return {
       id: cluster.count > 1 ? cluster.id : pin.event_id,
       eventId: pin.event_id,
+      eventIds: cluster.pins.map((item) => item.event_id),
       lat: cluster.latitude,
       lng: cluster.longitude,
       count: cluster.count,
       title: escapeHtml(pin.title ?? 'Event'),
-      label: escapeHtml(
-        cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin),
-      ),
-      selected: cluster.count === 1 && pin.event_id === selectedEventId,
-      live: cluster.count === 1 && isEventLive(pin, nowMs),
-      color: colorForCategory(pin.primary_category),
-      zoomLat: cluster.count > 1 ? regionForCluster(cluster).latitude : null,
-      zoomLng: cluster.count > 1 ? regionForCluster(cluster).longitude : null,
-      zoomDelta:
-        cluster.count > 1 ? regionForCluster(cluster).latitudeDelta : null,
+      label: String(cluster.count),
+      selected: cluster.pins.some((item) => item.event_id === selectedEventId),
     };
   });
 
@@ -82,6 +76,7 @@ function buildLeafletHtml(
     10,
     Math.min(14, Math.round(Math.log2(360 / Math.max(region.latitudeDelta, 0.02)))),
   );
+  const satellite = mapType === 'satellite';
 
   return `<!DOCTYPE html>
 <html>
@@ -92,53 +87,37 @@ function buildLeafletHtml(
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; background: #eef4f2; }
-    .pin-label { font: 12px/1.2 system-ui, sans-serif; }
     .evt-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
-    .evt-badge {
-      background: var(--c, #0E8A7D);
+    .evt-head {
+      background: #252A3A;
       color: #fff;
-      font: 800 11px/1.2 system-ui, sans-serif;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(8,51,46,.28);
-      white-space: nowrap;
-      max-width: 132px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .evt-wrap.selected .evt-badge {
-      font-size: 12px;
-      padding: 5px 10px;
-      box-shadow: 0 0 0 3px rgba(14,138,125,.28), 0 3px 8px rgba(8,51,46,.35);
-    }
-    .evt-wrap.cluster .evt-badge {
+      font: 800 12px/1 system-ui, sans-serif;
       min-width: 32px;
-      min-height: 32px;
+      height: 32px;
+      padding: 0 7px;
       border-radius: 16px;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(17,24,39,.35);
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+    .evt-wrap.selected .evt-head {
+      box-shadow: 0 0 0 3px rgba(11,110,100,.35), 0 3px 8px rgba(17,24,39,.4);
+    }
+    .evt-wrap.cluster .evt-head {
+      min-width: 36px;
+      height: 36px;
+      border-radius: 18px;
       font-size: 13px;
-      padding: 0 8px;
     }
     .evt-caret {
       width: 0; height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 7px solid var(--c, #0E8A7D);
-      margin-top: -1px;
-      filter: drop-shadow(0 1px 1px rgba(8,51,46,.25));
-    }
-    .evt-wrap.live .evt-badge::after {
-      content: '';
-      position: absolute; inset: -7px; border-radius: 50%;
-      border: 2px solid var(--c, #0E8A7D);
-      animation: pulse 1.4s ease-out infinite;
-    }
-    @keyframes pulse {
-      from { opacity: .55; transform: scale(1); }
-      to { opacity: 0; transform: scale(1.8); }
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 9px solid #252A3A;
+      margin-top: -2px;
+      filter: drop-shadow(0 1px 1px rgba(17,24,39,.25));
     }
   </style>
 </head>
@@ -147,30 +126,29 @@ function buildLeafletHtml(
   <script>
     const pins = ${JSON.stringify(markers)};
     const map = L.map('map', { zoomControl: true }).setView([${centerLat}, ${centerLng}], ${zoom});
-    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap, HOT'
-    }).addTo(map);
+    });
+    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri'
+    });
+    (${satellite} ? sat : osm).addTo(map);
     for (const p of pins) {
-      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.live ? ' live' : '') + (p.count > 1 ? ' cluster' : '');
-      const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
+      const cls = 'evt-wrap' + (p.selected ? ' selected' : '') + (p.count > 1 ? ' cluster' : '');
+      const html = '<div class="' + cls + '"><div class="evt-head">' + p.label + '</div><div class="evt-caret"></div></div>';
       const icon = L.divIcon({
         className: '',
         html,
-        iconSize: [88, 40],
-        iconAnchor: [44, 38],
+        iconSize: [40, 44],
+        iconAnchor: [20, 42],
       });
-      const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.count > 1 ? 500 : p.live ? 400 : 0 }).addTo(map);
+      const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.selected ? 600 : p.count > 1 ? 500 : 0 }).addTo(map);
       marker.on('click', (ev) => {
         L.DomEvent.stopPropagation(ev);
-        if (p.count > 1 && p.zoomLat != null) {
-          window.parent.postMessage({
-            type: 'map-cluster',
-            latitude: p.zoomLat,
-            longitude: p.zoomLng,
-            latitudeDelta: p.zoomDelta,
-            longitudeDelta: p.zoomDelta,
-          }, '*');
+        if (p.count > 1) {
+          window.parent.postMessage({ type: 'map-cluster-open', eventIds: p.eventIds }, '*');
           return;
         }
         window.parent.postMessage({ type: 'map-pin', eventId: p.eventId }, '*');
@@ -207,8 +185,10 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       selectedEventId,
       isLoading = false,
       mapRegion,
+      mapType = 'standard',
       onRegionChangeComplete,
       onMarkerPress,
+      onClusterPress,
       onMapPress,
     },
     ref,
@@ -253,28 +233,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
         } else if (data.type === 'map-press') {
           if (Date.now() < ignoreMapPressUntilRef.current) return;
           onMapPress?.();
-        } else if (data.type === 'map-cluster') {
-          onRegionChangeComplete?.({
-            latitude: data.latitude,
-            longitude: data.longitude,
-            latitudeDelta: data.latitudeDelta,
-            longitudeDelta: data.longitudeDelta,
-          });
-          iframeRef.current?.contentWindow?.postMessage(
-            {
-              type: 'map-animate',
-              lat: data.latitude,
-              lng: data.longitude,
-              zoom: Math.max(
-                11,
-                Math.min(
-                  15,
-                  Math.round(Math.log2(360 / Math.max(data.latitudeDelta, 0.02))),
-                ),
-              ),
-            },
-            '*',
-          );
+        } else if (data.type === 'map-cluster-open' && Array.isArray(data.eventIds)) {
+          ignoreMapPressUntilRef.current = Date.now() + 500;
+          const clustered = data.eventIds
+            .map((id: string) => pinsById.get(id))
+            .filter((pin: EventMapPin | undefined): pin is EventMapPin => Boolean(pin));
+          if (clustered.length) onClusterPress?.(clustered);
         } else if (data.type === 'map-region') {
           onRegionChangeComplete?.({
             latitude: data.latitude,
@@ -286,13 +250,13 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       };
       window.addEventListener('message', onMessage);
       return () => window.removeEventListener('message', onMessage);
-    }, [onMarkerPress, onMapPress, onRegionChangeComplete, pinsById]);
+    }, [onMarkerPress, onClusterPress, onMapPress, onRegionChangeComplete, pinsById]);
 
     const html = useMemo(
-      () => buildLeafletHtml(pins, mapRegion ?? initialRegion, selectedEventId),
-      // Rebuild on pin set / selection / search seed — not every camera pan
+      () => buildLeafletHtml(pins, mapRegion ?? initialRegion, selectedEventId, mapType),
+      // Rebuild on pin set / selection / basemap — not every camera pan
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [pins, selectedEventId, initialRegion.latitude, initialRegion.longitude, initialRegion.latitudeDelta],
+      [pins, selectedEventId, mapType, initialRegion.latitude, initialRegion.longitude, initialRegion.latitudeDelta],
     );
 
     return (

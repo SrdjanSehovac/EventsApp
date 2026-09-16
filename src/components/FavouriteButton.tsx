@@ -75,8 +75,8 @@ export function FavouriteButton({
     >
       <Ionicons
         name={isFavourite ? 'heart' : 'heart-outline'}
-        size={overlay || plain ? 18 : 16}
-        color={isFavourite ? colors.danger : colors.textSecondary}
+        size={overlay || plain ? 22 : 16}
+        color={colors.danger}
       />
     </Pressable>
   );

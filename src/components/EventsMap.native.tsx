@@ -17,12 +17,12 @@ import {
 } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
-import { colorForCategory, useTheme } from '../theme';
+import { useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
-import { clusterPins, regionForCluster, type PinCluster } from '../utils/clusterPins';
+import { clusterPins, type PinCluster } from '../utils/clusterPins';
 import { isEventLive } from '../utils/eventLive';
-import { formatPinBadge } from '../utils/eventFormat';
+import type { MapBaseType } from '../browse';
 
 export type EventsMapHandle = {
   animateToRegion: (region: Region, durationMs?: number) => void;
@@ -35,8 +35,10 @@ type EventsMapProps = {
   selectedEventId?: string | null;
   isLoading?: boolean;
   mapRegion?: Region | null;
+  mapType?: MapBaseType;
   onRegionChangeComplete?: (region: Region) => void;
   onMarkerPress?: (pin: EventMapPin) => void;
+  onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
 };
 
@@ -45,8 +47,8 @@ type PinMarkerProps = {
   selected: boolean;
   live: boolean;
   forceTracks: boolean;
+  pinFill: string;
   pinStroke: string;
-  pinOutline: string;
   onPress: (cluster: PinCluster) => void;
 };
 
@@ -55,15 +57,15 @@ const PinMarker = memo(function PinMarker({
   selected,
   live,
   forceTracks,
+  pinFill,
   pinStroke,
-  pinOutline,
   onPress,
 }: PinMarkerProps) {
   const pulse = useRef(new Animated.Value(0)).current;
   const [layoutReady, setLayoutReady] = useState(false);
-  const pin = cluster.pins[0];
-  const fill = colorForCategory(pin?.primary_category);
-  const label = cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin);
+  const fill = pinFill;
+  const label = String(cluster.count);
+  const size = cluster.count > 9 ? 40 : cluster.count > 1 ? 36 : 28;
 
   useEffect(() => {
     setLayoutReady(false);
@@ -134,25 +136,18 @@ const PinMarker = memo(function PinMarker({
         ) : null}
         <View
           style={[
-            cluster.count > 1 ? styles.cluster : styles.badge,
-            selected && styles.badgeSelected,
+            styles.teardrop,
+            selected && styles.teardropSelected,
             {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
               backgroundColor: fill,
               borderColor: pinStroke,
-              shadowColor: pinOutline,
             },
           ]}
         >
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.badgeText,
-              cluster.count > 1 && styles.clusterText,
-              selected && styles.badgeTextSelected,
-            ]}
-          >
-            {label}
-          </Text>
+          <Text style={styles.badgeText}>{label}</Text>
         </View>
         <View style={[styles.caret, { borderTopColor: fill }]} />
       </View>
@@ -169,8 +164,10 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       selectedEventId,
       isLoading = false,
       mapRegion,
+      mapType = 'standard',
       onRegionChangeComplete,
       onMarkerPress,
+      onClusterPress,
       onMapPress,
     },
     ref,
@@ -221,6 +218,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           ref={mapRef}
           style={styles.map}
           initialRegion={initialRegion}
+          mapType={mapType === 'satellite' ? 'satellite' : 'standard'}
           showsUserLocation={Boolean(userGeo)}
           showsMyLocationButton={false}
           onRegionChangeComplete={onRegionChangeComplete}
@@ -230,8 +228,9 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           }}
         >
           {clusters.map((cluster) => {
-            const selected =
-              cluster.count === 1 && cluster.pins[0]?.event_id === selectedEventId;
+            const selected = cluster.pins.some(
+              (pin) => pin.event_id === selectedEventId,
+            );
             const live =
               cluster.count === 1 && isEventLive(cluster.pins[0], nowMs);
             return (
@@ -241,12 +240,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
                 selected={selected}
                 live={live}
                 pinStroke={colors.pinStroke}
-                pinOutline={colors.pinOutline}
+                pinFill={colors.pinFill}
                 forceTracks={cluster.id === redrawId}
                 onPress={(next) => {
                   ignoreMapPressUntilRef.current = Date.now() + 400;
                   if (next.count > 1) {
-                    mapRef.current?.animateToRegion(regionForCluster(next), 380);
+                    onClusterPress?.(next.pins);
                     return;
                   }
                   onMarkerPress?.(next.pins[0]);
@@ -296,52 +295,31 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     top: 6,
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 2,
-    maxWidth: 128,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
-    elevation: 4,
-  },
-  badgeSelected: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  cluster: {
-    minWidth: 32,
-    minHeight: 32,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    borderWidth: 3,
+  teardrop: {
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    shadowColor: '#111827',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.35,
     shadowRadius: 2,
     elevation: 4,
+  },
+  teardropSelected: {
+    borderWidth: 3,
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  badgeTextSelected: {
     fontSize: 12,
-  },
-  clusterText: {
-    fontSize: 13,
+    fontWeight: '800',
   },
   caret: {
     width: 0,
     height: 0,
-    marginTop: -1,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
+    marginTop: -2,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 9,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },

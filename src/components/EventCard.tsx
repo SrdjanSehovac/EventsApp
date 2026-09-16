@@ -12,7 +12,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
-import { formatEventPrice, formatFactsRow } from '../utils/eventFormat';
+import {
+  formatEventPlace,
+  formatEventPrice,
+  formatFactsRow,
+  formatMetaRow,
+  formatPriceLike,
+} from '../utils/eventFormat';
 import { FavouriteButton } from './FavouriteButton';
 
 type EventCardVariant = 'card' | 'listing' | 'preview';
@@ -35,6 +41,9 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const categoryColor = colorForCategory(item.primary_category);
   const facts = formatFactsRow(item);
   const price = formatEventPrice(item);
+  const priceLike = formatPriceLike(item);
+  const place = formatEventPlace(item);
+  const meta = formatMetaRow(item);
 
   async function openSource() {
     if (!item.source_url) return;
@@ -84,10 +93,9 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
       <View
         style={[
           styles.listing,
-          shadows.card,
           {
             backgroundColor: colors.surface,
-            borderRadius: radius.lg,
+            borderBottomColor: colors.hairline,
           },
         ]}
       >
@@ -100,45 +108,33 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           <View style={styles.listingImage}>{hero}</View>
           <View style={styles.listingBody}>
             <Text
-              numberOfLines={2}
+              numberOfLines={1}
               style={[
-                typography.body,
-                { color: colors.text, fontWeight: '700', paddingRight: 28 },
+                typography.heading,
+                { color: colors.primary, fontSize: 20, lineHeight: 24 },
               ]}
             >
-              {item.title}
+              {priceLike}
             </Text>
             <Text
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
+                { color: colors.text, marginTop: 4, fontWeight: '600' },
               ]}
             >
-              {facts}
+              {place}
             </Text>
-            {item.primary_category ? (
-              <Text
-                numberOfLines={1}
-                style={[
-                  typography.caption,
-                  { color: categoryColor, marginTop: 4, fontWeight: '700' },
-                ]}
-              >
-                {item.primary_category.name}
-              </Text>
-            ) : null}
-            {item.summary ? (
-              <Text
-                numberOfLines={2}
-                style={[
-                  typography.caption,
-                  { color: colors.textMuted, marginTop: 4 },
-                ]}
-              >
-                {item.summary}
-              </Text>
-            ) : null}
+            <Text
+              numberOfLines={1}
+              style={[
+                typography.caption,
+                { color: colors.textSecondary, marginTop: 3 },
+              ]}
+            >
+              {item.title}
+              {meta ? ` · ${meta}` : ''}
+            </Text>
           </View>
         </Pressable>
         <View style={styles.listingHeart}>
@@ -388,28 +384,33 @@ const styles = StyleSheet.create({
   listing: {
     flexDirection: 'row',
     overflow: 'hidden',
-    minHeight: 118,
+    minHeight: 88,
     position: 'relative',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   listingMain: {
     flex: 1,
     flexDirection: 'row',
     minWidth: 0,
+    alignItems: 'center',
   },
   listingImage: {
-    width: 118,
-    height: 118,
+    width: 96,
+    height: 72,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   listingBody: {
     flex: 1,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    paddingRight: 40,
+    paddingRight: 36,
     justifyContent: 'center',
   },
   listingHeart: {
     position: 'absolute',
-    top: 6,
+    top: 8,
     right: 4,
   },
 });

@@ -7,16 +7,16 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Region } from 'react-native-maps';
 
 import { useBrowse } from '../../src/browse';
 import {
-  BrowseSearchBar,
+  BrowseHeader,
   EventsMap,
   FilterSheet,
+  ListPaneChevron,
   MapEventSheet,
-  MapListToggle,
+  MapTypeToggle,
   countActiveFilters,
   filtersToMapParams,
   type EventsMapHandle,
@@ -42,7 +42,7 @@ function pinMatchesQuery(pin: EventMapPin, query: string) {
 
 export default function MapScreen() {
   const { colors, typography, spacing, radius, shadows, tabBar } = useTheme();
-  const { filters, patchFilters } = useBrowse();
+  const { filters, patchFilters, mapType, setMapType } = useBrowse();
   const geoQuery = useUserGeo();
   const mapRef = useRef<EventsMapHandle>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -55,11 +55,9 @@ export default function MapScreen() {
   const [searchCenter, setSearchCenter] = useState<UserGeo | null>(null);
   const [searchRadiusKm, setSearchRadiusKm] = useState(INITIAL_RADIUS_KM);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
-  /** Last camera region that matches the active search (after map settle). */
   const [baselineRegion, setBaselineRegion] = useState<Region | null>(null);
-  const [selectedPin, setSelectedPin] = useState<EventMapPin | null>(null);
+  const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
   const cameraSeedRef = useRef<Region | null>(null);
-  /** While true, region updates refresh the search baseline (initial load / recenter). */
   const adoptNextRegionRef = useRef(true);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -133,7 +131,7 @@ export default function MapScreen() {
 
   const onSearchThisArea = useCallback(() => {
     if (!mapRegion) return;
-    setSelectedPin(null);
+    setSelectedPins(null);
     setSearchCenter(geoFromRegion(mapRegion));
     setSearchRadiusKm(radiusKmFromRegion(mapRegion));
     setBaselineRegion(mapRegion);
@@ -142,21 +140,13 @@ export default function MapScreen() {
   const onRecenter = useCallback(() => {
     if (!resolvedCenter) return;
     const next = regionForRadiusKm(resolvedCenter, INITIAL_RADIUS_KM);
-    setSelectedPin(null);
+    setSelectedPins(null);
     beginProgrammaticMove();
     setSearchCenter(resolvedCenter);
     setSearchRadiusKm(INITIAL_RADIUS_KM);
     setMapRegion(next);
     mapRef.current?.animateToRegion(next);
   }, [resolvedCenter, beginProgrammaticMove]);
-
-  const onMarkerPress = useCallback((pin: EventMapPin) => {
-    setSelectedPin(pin);
-  }, []);
-
-  const onMapPress = useCallback(() => {
-    setSelectedPin(null);
-  }, []);
 
   if (!searchCenter || !cameraSeedRef.current) {
     return (
@@ -181,122 +171,139 @@ export default function MapScreen() {
       ? error.message
       : 'Failed to load map events'
     : mapQuery.data
-      ? `${pins.length} event${pins.length === 1 ? '' : 's'} in this area`
-      : 'Loading events…';
+      ? `${pins.length} Events`
+      : 'Loading…';
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <EventsMap
-        ref={mapRef}
-        pins={pins}
-        initialRegion={cameraSeedRef.current}
-        userGeo={geoQuery.data ?? null}
-        selectedEventId={selectedPin?.event_id ?? null}
-        isLoading={isInitialLoading}
-        mapRegion={mapRegion}
-        onRegionChangeComplete={onRegionChangeComplete}
-        onMarkerPress={onMarkerPress}
-        onMapPress={onMapPress}
+      <BrowseHeader
+        value={filters.q}
+        onChangeText={(q) => patchFilters({ q })}
+        onPressFilters={() => setFiltersOpen(true)}
+        filterCount={filterCount}
       />
-
-      <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
-        <BrowseSearchBar
-          value={filters.q}
-          onChangeText={(q) => patchFilters({ q })}
-          onPressFilters={() => setFiltersOpen(true)}
-          filterCount={filterCount}
+      <View style={styles.mapStage}>
+        <EventsMap
+          ref={mapRef}
+          pins={pins}
+          initialRegion={cameraSeedRef.current}
+          userGeo={geoQuery.data ?? null}
+          selectedEventId={selectedPins?.[0]?.event_id ?? null}
+          isLoading={isInitialLoading}
+          mapRegion={mapRegion}
+          mapType={mapType}
+          onRegionChangeComplete={onRegionChangeComplete}
+          onMarkerPress={(pin) => setSelectedPins([pin])}
+          onClusterPress={setSelectedPins}
+          onMapPress={() => setSelectedPins(null)}
         />
-        <View
-          style={[
-            styles.countChip,
-            shadows.soft,
-            { backgroundColor: colors.surface, borderRadius: radius.full },
-          ]}
-        >
-          <Text
-            style={[
-              typography.caption,
-              {
-                color: error ? colors.danger : colors.textSecondary,
-                fontWeight: '700',
-              },
-            ]}
-          >
-            {statusLabel}
-          </Text>
-        </View>
-      </SafeAreaView>
 
-      {areaDirty ? (
-        <View style={styles.searchWrap} pointerEvents="box-none">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Search this area"
-            onPress={onSearchThisArea}
-            disabled={mapQuery.isFetching}
+        <View style={styles.mapChrome} pointerEvents="box-none">
+          <MapTypeToggle />
+          <View
             style={[
-              styles.searchButton,
-              shadows.fab,
-              {
-                backgroundColor: colors.primary,
-                borderRadius: radius.full,
-                opacity: mapQuery.isFetching ? 0.7 : 1,
-              },
+              styles.countChip,
+              shadows.soft,
+              { backgroundColor: colors.surface, borderRadius: radius.sm },
             ]}
           >
-            {isSearching ? (
-              <ActivityIndicator
-                color={colors.onPrimary}
-                size="small"
-                style={{ marginRight: spacing.sm }}
-              />
-            ) : (
-              <Ionicons
-                name="refresh"
-                size={16}
-                color={colors.onPrimary}
-                style={{ marginRight: spacing.sm }}
-              />
-            )}
             <Text
               style={[
                 typography.caption,
-                { color: colors.onPrimary, fontWeight: '800' },
+                {
+                  color: error ? colors.danger : colors.text,
+                  fontWeight: '700',
+                },
               ]}
             >
-              Search this area
+              {statusLabel}
             </Text>
-          </Pressable>
+          </View>
         </View>
-      ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Recenter map on my location"
-        onPress={onRecenter}
-        style={[
-          styles.recenterButton,
-          shadows.soft,
-          {
-            backgroundColor: colors.surface,
-            bottom: bottomInset + 64,
-          },
-        ]}
-      >
-        <Ionicons name="locate" size={22} color={colors.primary} />
-      </Pressable>
+        {areaDirty ? (
+          <View style={styles.searchWrap} pointerEvents="box-none">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Search this area"
+              onPress={onSearchThisArea}
+              disabled={mapQuery.isFetching}
+              style={[
+                styles.searchButton,
+                shadows.fab,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: radius.full,
+                  opacity: mapQuery.isFetching ? 0.7 : 1,
+                },
+              ]}
+            >
+              {isSearching ? (
+                <ActivityIndicator
+                  color={colors.onPrimary}
+                  size="small"
+                  style={{ marginRight: spacing.sm }}
+                />
+              ) : (
+                <Ionicons
+                  name="refresh"
+                  size={16}
+                  color={colors.onPrimary}
+                  style={{ marginRight: spacing.sm }}
+                />
+              )}
+              <Text
+                style={[
+                  typography.caption,
+                  { color: colors.onPrimary, fontWeight: '800' },
+                ]}
+              >
+                Search this area
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
 
-      {selectedPin ? (
-        <MapEventSheet
-          pin={selectedPin}
-          bottomInset={bottomInset}
-          onClose={() => setSelectedPin(null)}
-        />
-      ) : (
-        <MapListToggle bottomOffset={bottomInset + spacing.sm} />
-      )}
+        <ListPaneChevron listOpen={false} />
 
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Toggle satellite map"
+          onPress={() =>
+            setMapType(mapType === 'satellite' ? 'standard' : 'satellite')
+          }
+          style={[
+            styles.layersButton,
+            shadows.soft,
+            { backgroundColor: colors.surface, bottom: spacing.lg },
+          ]}
+        >
+          <Ionicons name="layers-outline" size={20} color={colors.text} />
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Recenter map on my location"
+          onPress={onRecenter}
+          style={[
+            styles.recenterButton,
+            shadows.soft,
+            { backgroundColor: colors.surface, bottom: spacing.lg },
+          ]}
+        >
+          <Ionicons name="locate" size={22} color={colors.primary} />
+        </Pressable>
+
+        {selectedPins?.length ? (
+          <MapEventSheet
+            pins={selectedPins}
+            bottomInset={8}
+            onClose={() => setSelectedPins(null)}
+          />
+        ) : null}
+      </View>
       <FilterSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} />
+      <View style={{ height: bottomInset }} />
     </View>
   );
 }
@@ -310,23 +317,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  header: {
+  mapStage: {
+    flex: 1,
+    position: 'relative',
+  },
+  mapChrome: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    gap: 10,
+    top: 10,
+    left: 36,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   countChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   searchWrap: {
     position: 'absolute',
-    top: 126,
+    top: 54,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -337,9 +347,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  layersButton: {
+    position: 'absolute',
+    left: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recenterButton: {
     position: 'absolute',
-    right: 16,
+    right: 12,
     width: 44,
     height: 44,
     borderRadius: 22,

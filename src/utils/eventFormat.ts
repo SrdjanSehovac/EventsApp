@@ -77,3 +77,18 @@ export function formatPinBadge(item: PriceLike & WhenLike): string {
   );
   return parts.length > 0 ? parts.join(' · ') : 'Event';
 }
+
+/** Large listing fact — realtor price equivalent. */
+export function formatPriceLike(item: PriceLike & WhenLike): string {
+  return formatEventPrice(item) ?? formatPinTime(item.starts_at) ?? 'Soon';
+}
+
+export function formatMetaRow(
+  item: PlaceLike & WhenLike & { primary_category?: { name?: string } | null },
+): string {
+  const parts = [
+    item.primary_category?.name,
+    formatPinTime(item.starts_at),
+  ].filter((part): part is string => Boolean(part));
+  return parts.join(' · ');
+}

@@ -13,6 +13,8 @@ import {
 } from '../components/EventFilters';
 import type { PublicSortField } from '../types/events';
 
+export type MapBaseType = 'standard' | 'satellite';
+
 type BrowseContextValue = {
   filters: EventsFilterState;
   setFilters: (next: EventsFilterState) => void;
@@ -21,6 +23,8 @@ type BrowseContextValue = {
   setSort: (next: PublicSortField) => void;
   sortTouched: boolean;
   setSortTouched: (next: boolean) => void;
+  mapType: MapBaseType;
+  setMapType: (next: MapBaseType) => void;
 };
 
 const BrowseContext = createContext<BrowseContextValue | null>(null);
@@ -29,6 +33,7 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
   const [filters, setFilters] = useState<EventsFilterState>(EMPTY_FILTERS);
   const [sort, setSort] = useState<PublicSortField>('starts_at');
   const [sortTouched, setSortTouched] = useState(false);
+  const [mapType, setMapType] = useState<MapBaseType>('standard');
 
   const patchFilters = useCallback((partial: Partial<EventsFilterState>) => {
     setFilters((prev) => ({ ...prev, ...partial }));
@@ -43,8 +48,10 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
       setSort,
       sortTouched,
       setSortTouched,
+      mapType,
+      setMapType,
     }),
-    [filters, patchFilters, sort, sortTouched],
+    [filters, patchFilters, sort, sortTouched, mapType],
   );
 
   return (
