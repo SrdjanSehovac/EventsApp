@@ -1,6 +1,8 @@
 export { EventsMap } from './EventsMap';
 export type { EventsMapHandle } from './EventsMap';
 export { EventCard } from './EventCard';
+export { EventDetailScreen } from './EventDetailScreen';
+export { EventMapSnippet } from './EventMapSnippet';
 export { MyCalendar } from './MyCalendar';
 export { MySubmissions } from './MySubmissions';
 export { BusinessCard } from './BusinessCard';

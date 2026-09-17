@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
@@ -19,6 +20,7 @@ import {
   undatedEvents,
   weekCells,
 } from '../utils/calendar';
+import { eventDetailHref } from '../utils/eventDetail';
 import { FavouriteButton } from './FavouriteButton';
 
 type CalendarMode = 'month' | 'week';
@@ -380,13 +382,8 @@ export function MyCalendar({ items, signedIn, onSignIn }: MyCalendarProps) {
 
 function CalendarEventRow({ item }: { item: EventListItem }) {
   const { colors, typography, spacing, radius } = useTheme();
+  const router = useRouter();
   const place = [item.neighbourhood, item.city].filter(Boolean).join(', ');
-
-  async function openSource() {
-    if (!item.source_url) return;
-    const canOpen = await Linking.canOpenURL(item.source_url);
-    if (canOpen) await Linking.openURL(item.source_url);
-  }
 
   return (
     <View
@@ -403,8 +400,7 @@ function CalendarEventRow({ item }: { item: EventListItem }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${item.title}`}
-        onPress={openSource}
-        disabled={!item.source_url}
+        onPress={() => router.push(eventDetailHref(item.event_id))}
         style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}
       >
         <Text

@@ -69,14 +69,25 @@ export function searchEvents(
   });
 }
 
-export function fetchEvent(
+type EventDetailResponse = EventDetail & {
+  item?: EventDetail;
+  event?: EventDetail;
+  data?: EventDetail;
+};
+
+function unwrapEventDetail(raw: EventDetailResponse): EventDetail {
+  return raw.event ?? raw.item ?? raw.data ?? raw;
+}
+
+export async function fetchEvent(
   eventId: string,
   signal?: AbortSignal,
 ) {
-  return apiRequest<EventDetail>({
+  const raw = await apiRequest<EventDetailResponse>({
     path: `/events/${eventId}`,
     signal,
   });
+  return unwrapEventDetail(raw);
 }
 
 export function fetchSimilarEvents(

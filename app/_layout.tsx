@@ -32,6 +32,7 @@ function RootNavigator() {
         <Stack.Screen name="sign-up" />
         <Stack.Screen name="account" />
         <Stack.Screen name="favourites" />
+        <Stack.Screen name="event/[id]" />
         <Stack.Screen name="submit-event" />
         <Stack.Screen name="become-business" />
         <Stack.Screen name="business" />
