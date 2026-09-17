@@ -212,6 +212,31 @@ export function formatTimeOfDay(
   });
 }
 
+export function dateKeyInZone(
+  value?: string | null,
+  timeZone?: string | null,
+): string | null {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const prefix = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    return prefix?.[1] ?? null;
+  }
+  const zone = isValidTimeZone(timeZone) ? timeZone : undefined;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+  if (!year || !month || !day) return null;
+  return `${year}-${month}-${day}`;
+}
+
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function formatScheduleLines(detail: EventDetail): string[] {
@@ -242,9 +267,9 @@ export function formatScheduleLines(detail: EventDetail): string[] {
     const start = formatWhenWithZone(detail.starts_at, zone, { includeZone: true });
     const end = formatWhenWithZone(detail.ends_at, zone);
     if (start && end && detail.starts_at && detail.ends_at) {
-      const startDay = detail.starts_at.slice(0, 10);
-      const endDay = detail.ends_at.slice(0, 10);
-      if (startDay === endDay) {
+      const startDay = dateKeyInZone(detail.starts_at, zone);
+      const endDay = dateKeyInZone(detail.ends_at, zone);
+      if (startDay && endDay && startDay === endDay) {
         const endTime = formatTimeOfDay(detail.ends_at, zone);
         lines.push(endTime ? `${start} – ${endTime}` : start);
       } else {
@@ -284,8 +309,11 @@ export function formatOccurrenceLine(
   const start = formatWhenWithZone(occurrence.starts_at, timeZone, {
     includeZone: true,
   });
+  const sameDay =
+    dateKeyInZone(occurrence.starts_at, timeZone) ===
+    dateKeyInZone(occurrence.ends_at, timeZone);
   const endTime = formatTimeOfDay(occurrence.ends_at, timeZone);
-  if (start && endTime && occurrence.starts_at.slice(0, 10) === occurrence.ends_at.slice(0, 10)) {
+  if (start && endTime && sameDay) {
     return `${start} – ${endTime}`;
   }
   const end = formatWhenWithZone(occurrence.ends_at, timeZone);

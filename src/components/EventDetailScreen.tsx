@@ -398,6 +398,18 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                       )
                     }
                   />
+                  <Text
+                    style={[
+                      typography.caption,
+                      {
+                        color: colors.textMuted,
+                        marginTop: 6,
+                        fontWeight: '500',
+                      },
+                    ]}
+                  >
+                    Map © OpenStreetMap
+                  </Text>
                 </View>
               ) : null}
             </Section>
@@ -454,7 +466,14 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                       background={tintForCategory(category, '22')}
                     />
                   ))}
-                  {detail.setting ? (
+                  {detail.setting &&
+                  ![primaryCategory, ...extraCategories].some(
+                    (category) =>
+                      category &&
+                      (category.slug === detail.setting ||
+                        category.name.toLowerCase() ===
+                          detail.setting?.toLowerCase()),
+                  ) ? (
                     <Chip
                       label={detail.setting}
                       color={colors.textSecondary}

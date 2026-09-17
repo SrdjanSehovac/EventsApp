@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../theme';
@@ -10,12 +11,17 @@ type EventMapSnippetProps = {
   onPress: () => void;
 };
 
-function embedUrl(lat: number, lng: number): string {
-  const pad = 0.008;
-  const bbox = `${lng - pad},${lat - pad},${lng + pad},${lat + pad}`;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(
-    bbox,
-  )}&layer=mapnik&marker=${lat}%2C${lng}`;
+function osmTileUrl(lat: number, lng: number, zoom = 14): string {
+  const n = 2 ** zoom;
+  const x = Math.floor(((lng + 180) / 360) * n);
+  const latRad = (lat * Math.PI) / 180;
+  const y = Math.floor(
+    ((1 -
+      Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) /
+      2) *
+      n,
+  );
+  return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
 }
 
 export function EventMapSnippet({
@@ -24,6 +30,7 @@ export function EventMapSnippet({
   onPress,
 }: EventMapSnippetProps) {
   const { colors, typography, radius, shadows } = useTheme();
+  const [failed, setFailed] = useState(false);
 
   return (
     <Pressable
@@ -33,20 +40,27 @@ export function EventMapSnippet({
       style={[
         styles.wrap,
         shadows.soft,
-        { borderRadius: radius.lg, borderColor: colors.border },
+        {
+          borderRadius: radius.lg,
+          borderColor: colors.border,
+          backgroundColor: colors.surfaceElevated,
+        },
       ]}
     >
-      <iframe
-        title="Event location map"
-        src={embedUrl(latitude, longitude)}
-        style={{
-          border: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          display: 'block',
-        }}
-      />
+      {failed ? (
+        <View style={styles.fallback}>
+          <Ionicons name="map-outline" size={28} color={colors.primary} />
+        </View>
+      ) : (
+        <Image
+          source={{ uri: osmTileUrl(latitude, longitude) }}
+          style={styles.map}
+          onError={() => setFailed(true)}
+        />
+      )}
+      <View style={styles.pinWrap} pointerEvents="none">
+        <Ionicons name="location" size={28} color={colors.primary} />
+      </View>
       <View
         style={[
           styles.chip,
@@ -70,6 +84,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     position: 'relative',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  fallback: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinWrap: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chip: {
     position: 'absolute',
