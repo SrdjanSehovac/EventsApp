@@ -100,7 +100,14 @@ function buildLeafletHtml(
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; background: ${chrome.background}; }
-    .evt-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
+    .evt-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: transform 140ms ease-out;
+      transform-origin: 50% 100%;
+    }
     .evt-badge {
       background: var(--c, ${chrome.primary});
       color: #fff;
@@ -115,11 +122,22 @@ function buildLeafletHtml(
       min-height: 14px;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: transform 140ms ease-out, border-width 140ms ease-out,
+        box-shadow 140ms ease-out, filter 140ms ease-out, padding 140ms ease-out;
+    }
+    .evt-wrap.selected {
+      transform: scale(1.16);
+      z-index: 700;
     }
     .evt-wrap.selected .evt-badge {
-      font-size: 12px;
-      padding: 5px 10px;
-      box-shadow: 0 0 0 3px ${chrome.primary}47, 0 3px 8px rgba(17,24,39,.28);
+      /* Tighter white ring + stronger category fill + category halo */
+      border-width: 1.5px;
+      padding: 5px 9px;
+      filter: saturate(1.25) brightness(1.08) contrast(1.05);
+      box-shadow:
+        0 0 0 2px #ffffff,
+        0 0 0 5px var(--c, ${chrome.primary}),
+        0 4px 12px rgba(17,24,39,.36);
     }
     .evt-caret {
       width: 0; height: 0;
@@ -128,6 +146,10 @@ function buildLeafletHtml(
       border-top: 7px solid var(--c, ${chrome.primary});
       margin-top: -1px;
       filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
+      transition: filter 140ms ease-out;
+    }
+    .evt-wrap.selected .evt-caret {
+      filter: drop-shadow(0 1px 2px rgba(17,24,39,.35)) saturate(1.18) brightness(1.06);
     }
     .evt-cluster {
       background: ${clusterColor};
@@ -173,11 +195,13 @@ function buildLeafletHtml(
     function pinIcon(p, selected) {
       const cls = 'evt-wrap' + (selected ? ' selected' : '') + (p.live ? ' live' : '');
       const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
+      const w = selected ? 108 : 88;
+      const h = selected ? 50 : 40;
       return L.divIcon({
         className: '',
         html,
-        iconSize: [88, 40],
-        iconAnchor: [44, 38],
+        iconSize: [w, h],
+        iconAnchor: [w / 2, h - 2],
       });
     }
 

@@ -142,27 +142,34 @@ const PinMarker = memo(function PinMarker({
         ) : null}
         <View
           style={[
-            cluster.count > 1 ? styles.cluster : styles.badge,
-            selected && styles.badgeSelected,
-            {
-              backgroundColor: fill,
-              borderColor: pinStroke,
-              shadowColor: pinOutline,
-            },
+            styles.markerScale,
+            selected && styles.markerScaleSelected,
           ]}
         >
-          <Text
-            numberOfLines={1}
+          <View
             style={[
-              styles.badgeText,
-              cluster.count > 1 && styles.clusterText,
-              selected && styles.badgeTextSelected,
+              cluster.count > 1 ? styles.cluster : styles.badge,
+              selected && styles.badgeSelected,
+              {
+                backgroundColor: fill,
+                borderColor: pinStroke,
+                shadowColor: selected ? fill : pinOutline,
+              },
             ]}
           >
-            {label}
-          </Text>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.badgeText,
+                cluster.count > 1 && styles.clusterText,
+                selected && styles.badgeTextSelected,
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+          <View style={[styles.caret, { borderTopColor: fill }]} />
         </View>
-        <View style={[styles.caret, { borderTopColor: fill }]} />
       </View>
     </Marker>
   );
@@ -332,9 +339,20 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 4,
   },
+  markerScale: {
+    alignItems: 'center',
+    transform: [{ scale: 1 }],
+  },
+  markerScaleSelected: {
+    transform: [{ scale: 1.16 }],
+  },
   badgeSelected: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
+    borderWidth: 1.5,
+    shadowOpacity: 0.45,
+    shadowRadius: 4,
+    elevation: 6,
   },
   cluster: {
     minWidth: 32,
@@ -355,7 +373,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   badgeTextSelected: {
-    fontSize: 12,
+    fontSize: 11.5,
   },
   clusterText: {
     fontSize: 13,
