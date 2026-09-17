@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useUserGeo } from '../src/hooks';
 import { AppQueryProvider } from '../src/query';
+import { AuthProvider } from '../src/auth';
 import { ThemeProvider, useTheme } from '../src/theme';
 
 function RootNavigator() {
@@ -25,7 +26,17 @@ function RootNavigator() {
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
         }}
-      />
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="sign-in" />
+        <Stack.Screen name="sign-up" />
+        <Stack.Screen name="account" />
+        <Stack.Screen name="favourites" />
+        <Stack.Screen name="submit-event" />
+        <Stack.Screen name="become-business" />
+        <Stack.Screen name="business" />
+        <Stack.Screen name="business-verify" />
+      </Stack>
     </>
   );
 }
@@ -35,7 +46,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AppQueryProvider>
-          <RootNavigator />
+          <AuthProvider>
+            <RootNavigator />
+          </AuthProvider>
         </AppQueryProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

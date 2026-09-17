@@ -12,11 +12,14 @@ import { useTheme } from '../theme';
 import type { CategoryNode } from '../types/categories';
 import type {
   CityCount,
+  MapEventsParams,
   NeighbourhoodCount,
   PublicEventListParams,
   PublicSortField,
   Ticketing,
+  WhenPreset,
 } from '../types/events';
+import { SW_ONTARIO_CITIES } from '../config/cities';
 import { SelectField } from './SelectField';
 
 export type EventsFilterState = {
@@ -24,6 +27,7 @@ export type EventsFilterState = {
   categorySlugs: string[];
   city: string | null;
   neighbourhood: string | null;
+  when: WhenPreset;
   startsAfter: string;
   startsBefore: string;
   ticketing: Extract<Ticketing, 'free' | 'rsvp' | 'ticketed'> | null;
@@ -36,6 +40,7 @@ export const EMPTY_FILTERS: EventsFilterState = {
   categorySlugs: [],
   city: null,
   neighbourhood: null,
+  when: 'upcoming',
   startsAfter: '',
   startsBefore: '',
   ticketing: null,
@@ -50,12 +55,22 @@ const TICKETING_OPTIONS: { label: string; value: NonNullable<EventsFilterState['
     { label: 'Ticketed', value: 'ticketed' },
   ];
 
+export const WHEN_OPTIONS: { label: string; value: WhenPreset }[] = [
+  { label: 'Now', value: 'now' },
+  { label: 'Today', value: 'today' },
+  { label: 'Tonight', value: 'tonight' },
+  { label: 'Weekend', value: 'weekend' },
+  { label: 'Upcoming', value: 'upcoming' },
+];
+
 type EventFiltersProps = {
   value: EventsFilterState;
   onChange: (next: EventsFilterState) => void;
   categories: CategoryNode[];
   cities: CityCount[];
   neighbourhoods: NeighbourhoodCount[];
+  showSearch?: boolean;
+  showClear?: boolean;
 };
 
 function toggleSlug(slugs: string[], slug: string) {
@@ -108,22 +123,46 @@ export function filtersToParams(
     ticketing: filters.ticketing ?? undefined,
     setting,
     sort,
-    when: hasDateRange ? undefined : 'upcoming',
-    // Keep results near the user for any sort unless they picked a city.
+    when: hasDateRange ? undefined : filters.when,
     radius_km:
       options?.localizeNearUser && !hasCity ? NEARBY_RADIUS_KM : undefined,
+  };
+}
+
+export function filtersToMapParams(
+  filters: EventsFilterState,
+): Pick<
+  MapEventsParams,
+  'city' | 'categories' | 'is_free' | 'when' | 'starts_after' | 'starts_before'
+> {
+  const startsAfter = toIsoDate(filters.startsAfter, false);
+  const startsBefore = toIsoDate(filters.startsBefore, true);
+  const hasDateRange = Boolean(startsAfter || startsBefore);
+
+  return {
+    city: filters.city ?? undefined,
+    categories:
+      filters.categorySlugs.length > 0 ? filters.categorySlugs : undefined,
+    is_free: filters.ticketing === 'free' ? true : undefined,
+    starts_after: startsAfter,
+    starts_before: startsBefore,
+    when: hasDateRange ? undefined : filters.when,
   };
 }
 
 /** Matches server map default so list + map stay in the same area. */
 const NEARBY_RADIUS_KM = 25;
 
-export function countActiveFilters(filters: EventsFilterState) {
+export function countActiveFilters(
+  filters: EventsFilterState,
+  options?: { excludeQuery?: boolean },
+) {
   let count = 0;
-  if (filters.q.trim()) count += 1;
+  if (!options?.excludeQuery && filters.q.trim()) count += 1;
   count += filters.categorySlugs.length;
   if (filters.city) count += 1;
   if (filters.neighbourhood) count += 1;
+  if (filters.when !== EMPTY_FILTERS.when) count += 1;
   if (filters.startsAfter.trim()) count += 1;
   if (filters.startsBefore.trim()) count += 1;
   if (filters.ticketing) count += 1;
@@ -137,6 +176,8 @@ export function EventFilters({
   categories,
   cities,
   neighbourhoods,
+  showSearch = true,
+  showClear = true,
 }: EventFiltersProps) {
   const { colors, typography, spacing, radius } = useTheme();
 
@@ -144,18 +185,35 @@ export function EventFilters({
     onChange({ ...value, ...partial });
   }
 
-  const cityOptions = [
-    { label: 'City: Any', value: null },
-    ...cities.map((city) => ({
-      label: `City: ${city.city}`,
+  const apiByName = new Map(
+    cities.map((city) => [city.city.toLowerCase(), city] as const),
+  );
+  const pinnedCityOptions = SW_ONTARIO_CITIES.map((name) => {
+    const match = apiByName.get(name.toLowerCase());
+    return {
+      label: match?.city ?? name,
+      value: match?.city ?? name,
+    };
+  });
+  const otherCityOptions = cities
+    .filter(
+      (city) =>
+        !SW_ONTARIO_CITIES.some((name) => name.toLowerCase() === city.city.toLowerCase()),
+    )
+    .map((city) => ({
+      label: city.city,
       value: city.city,
-    })),
+    }));
+  const cityOptions = [
+    { label: 'Any city', value: null },
+    ...pinnedCityOptions,
+    ...otherCityOptions,
   ];
 
   const neighbourhoodOptions = [
-    { label: 'Neighbourhood: Any', value: null },
+    { label: 'Any neighbourhood', value: null },
     ...neighbourhoods.map((item) => ({
-      label: `Neighbourhood: ${item.neighbourhood}`,
+      label: item.neighbourhood,
       value: item.neighbourhood,
     })),
   ];
@@ -164,56 +222,112 @@ export function EventFilters({
     typography.caption,
     {
       color: colors.textMuted,
-      letterSpacing: 0.8,
+      letterSpacing: 0.6,
       marginBottom: spacing.sm,
       fontWeight: '700' as const,
+      textTransform: 'uppercase' as const,
     },
   ];
 
   return (
     <View>
-      <View style={[styles.headerRow, { marginBottom: spacing.md }]}>
-        <Text style={sectionLabel}>ACTIVE FILTERS</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Clear all filters"
-          onPress={() => onChange(EMPTY_FILTERS)}
-          hitSlop={8}
+      {showClear ? (
+        <View style={[styles.headerRow, { marginBottom: spacing.md }]}>
+          <Text style={sectionLabel}>Refine</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear all filters"
+            onPress={() => onChange({ ...EMPTY_FILTERS, q: value.q })}
+            hitSlop={8}
+          >
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
+              Reset
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {showSearch ? (
+        <View
+          style={[
+            styles.search,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radius.md,
+              marginBottom: spacing.xl,
+            },
+          ]}
         >
-          <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
-            Clear All
-          </Text>
-        </Pressable>
+          <Ionicons name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            value={value.q}
+            onChangeText={(q) => patch({ q })}
+            placeholder="Search events, neighbourhoods…"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={[
+              typography.body,
+              styles.searchInput,
+              { color: colors.text, marginLeft: spacing.sm },
+            ]}
+          />
+        </View>
+      ) : null}
+
+      <Text style={sectionLabel}>When</Text>
+      <View style={[styles.pillRow, { marginBottom: spacing.xl, gap: spacing.sm }]}>
+        {WHEN_OPTIONS.map((option) => {
+          const selected = value.when === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => patch({ when: option.value })}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: selected ? colors.primary : colors.surface,
+                  borderColor: selected ? colors.primary : colors.border,
+                  borderRadius: radius.full,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  typography.caption,
+                  {
+                    color: selected ? colors.onPrimary : colors.textSecondary,
+                    fontWeight: '700',
+                  },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <View
-        style={[
-          styles.search,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radius.md,
-            marginBottom: spacing.xl,
-          },
-        ]}
-      >
-        <Ionicons name="search" size={16} color={colors.textMuted} />
-        <TextInput
-          value={value.q}
-          onChangeText={(q) => patch({ q })}
-          placeholder="Search events..."
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[
-            typography.body,
-            styles.searchInput,
-            { color: colors.text, marginLeft: spacing.sm },
-          ]}
+      <Text style={sectionLabel}>City</Text>
+      <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
+        <SelectField
+          icon="business-outline"
+          value={value.city}
+          options={cityOptions}
+          onChange={(city) => patch({ city, neighbourhood: null })}
+        />
+        <SelectField
+          icon="location-outline"
+          value={value.neighbourhood}
+          options={neighbourhoodOptions}
+          onChange={(neighbourhood) => patch({ neighbourhood })}
         />
       </View>
 
-      <Text style={sectionLabel}>CATEGORY</Text>
+      <Text style={sectionLabel}>Category</Text>
       <View style={{ marginBottom: spacing.xl }}>
         {categories.map((category) => {
           const checked = value.categorySlugs.includes(category.slug);
@@ -249,45 +363,7 @@ export function EventFilters({
         })}
       </View>
 
-      <Text style={sectionLabel}>LOCATION</Text>
-      <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
-        <SelectField
-          icon="business-outline"
-          value={value.city}
-          options={cityOptions}
-          onChange={(city) => patch({ city, neighbourhood: null })}
-        />
-        <SelectField
-          icon="location-outline"
-          value={value.neighbourhood}
-          options={neighbourhoodOptions}
-          onChange={(neighbourhood) => patch({ neighbourhood })}
-        />
-      </View>
-
-      <Text style={sectionLabel}>DATE RANGE</Text>
-      <View style={[styles.dateRow, { gap: spacing.sm, marginBottom: spacing.xs }]}>
-        <DateInput
-          value={value.startsAfter}
-          placeholder="MM/DD/YYYY"
-          onChange={(startsAfter) => patch({ startsAfter })}
-        />
-        <DateInput
-          value={value.startsBefore}
-          placeholder="MM/DD/YYYY"
-          onChange={(startsBefore) => patch({ startsBefore })}
-        />
-      </View>
-      <Text
-        style={[
-          typography.caption,
-          { color: colors.textMuted, marginBottom: spacing.xl },
-        ]}
-      >
-        Starts After / Starts Before
-      </Text>
-
-      <Text style={sectionLabel}>TICKETING</Text>
+      <Text style={sectionLabel}>Price</Text>
       <View style={[styles.pillRow, { marginBottom: spacing.xl, gap: spacing.sm }]}>
         {TICKETING_OPTIONS.map((option) => {
           const selected = value.ticketing === option.value;
@@ -322,7 +398,29 @@ export function EventFilters({
         })}
       </View>
 
-      <Text style={sectionLabel}>SETTING</Text>
+      <Text style={sectionLabel}>Date range</Text>
+      <View style={[styles.dateRow, { gap: spacing.sm, marginBottom: spacing.xs }]}>
+        <DateInput
+          value={value.startsAfter}
+          placeholder="From"
+          onChange={(startsAfter) => patch({ startsAfter })}
+        />
+        <DateInput
+          value={value.startsBefore}
+          placeholder="To"
+          onChange={(startsBefore) => patch({ startsBefore })}
+        />
+      </View>
+      <Text
+        style={[
+          typography.caption,
+          { color: colors.textMuted, marginBottom: spacing.xl },
+        ]}
+      >
+        Optional. Uses MM/DD/YYYY or YYYY-MM-DD.
+      </Text>
+
+      <Text style={sectionLabel}>Setting</Text>
       <SettingSwitch
         label="Indoor"
         value={value.indoor}

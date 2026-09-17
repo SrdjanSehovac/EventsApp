@@ -12,7 +12,10 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Show nearby events on the map and in your feed."
       },
-      "bundleIdentifier": "com.ripkeed.events-app"
+      "bundleIdentifier": "com.ripkeed.events-app",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -40,7 +43,16 @@
           "locationWhenInUsePermission": "Show nearby events on the map and in your feed."
         }
       ],
-      "react-native-maps"
+      "react-native-maps",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach photos to events you post as a verified business.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useEvent } from '../hooks';
@@ -7,7 +7,7 @@ import type { EventDetail, EventListItem, EventMapPin } from '../types/events';
 import { EventCard } from './EventCard';
 
 type MapEventSheetProps = {
-  pin: EventMapPin;
+  pins: EventMapPin[];
   bottomInset: number;
   onClose: () => void;
 };
@@ -24,6 +24,7 @@ export function pinToListItem(pin: EventMapPin): EventListItem {
     ends_at: pin.ends_at,
     is_free: pin.is_free,
     neighbourhood: pin.neighbourhood,
+    city: pin.city,
     primary_category: pin.primary_category,
     image_url: pin.image_url,
     latitude: pin.latitude,
@@ -59,47 +60,70 @@ function detailToListItem(detail: EventDetail): EventListItem {
   };
 }
 
-export function MapEventSheet({
-  pin,
-  bottomInset,
-  onClose,
-}: MapEventSheetProps) {
-  const { colors, spacing } = useTheme();
+function SingleListing({ pin }: { pin: EventMapPin }) {
   const detailQuery = useEvent(pin.event_id);
-
   const item =
     detailQuery.data != null
       ? detailToListItem(detailQuery.data)
       : pinToListItem(pin);
+  return <EventCard item={item} variant="listing" />;
+}
+
+export function MapEventSheet({
+  pins,
+  bottomInset,
+  onClose,
+}: MapEventSheetProps) {
+  const { colors, spacing, typography, shadows } = useTheme();
+  const count = pins.length;
 
   return (
     <View
       style={[
         styles.sheet,
         {
-          bottom: bottomInset + spacing.md,
-          paddingHorizontal: spacing.lg,
+          bottom: bottomInset + spacing.sm,
         },
       ]}
       pointerEvents="box-none"
     >
-      <View style={styles.cardWrap}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close event details"
-          onPress={onClose}
-          hitSlop={8}
-          style={[
-            styles.close,
-            {
-              backgroundColor: colors.surfaceElevated,
-              borderColor: colors.border,
-            },
-          ]}
+      <View
+        style={[
+          styles.panel,
+          shadows.card,
+          { backgroundColor: colors.surface },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
+            {count} {count === 1 ? 'event' : 'events'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close event details"
+            onPress={onClose}
+            hitSlop={8}
+          >
+            <Ionicons name="close" size={20} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+        <ScrollView
+          style={count > 1 ? styles.list : undefined}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="close" size={18} color={colors.textSecondary} />
-        </Pressable>
-        <EventCard item={item} />
+          {pins.map((pin) =>
+            count === 1 ? (
+              <SingleListing key={pin.event_id} pin={pin} />
+            ) : (
+              <EventCard
+                key={pin.event_id}
+                item={pinToListItem(pin)}
+                variant="listing"
+              />
+            ),
+          )}
+        </ScrollView>
       </View>
     </View>
   );
@@ -108,22 +132,23 @@ export function MapEventSheet({
 const styles = StyleSheet.create({
   sheet: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-  },
-  cardWrap: {
-    position: 'relative',
-  },
-  close: {
-    position: 'absolute',
-    top: 10,
+    left: 10,
     right: 10,
-    zIndex: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    maxHeight: '52%',
+  },
+  panel: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  list: {
+    maxHeight: 280,
   },
 });
