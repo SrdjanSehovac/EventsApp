@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Image,
-  Linking,
   Pressable,
   Share,
   StyleSheet,
@@ -9,9 +8,11 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
+import { eventDetailHref } from '../utils/eventDetail';
 import { formatEventPlace, formatEventPrice, formatFactsRow } from '../utils/eventFormat';
 import { FavouriteButton } from './FavouriteButton';
 
@@ -28,6 +29,7 @@ function isEnded(status: string) {
 
 export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const { colors, typography, spacing, radius, shadows } = useTheme();
+  const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
 
   const ended = isEnded(item.status);
@@ -37,10 +39,8 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const price = formatEventPrice(item);
   const place = formatEventPlace(item);
 
-  async function openSource() {
-    if (!item.source_url) return;
-    const canOpen = await Linking.canOpenURL(item.source_url);
-    if (canOpen) await Linking.openURL(item.source_url);
+  function openDetail() {
+    router.push(eventDetailHref(item.event_id));
   }
 
   async function shareEvent() {
@@ -96,7 +96,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Open ${item.title}`}
-          onPress={openSource}
+          onPress={openDetail}
           style={styles.listingMain}
         >
           <View style={styles.listingImage}>{hero}</View>
@@ -176,7 +176,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
     );
   }
 
-  const actionLabel = variant === 'preview' ? 'View details' : ended ? 'View Recap' : 'Get Ticket';
+  const actionLabel = 'View details';
 
   return (
     <View
@@ -276,15 +276,13 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
-            onPress={openSource}
-            disabled={!item.source_url}
+            onPress={openDetail}
             style={[
               styles.previewCta,
               {
                 backgroundColor: colors.primary,
                 borderRadius: radius.full,
                 marginTop: spacing.lg,
-                opacity: item.source_url ? 1 : 0.5,
               },
             ]}
           >
@@ -302,15 +300,13 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={actionLabel}
-              onPress={openSource}
-              disabled={!item.source_url}
+              onPress={openDetail}
               style={[
                 styles.action,
                 {
                   backgroundColor: ended ? 'transparent' : colors.primary,
                   borderColor: ended ? colors.border : colors.primary,
                   borderRadius: radius.full,
-                  opacity: item.source_url ? 1 : 0.5,
                 },
               ]}
             >

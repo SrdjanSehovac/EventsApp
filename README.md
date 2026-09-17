@@ -4,7 +4,7 @@ Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Saved*
 
 ## UX direction
 
-Browse is **map-first**, with search + filters, pin → card, scannable list rows, and a heart to save — the usual listing-map *interaction* model, applied to events. **List is a full-screen feed** (no map strip, mini-map, or chevron pane). **Saved** has a month/week calendar of favourited events; tap a day to see that date. Chrome is near-white / soft warm-gray with deep emerald actions (#0F766E) and charcoal type. Pins and event icons keep distinct **category colours**; the rest of the UI does not. Not a visual clone of REALTOR.ca; no third-party logos, trademarks, teardrop pin art, or MLS chrome. Bottom tabs stay **Map / List / Saved**.
+Browse is **map-first**, with search + filters, pin → peek card, scannable list rows, and a heart to save — the usual listing-map *interaction* model, applied to events. **List is a full-screen feed** (no map strip, mini-map, or chevron pane). Selecting an event from the **map peek or list** opens a **full-screen detail** (`GET /v1/events/:id`) with hero photo, schedule/timezone, venue + address, price, description/bio, gallery, source/ticket links, favourite heart, and a map snippet. The map bottom sheet stays a quick peek with **View details**. **Saved** has a month/week calendar of favourited events; tap a day to see that date, tap an event for the same full-screen detail. Chrome is near-white / soft warm-gray with deep emerald actions (#0F766E) and charcoal type. Pins and event icons keep distinct **category colours**; the rest of the UI does not. Not a visual clone of REALTOR.ca; no third-party logos, trademarks, teardrop pin art, or MLS chrome. Bottom tabs stay **Map / List / Saved**.
 
 ## Run
 

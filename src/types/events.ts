@@ -82,7 +82,13 @@ export type EventDetail = {
   title: string;
   description?: string | null;
   summary?: string | null;
+  bio?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
+  photo_urls?: string[] | null;
+  video_url?: string | null;
+  ticket_url?: string | null;
+  external_url?: string | null;
   venue?: VenueBrief | null;
   raw_venue_name?: string | null;
   raw_venue_address?: string | null;
