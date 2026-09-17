@@ -118,6 +118,8 @@ export function MyCalendar({ items, signedIn, onSignIn }: MyCalendarProps) {
             Saved events on their dates
           </Text>
         </View>
+      </View>
+      <View style={styles.modeRow}>
         <View
           style={[
             styles.modeSwitch,
@@ -433,6 +435,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  modeRow: {
+    marginTop: 12,
+    alignItems: 'flex-start',
   },
   iconBadge: {
     width: 32,
