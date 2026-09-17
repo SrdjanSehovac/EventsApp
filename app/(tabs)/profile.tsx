@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -6,7 +6,7 @@ import { ApiError } from '../../src/api/client';
 import { BusinessCard } from '../../src/components/BusinessCard';
 import { MyCalendar } from '../../src/components/MyCalendar';
 import { MySubmissions } from '../../src/components/MySubmissions';
-import { useAuth, useFavourites, useMyBusiness, useMySubmissions } from '../../src/hooks';
+import { useAuth, useCalendarAutoSave, useFavourites, useMyBusiness, useMySubmissions } from '../../src/hooks';
 import { Screen } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 
@@ -29,6 +29,9 @@ export default function ProfileScreen() {
   const { user, isSignedIn, status, signOut } = useAuth();
   const router = useRouter();
   const favouritesQuery = useFavourites(isSignedIn);
+  const calendarAutoSave = useCalendarAutoSave();
+  const favouriteItems = favouritesQuery.data?.items ?? [];
+  const calendarItems = calendarAutoSave.enabled ? favouriteItems : [];
   const submissionsQuery = useMySubmissions(isSignedIn);
   const businessQuery = useMyBusiness(isSignedIn);
   const initial = user?.display_name?.trim()?.[0]?.toUpperCase() ?? '?';
@@ -66,11 +69,48 @@ export default function ProfileScreen() {
           <ActivityIndicator color={colors.primary} style={{ marginBottom: spacing.lg }} />
         ) : (
           <MyCalendar
-            items={favouritesQuery.data?.items ?? []}
+            items={calendarItems}
             signedIn={isSignedIn}
             onSignIn={() => router.push('/sign-in')}
           />
         )}
+
+
+        <View
+          style={[
+            styles.prefRow,
+            shadows.soft,
+            {
+              marginTop: spacing.md,
+              backgroundColor: colors.surface,
+              borderRadius: radius.lg,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}>
+            <Text style={[typography.body, { color: colors.text, fontWeight: '600' }]}>
+              Add liked events to my calendar
+            </Text>
+            <Text
+              style={[
+                typography.caption,
+                { color: colors.textSecondary, marginTop: 2 },
+              ]}
+            >
+              When on, hearts place events on My calendar by date
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Add liked events to my calendar"
+            value={calendarAutoSave.enabled}
+            onValueChange={(next) => {
+              void calendarAutoSave.setEnabled(next);
+            }}
+            trackColor={{ false: colors.border, true: colors.primaryMuted }}
+            thumbColor={calendarAutoSave.enabled ? colors.primary : colors.surfaceElevated}
+          />
+        </View>
 
         {isSignedIn ? (
           <Pressable
@@ -290,5 +330,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 56,
     paddingHorizontal: 14,
+  },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 64,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });
