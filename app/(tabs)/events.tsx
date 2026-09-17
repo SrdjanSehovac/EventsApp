@@ -11,27 +11,18 @@ import { useBrowse } from '../../src/browse';
 import {
   BrowseHeader,
   EventCard,
-  EventsMap,
   FilterSheet,
-  ListPaneChevron,
   SelectField,
   countActiveFilters,
-  filtersToMapParams,
   filtersToParams,
 } from '../../src/components';
 import {
   useDebouncedValue,
   useInfiniteEvents,
-  useMapEvents,
   useUserGeo,
 } from '../../src/hooks';
 import { useTheme } from '../../src/theme';
 import type { PublicSortField } from '../../src/types/events';
-import {
-  DEFAULT_MAP_GEO,
-  INITIAL_RADIUS_KM,
-  regionForRadiusKm,
-} from '../../src/utils/mapRegion';
 
 const SORT_OPTIONS: { label: string; value: PublicSortField }[] = [
   { label: 'Soonest', value: 'starts_at' },
@@ -49,7 +40,6 @@ export default function EventsScreen() {
     setSort,
     sortTouched,
     setSortTouched,
-    mapType,
   } = useBrowse();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -69,19 +59,6 @@ export default function EventsScreen() {
     geoQuery.data ?? null,
     geoQuery.isFetched,
   );
-
-  const searchCenter = geoQuery.data ?? DEFAULT_MAP_GEO;
-  const mapQuery = useMapEvents(
-    {
-      ...filtersToMapParams(filters),
-      radius_km: INITIAL_RADIUS_KM,
-      limit: 200,
-    },
-    searchCenter,
-    geoQuery.isFetched,
-  );
-  const mapPins = mapQuery.data?.items ?? [];
-  const mapSeed = regionForRadiusKm(searchCenter, INITIAL_RADIUS_KM);
 
   useEffect(() => {
     if (!sortTouched && hasUserGeo && sort === 'starts_at') {
@@ -103,74 +80,62 @@ export default function EventsScreen() {
         onPressFilters={() => setFiltersOpen(true)}
         filterCount={activeFilterCount}
       />
-      <View style={styles.split}>
-        <View style={[styles.listPane, { backgroundColor: colors.background }]}>
-          <View style={styles.listMeta}>
-            <Text
-              style={[
-                typography.heading,
-                { color: colors.text, fontSize: 18 },
-              ]}
-            >
-              {eventsQuery.data ? `${total.toLocaleString()} nearby` : 'Nearby events'}
+      <View style={[styles.listPane, { backgroundColor: colors.background }]}>
+        <View style={styles.listMeta}>
+          <Text
+            style={[
+              typography.heading,
+              { color: colors.text, fontSize: 18 },
+            ]}
+          >
+            {eventsQuery.data ? `${total.toLocaleString()} nearby` : 'Nearby events'}
+          </Text>
+          <View style={styles.sortRow}>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              Sort
             </Text>
-            <View style={styles.sortRow}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                Sort
-              </Text>
-              <View style={styles.sortWrap}>
-                <SelectField
-                  compact
-                  value={sort}
-                  options={SORT_OPTIONS}
-                  onChange={(value) => {
-                    setSortTouched(true);
-                    setSort((value as PublicSortField) ?? 'starts_at');
-                  }}
-                />
-              </View>
+            <View style={styles.sortWrap}>
+              <SelectField
+                compact
+                value={sort}
+                options={SORT_OPTIONS}
+                onChange={(value) => {
+                  setSortTouched(true);
+                  setSort((value as PublicSortField) ?? 'starts_at');
+                }}
+              />
             </View>
           </View>
-
-          {isLoading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : error ? (
-            <Text style={[typography.body, { color: colors.danger, padding: spacing.md }]}>
-              {error instanceof Error ? error.message : 'Failed to load events'}
-            </Text>
-          ) : (
-            <FlatList
-              data={items}
-              keyExtractor={(item) => item.event_id}
-              renderItem={({ item }) => <EventCard item={item} variant="listing" />}
-              ListEmptyComponent={
-                <Text
-                  style={[
-                    typography.body,
-                    { color: colors.textMuted, padding: spacing.lg },
-                  ]}
-                >
-                  No upcoming events found.
-                </Text>
-              }
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{ paddingBottom: tabBar.height + 12 }}
-            />
-          )}
         </View>
 
-        <View style={styles.mapStrip}>
-            <EventsMap
-              pins={mapPins}
-              initialRegion={mapSeed}
-              userGeo={geoQuery.data ?? null}
-              mapType={mapType}
-            />
-            <ListPaneChevron listOpen />
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={colors.primary} />
           </View>
+        ) : error ? (
+          <Text style={[typography.body, { color: colors.danger, padding: spacing.md }]}>
+            {error instanceof Error ? error.message : 'Failed to load events'}
+          </Text>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.event_id}
+            renderItem={({ item }) => <EventCard item={item} variant="listing" />}
+            ListEmptyComponent={
+              <Text
+                style={[
+                  typography.body,
+                  { color: colors.textMuted, padding: spacing.lg },
+                ]}
+              >
+                No upcoming events found.
+              </Text>
+            }
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingBottom: tabBar.height + 12 }}
+          />
+        )}
       </View>
       <FilterSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} />
     </View>
@@ -180,10 +145,6 @@ export default function EventsScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-  },
-  split: {
-    flex: 1,
-    flexDirection: 'row',
   },
   listPane: {
     flex: 1,
@@ -208,11 +169,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  mapStrip: {
-    width: 118,
-    position: 'relative',
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: '#F0DCC8',
   },
 });

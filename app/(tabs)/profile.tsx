@@ -46,7 +46,7 @@ export default function ProfileScreen() {
             { color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
           ]}
         >
-          Favourites, account, and posting
+          Calendar of saved events, account, and posting
         </Text>
 
         {shouldShowFavouritesError(favouritesQuery.error) ? (
