@@ -111,6 +111,8 @@ function buildLeafletHtml(
       box-shadow: 0 2px 6px rgba(17,24,39,.22);
       white-space: nowrap;
       max-width: 132px;
+      min-width: 14px;
+      min-height: 14px;
       overflow: hidden;
       text-overflow: ellipsis;
     }

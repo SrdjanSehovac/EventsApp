@@ -71,11 +71,9 @@ export function formatFactsRow(
   return parts.join(' · ');
 }
 
-export function formatPinBadge(item: PriceLike & WhenLike): string {
-  const parts = [formatPinTime(item.starts_at), formatEventPrice(item)].filter(
-    (part): part is string => Boolean(part),
-  );
-  return parts.length > 0 ? parts.join(' · ') : 'Event';
+/** Map pin label: Free/$ only — dates belong in filters/sheets, not badges. */
+export function formatPinBadge(item: PriceLike): string {
+  return formatEventPrice(item) ?? '';
 }
 
 /** Large listing fact — Free / $ / start time. */
