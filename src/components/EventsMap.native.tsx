@@ -20,7 +20,12 @@ import MapView, { Marker, type Region } from 'react-native-maps';
 import { colorForCategory, useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
-import { clusterPins, type PinCluster } from '../utils/clusterPins';
+import {
+  clusterNeedsZoom,
+  clusterPins,
+  regionForCluster,
+  type PinCluster,
+} from '../utils/clusterPins';
 import { isEventLive } from '../utils/eventLive';
 import { formatPinBadge } from '../utils/eventFormat';
 import type { MapBaseType } from '../browse';
@@ -253,6 +258,15 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
                 onPress={(next) => {
                   ignoreMapPressUntilRef.current = Date.now() + 400;
                   if (next.count > 1) {
+                    // Spread-out clusters zoom in (Realtor.ca-style);
+                    // coincident pins open the multi-event sheet.
+                    if (clusterNeedsZoom(next)) {
+                      mapRef.current?.animateToRegion(
+                        regionForCluster(next),
+                        420,
+                      );
+                      return;
+                    }
                     onClusterPress?.(next.pins);
                     return;
                   }
