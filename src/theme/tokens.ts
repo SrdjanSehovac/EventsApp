@@ -1,6 +1,7 @@
 /**
  * Single source of truth for visual design tokens.
- * EventsApp brand: warm cream surfaces, coral primary, apricot accent.
+ * EventsApp chrome: near-white / soft gray surfaces, charcoal-indigo actions.
+ * Category hues stay on pins and event icons only — not the global chrome.
  */
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -57,10 +58,10 @@ const radius = {
 } as const;
 
 const typography = {
-  title: { fontSize: 26, fontWeight: '700' as const, lineHeight: 32 },
+  title: { fontSize: 26, fontWeight: '800' as const, lineHeight: 32 },
   heading: { fontSize: 20, fontWeight: '700' as const, lineHeight: 26 },
   body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 22 },
-  caption: { fontSize: 13, fontWeight: '500' as const, lineHeight: 18 },
+  caption: { fontSize: 13, fontWeight: '600' as const, lineHeight: 18 },
   tabLabel: { fontSize: 11, fontWeight: '600' as const, lineHeight: 14 },
 } as const;
 
@@ -74,74 +75,74 @@ const tabBarMetrics = {
 
 const shadows = {
   fab: {
-    shadowColor: '#3B1F14',
+    shadowColor: '#111827',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
+    shadowOpacity: 0.16,
     shadowRadius: 12,
     elevation: 8,
   },
   soft: {
-    shadowColor: '#3B1F14',
+    shadowColor: '#111827',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
   },
   card: {
-    shadowColor: '#3B1F14',
+    shadowColor: '#111827',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 18,
     elevation: 6,
   },
 } as const;
 
 const lightColors: ThemeColors = {
-  primary: '#E23E57',
-  primaryMuted: '#FFE0E4',
+  primary: '#24356D',
+  primaryMuted: '#E8EBF3',
   onPrimary: '#FFFFFF',
-  accent: '#F4A261',
-  onAccent: '#2B1D16',
-  background: '#FFF6EE',
+  accent: '#3A4A86',
+  onAccent: '#FFFFFF',
+  background: '#F4F5F7',
   surface: '#FFFFFF',
-  surfaceElevated: '#FFF1E4',
-  text: '#2B1D16',
-  textSecondary: '#6B4E3D',
-  textMuted: '#A07C66',
-  border: '#F0DCC8',
-  hairline: '#F3E2D2',
-  tabBar: '#FFFBF7',
-  tabInactive: '#9A7B68',
+  surfaceElevated: '#EEF0F4',
+  text: '#111827',
+  textSecondary: '#3F4B5B',
+  textMuted: '#6B7280',
+  border: '#E2E5EB',
+  hairline: '#ECEEF2',
+  tabBar: '#FFFFFF',
+  tabInactive: '#6B7280',
   success: '#0F9F6E',
   warning: '#D97706',
   danger: '#DC2626',
-  overlay: 'rgba(43, 29, 22, 0.42)',
+  overlay: 'rgba(17, 24, 39, 0.45)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#2B1D16',
+  pinOutline: '#111827',
 };
 
 const darkColors: ThemeColors = {
-  primary: '#FF6B81',
-  primaryMuted: '#4A1F28',
-  onPrimary: '#2B1014',
-  accent: '#F4A261',
-  onAccent: '#2B1D16',
-  background: '#16100C',
-  surface: '#231812',
-  surfaceElevated: '#2F2118',
-  text: '#FFF4EA',
-  textSecondary: '#D9B9A4',
-  textMuted: '#A07C66',
-  border: '#3D2A20',
-  hairline: '#2C1D16',
-  tabBar: '#1C1410',
-  tabInactive: '#B08C76',
+  primary: '#9AA6D9',
+  primaryMuted: '#252A40',
+  onPrimary: '#0F1218',
+  accent: '#B4BDE6',
+  onAccent: '#0F1218',
+  background: '#0F1218',
+  surface: '#171B24',
+  surfaceElevated: '#1E2430',
+  text: '#F3F4F6',
+  textSecondary: '#C5CAD3',
+  textMuted: '#8B93A4',
+  border: '#2A3140',
+  hairline: '#222836',
+  tabBar: '#12161E',
+  tabInactive: '#8B93A4',
   success: '#34D399',
   warning: '#FBBF24',
   danger: '#F87171',
   overlay: 'rgba(0, 0, 0, 0.58)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#1A120C',
+  pinOutline: '#0F1218',
 };
 
 export const palettes: Record<ColorSchemeName, ThemeColors> = {

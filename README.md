@@ -4,7 +4,7 @@ Expo client for **EventServer** (`/v1`). Consumer tabs are **Map / List / Saved*
 
 ## UX direction
 
-Browse is **map-first**, with search + filters, pin → card, scannable list rows, and a heart to save — the usual listing-map *interaction* model, applied to events. Visuals stay EventsApp: warm cream surfaces, coral primary, category-coloured pins (time / Free / `$`), rounded cards. Not a visual clone of REALTOR.ca; no third-party logos, trademarks, teardrop pin art, or MLS chrome.
+Browse is **map-first**, with search + filters, pin → card, scannable list rows, and a heart to save — the usual listing-map *interaction* model, applied to events. **List is a full-screen feed** (no map strip, mini-map, or chevron pane). **Saved** has a month/week calendar of favourited events; tap a day to see that date. Chrome is near-white / soft gray with charcoal-indigo actions and high-contrast type. Pins and event icons keep distinct **category colours**; the rest of the UI does not. Not a visual clone of REALTOR.ca; no third-party logos, trademarks, teardrop pin art, or MLS chrome. Bottom tabs stay **Map / List / Saved**.
 
 ## Run
 

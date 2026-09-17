@@ -55,6 +55,7 @@ function buildLeafletHtml(
   region: Region,
   selectedEventId: string | null | undefined,
   mapType: MapBaseType,
+  chrome: { background: string; primary: string },
 ): string {
   const clusters = clusterPins(pins, region);
   const nowMs = Date.now();
@@ -93,16 +94,16 @@ function buildLeafletHtml(
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    html, body, #map { height: 100%; margin: 0; background: #fff6ee; }
+    html, body, #map { height: 100%; margin: 0; background: ${chrome.background}; }
     .evt-wrap { position: relative; display: flex; flex-direction: column; align-items: center; }
     .evt-badge {
-      background: var(--c, #E23E57);
+      background: var(--c, ${chrome.primary});
       color: #fff;
       font: 800 11px/1.2 system-ui, sans-serif;
       padding: 4px 8px;
       border-radius: 999px;
       border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(59,31,20,.28);
+      box-shadow: 0 2px 6px rgba(17,24,39,.22);
       white-space: nowrap;
       max-width: 132px;
       overflow: hidden;
@@ -111,7 +112,7 @@ function buildLeafletHtml(
     .evt-wrap.selected .evt-badge {
       font-size: 12px;
       padding: 5px 10px;
-      box-shadow: 0 0 0 3px rgba(226,62,87,.28), 0 3px 8px rgba(59,31,20,.35);
+      box-shadow: 0 0 0 3px ${chrome.primary}47, 0 3px 8px rgba(17,24,39,.28);
     }
     .evt-wrap.cluster .evt-badge {
       min-width: 32px;
@@ -127,9 +128,9 @@ function buildLeafletHtml(
       width: 0; height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-top: 7px solid var(--c, #E23E57);
+      border-top: 7px solid var(--c, ${chrome.primary});
       margin-top: -1px;
-      filter: drop-shadow(0 1px 1px rgba(59,31,20,.25));
+      filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
     }
   </style>
 </head>
@@ -265,10 +266,14 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
     }, [onMarkerPress, onClusterPress, onMapPress, onRegionChangeComplete, pinsById]);
 
     const html = useMemo(
-      () => buildLeafletHtml(pins, mapRegion ?? initialRegion, selectedEventId, mapType),
+      () =>
+        buildLeafletHtml(pins, mapRegion ?? initialRegion, selectedEventId, mapType, {
+          background: colors.background,
+          primary: colors.primary,
+        }),
       // Rebuild on pin set / selection / basemap — not every camera pan
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [pins, selectedEventId, mapType, initialRegion.latitude, initialRegion.longitude, initialRegion.latitudeDelta],
+      [pins, selectedEventId, mapType, colors.background, colors.primary, initialRegion.latitude, initialRegion.longitude, initialRegion.latitudeDelta],
     );
 
     return (

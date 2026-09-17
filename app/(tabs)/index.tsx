@@ -15,7 +15,6 @@ import {
   BrowseSearchBar,
   EventsMap,
   FilterSheet,
-  ListPaneChevron,
   MapEventSheet,
   countActiveFilters,
   filtersToMapParams,
@@ -262,8 +261,6 @@ export default function MapScreen() {
             </Pressable>
           </View>
         ) : null}
-
-        <ListPaneChevron listOpen={false} />
 
         <Pressable
           accessibilityRole="button"

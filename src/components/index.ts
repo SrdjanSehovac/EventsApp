@@ -15,7 +15,6 @@ export { BrowseSearchBar } from './BrowseSearchBar';
 export { BrowseHeader } from './BrowseHeader';
 export { MapListToggle } from './MapListToggle';
 export { MapTypeToggle } from './MapTypeToggle';
-export { ListPaneChevron } from './ListPaneChevron';
 export { FilterSheet } from './FilterSheet';
 export {
   EventFilters,

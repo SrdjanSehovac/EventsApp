@@ -89,7 +89,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           {
             backgroundColor: colors.surface,
             borderRadius: radius.lg,
-            borderColor: colors.hairline,
+            borderColor: colors.border,
           },
         ]}
       >
