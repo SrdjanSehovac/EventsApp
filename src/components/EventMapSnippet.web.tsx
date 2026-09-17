@@ -55,6 +55,7 @@ export function EventMapSnippet({
         <Image
           source={{ uri: osmTileUrl(latitude, longitude) }}
           style={styles.map}
+          resizeMode="cover"
           onError={() => setFailed(true)}
         />
       )}
