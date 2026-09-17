@@ -216,72 +216,81 @@ export function MyCalendar({ items, signedIn, onSignIn }: MyCalendarProps) {
         ))}
       </View>
 
-      <View style={mode === 'week' ? styles.weekGrid : styles.monthGrid}>
-        {cells.map((cell) => {
-          const count = byDay.get(cell.key)?.length ?? 0;
-          const isSelected = sameDay(cell.date, selected);
-          const isToday = sameDay(cell.date, today);
-          const muted = mode === 'month' && !cell.inMonth;
+      <View style={styles.grid}>
+        {Array.from({ length: cells.length / 7 }, (_, week) => (
+          <View key={`week-${week}`} style={styles.weekRow}>
+            {cells.slice(week * 7, week * 7 + 7).map((cell) => {
+              const count = byDay.get(cell.key)?.length ?? 0;
+              const isSelected = sameDay(cell.date, selected);
+              const isToday = sameDay(cell.date, today);
+              const muted = mode === 'month' && !cell.inMonth;
 
-          return (
-            <Pressable
-              key={cell.key}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`${cell.date.toLocaleDateString(undefined, {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-              })}${count ? `, ${count} saved event${count === 1 ? '' : 's'}` : ''}`}
-              onPress={() => selectDay(cell.date)}
-              style={[
-                mode === 'week' ? styles.weekCell : styles.monthCell,
-                isSelected && {
-                  backgroundColor: colors.primaryMuted,
-                  borderRadius: radius.md,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.dayNumber,
-                  isToday && !isSelected
-                    ? { borderColor: colors.accent, borderWidth: 1.5 }
-                    : { borderColor: 'transparent', borderWidth: 1.5 },
-                  isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
-                ]}
-              >
-                <Text
+              return (
+                <Pressable
+                  key={cell.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${cell.date.toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric',
+                  })}${count ? `, ${count} saved event${count === 1 ? '' : 's'}` : ''}`}
+                  onPress={() => selectDay(cell.date)}
                   style={[
-                    typography.caption,
-                    {
-                      fontWeight: '800',
-                      color: isSelected
-                        ? colors.onPrimary
-                        : muted
-                          ? colors.textMuted
-                          : colors.text,
-                      opacity: muted && !isSelected ? 0.55 : 1,
+                    mode === 'week' ? styles.weekCell : styles.monthCell,
+                    isSelected && {
+                      backgroundColor: colors.primaryMuted,
+                      borderRadius: radius.md,
                     },
                   ]}
                 >
-                  {cell.date.getDate()}
-                </Text>
-              </View>
-              <View style={styles.dots}>
-                {Array.from({ length: Math.min(count, 3) }).map((_, index) => (
                   <View
-                    key={`${cell.key}-dot-${index}`}
                     style={[
-                      styles.dot,
-                      { backgroundColor: isSelected ? colors.primary : colors.accent },
+                      styles.dayNumber,
+                      isToday && !isSelected
+                        ? { borderColor: colors.accent, borderWidth: 1.5 }
+                        : { borderColor: 'transparent', borderWidth: 1.5 },
+                      isSelected && {
+                        backgroundColor: colors.primary,
+                        borderColor: colors.primary,
+                      },
                     ]}
-                  />
-                ))}
-              </View>
-            </Pressable>
-          );
-        })}
+                  >
+                    <Text
+                      style={[
+                        typography.caption,
+                        {
+                          fontWeight: '800',
+                          color: isSelected
+                            ? colors.onPrimary
+                            : muted
+                              ? colors.textMuted
+                              : colors.text,
+                          opacity: muted && !isSelected ? 0.55 : 1,
+                        },
+                      ]}
+                    >
+                      {cell.date.getDate()}
+                    </Text>
+                  </View>
+                  <View style={styles.dots}>
+                    {Array.from({ length: Math.min(count, 3) }).map((_, index) => (
+                      <View
+                        key={`${cell.key}-dot-${index}`}
+                        style={[
+                          styles.dot,
+                          {
+                            backgroundColor: isSelected ? colors.primary : colors.accent,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       <View style={[styles.dayPanel, { borderTopColor: colors.hairline }]}>
@@ -468,24 +477,25 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
   },
-  monthGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  grid: {
+    width: '100%',
   },
-  weekGrid: {
+  weekRow: {
     flexDirection: 'row',
   },
   monthCell: {
-    width: '14.2857%',
+    flex: 1,
     alignItems: 'center',
     paddingVertical: 4,
     minHeight: 44,
+    overflow: 'hidden',
   },
   weekCell: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 8,
     minHeight: 64,
+    overflow: 'hidden',
   },
   dayNumber: {
     width: 28,

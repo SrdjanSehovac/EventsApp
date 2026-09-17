@@ -24,6 +24,20 @@ export function parseEventDate(value?: string | null): Date | null {
   return date;
 }
 
+/** Calendar day from the timestamp’s date prefix, not the viewer’s timezone. */
+export function dateKeyFromIso(value?: string | null): string | null {
+  if (!value) return null;
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  const date = parseEventDate(value);
+  return date ? toDateKey(date) : null;
+}
+
+function dateFromKey(key: string): Date {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function sameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -72,16 +86,15 @@ export function weekCells(anchor: Date): CalendarCell[] {
 }
 
 function eventDayKeys(item: EventListItem): string[] {
-  const start = parseEventDate(item.starts_at);
-  if (!start) return [];
+  const startKey = dateKeyFromIso(item.starts_at);
+  if (!startKey) return [];
 
-  const startDay = startOfLocalDay(start);
-  const endRaw = parseEventDate(item.ends_at);
-  const endDay = endRaw ? startOfLocalDay(endRaw) : startDay;
+  const endKey = dateKeyFromIso(item.ends_at);
+  if (!endKey || endKey === startKey) return [startKey];
 
-  if (endDay.getTime() <= startDay.getTime()) {
-    return [toDateKey(startDay)];
-  }
+  const startDay = dateFromKey(startKey);
+  const endDay = dateFromKey(endKey);
+  if (endDay.getTime() <= startDay.getTime()) return [startKey];
 
   const keys: string[] = [];
   let cursor = startDay;
