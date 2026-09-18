@@ -31,6 +31,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
   const { filters, setFilters } = useBrowse();
   const [draft, setDraft] = useState(filters);
 
+  // Category API tree expands group slugs only; it is not listed in the sheet.
   const categoriesQuery = useCategories();
   const citiesQuery = useCities();
   const neighbourhoodsQuery = useNeighbourhoods(
@@ -83,7 +84,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close filters"
+              accessibilityLabel="Cancel filters"
               onPress={onClose}
               hitSlop={8}
             >
@@ -93,7 +94,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
                   { color: colors.textSecondary, fontWeight: '700' },
                 ]}
               >
-                Close
+                Cancel
               </Text>
             </Pressable>
           </View>
@@ -109,7 +110,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             <EventFilters
               value={draft}
               onChange={setDraft}
-              categories={categoriesQuery.data?.items ?? []}
+              categoryTree={categoriesQuery.data?.items ?? []}
               cities={citiesQuery.data ?? []}
               neighbourhoods={neighbourhoodsQuery.data ?? []}
               showSearch={false}
@@ -129,7 +130,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Apply filters"
+              accessibilityLabel="Done"
               onPress={() => {
                 setFilters({ ...draft, q: filters.q });
                 onClose();
@@ -149,7 +150,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
                   { color: colors.onPrimary, fontWeight: '800' },
                 ]}
               >
-                Apply
+                Done
               </Text>
             </Pressable>
           </View>

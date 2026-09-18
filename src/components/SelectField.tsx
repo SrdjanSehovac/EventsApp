@@ -39,7 +39,8 @@ export function SelectField({
   const [open, setOpen] = useState(false);
 
   const selected = options.find((option) => option.value === value);
-  const display = selected?.label ?? placeholder;
+  // Show the option label only — never prefix the field `label` (e.g. "City:").
+  const display = selected?.label ?? value ?? placeholder;
 
   return (
     <View>
@@ -47,7 +48,13 @@ export function SelectField({
         <Text
           style={[
             typography.caption,
-            { color: colors.textMuted, marginBottom: spacing.xs },
+            {
+              color: colors.textMuted,
+              marginBottom: spacing.xs,
+              fontWeight: '700',
+              letterSpacing: 0.6,
+              textTransform: 'uppercase',
+            },
           ]}
         >
           {label}

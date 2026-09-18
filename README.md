@@ -15,7 +15,7 @@ npx expo start
 
 Point the client at EventServer with `EXPO_PUBLIC_API_URL` (no trailing slash), e.g. `http://192.168.1.10:8000`. Simulators default to `http://localhost:8000` (`10.0.2.2` on Android).
 
-SW Ontario cities (Toronto, Ottawa, London, Mississauga) are available in the filter sheet alongside category, free/ticketed, when, and indoor/outdoor.
+SW Ontario cities in the filter sheet are **Any, Toronto, Ottawa, London, Mississauga** (plain labels, no “City:” prefix). Categories are twelve parent groups (Nightlife, Music, Comedy, Arts, Food & Drink, Markets, Sales, Festivals, Sports & Fitness, Family, Workshops, Community) — leaves like Classical, DJ/Electronic, and All-Ages fold into those parents. When, date range, ticketing, and indoor/outdoor stay on the sheet.
 
 ## Auth
 
