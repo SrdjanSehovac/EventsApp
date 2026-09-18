@@ -83,7 +83,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close filters"
+              accessibilityLabel="Cancel filters"
               onPress={onClose}
               hitSlop={8}
             >
@@ -93,7 +93,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
                   { color: colors.textSecondary, fontWeight: '700' },
                 ]}
               >
-                Close
+                Cancel
               </Text>
             </Pressable>
           </View>
@@ -129,7 +129,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
           >
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Apply filters"
+              accessibilityLabel="Done"
               onPress={() => {
                 setFilters({ ...draft, q: filters.q });
                 onClose();
@@ -149,7 +149,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
                   { color: colors.onPrimary, fontWeight: '800' },
                 ]}
               >
-                Apply
+                Done
               </Text>
             </Pressable>
           </View>
