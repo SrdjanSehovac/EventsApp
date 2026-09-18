@@ -5,6 +5,9 @@ type PlaceLike = {
 
 type PriceLike = {
   is_free?: boolean | null;
+  price_min_cad?: number | string | null;
+  price_max_cad?: number | string | null;
+  price_notes?: string | null;
 };
 
 type WhenLike = {
@@ -54,7 +57,30 @@ export function formatEventPlace(item: PlaceLike): string {
   return parts.length > 0 ? parts.join(', ') : 'Location TBD';
 }
 
+function toPriceNumber(value?: number | string | null): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatCadAmount(value: number): string {
+  const whole = Math.abs(value - Math.round(value)) < 0.001;
+  return whole ? `$${Math.round(value)}` : `$${value.toFixed(2)}`;
+}
+
 export function formatEventPrice(item: PriceLike): string | null {
+  const min = toPriceNumber(item.price_min_cad);
+  const max = toPriceNumber(item.price_max_cad);
+
+  if (min !== null) {
+    if (max !== null && max !== min) {
+      return `${formatCadAmount(min)}–${formatCadAmount(max)}`;
+    }
+    return formatCadAmount(min);
+  }
+
+  // Never invent Free from missing data — only when explicitly flagged
+  // and no numeric amount is present.
   if (item.is_free === true) return 'Free';
   if (item.is_free === false) return '$';
   return null;

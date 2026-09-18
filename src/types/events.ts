@@ -139,6 +139,8 @@ export type EventMapPin = {
   starts_at?: string | null;
   ends_at?: string | null;
   is_free?: boolean | null;
+  price_min_cad?: number | string | null;
+  price_max_cad?: number | string | null;
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
   neighbourhood?: string | null;
