@@ -7,10 +7,13 @@ export type FilterCategoryGroup = {
   slugs: readonly string[];
 };
 
+/** Hard cap for Filters UI rows. Never list API leaf slugs. */
+export const MAX_FILTER_CATEGORY_OPTIONS = 15;
+
 /**
- * Curated filter groups for the browse sheet.
- * Leaf categories (DJ/Electronic, Classical, All-Ages, Stand-Up, …) are not listed;
- * they fold into these parents. Expand on the client so the current API still matches.
+ * Curated filter groups for the browse sheet — the only rows the Filters UI may show.
+ * Leaves (Karaoke, Jazz/Blues, Classical, DJ/Electronic, All-Ages, Stand-Up, …)
+ * fold into these parents and are sent as slugs, never rendered as their own rows.
  */
 export const FILTER_CATEGORY_GROUPS: readonly FilterCategoryGroup[] = [
   {
@@ -87,6 +90,43 @@ export const FILTER_CATEGORY_GROUPS: readonly FilterCategoryGroup[] = [
     ],
   },
 ];
+
+if (FILTER_CATEGORY_GROUPS.length > MAX_FILTER_CATEGORY_OPTIONS) {
+  throw new Error(
+    `Filters UI may list at most ${MAX_FILTER_CATEGORY_OPTIONS} category groups`,
+  );
+}
+
+/** Labels shown in the Filters sheet. Never include leaf names. */
+export const FILTER_CATEGORY_UI_LABELS: readonly string[] =
+  FILTER_CATEGORY_GROUPS.map((group) => group.label);
+
+const BANNED_FILTER_ROW_NEEDLES = [
+  'jazz',
+  'karaoke',
+  'classical',
+  'dj',
+  'electronic',
+  'all-ages',
+  'all ages',
+  'stand-up',
+  'standup',
+  'activism',
+  'open mic',
+  'improv',
+] as const;
+
+export function assertNoLeafFilterRows(labels: readonly string[] = FILTER_CATEGORY_UI_LABELS) {
+  const hits = labels.filter((label) => {
+    const lower = label.toLowerCase();
+    return BANNED_FILTER_ROW_NEEDLES.some((needle) => lower.includes(needle));
+  });
+  if (hits.length > 0) {
+    throw new Error(`Leaf categories must not be filter rows: ${hits.join(', ')}`);
+  }
+}
+
+assertNoLeafFilterRows();
 
 export function normalizeCategorySlug(slug: string): string {
   return slug.trim().toLowerCase().replace(/-/g, '_');

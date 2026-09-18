@@ -31,6 +31,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
   const { filters, setFilters } = useBrowse();
   const [draft, setDraft] = useState(filters);
 
+  // Category API tree expands group slugs only; it is not listed in the sheet.
   const categoriesQuery = useCategories();
   const citiesQuery = useCities();
   const neighbourhoodsQuery = useNeighbourhoods(
@@ -109,7 +110,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             <EventFilters
               value={draft}
               onChange={setDraft}
-              categories={categoriesQuery.data?.items ?? []}
+              categoryTree={categoriesQuery.data?.items ?? []}
               cities={citiesQuery.data ?? []}
               neighbourhoods={neighbourhoodsQuery.data ?? []}
               showSearch={false}

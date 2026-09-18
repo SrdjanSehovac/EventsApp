@@ -66,7 +66,8 @@ export const WHEN_OPTIONS: { label: string; value: WhenPreset }[] = [
 type EventFiltersProps = {
   value: EventsFilterState;
   onChange: (next: EventsFilterState) => void;
-  categories: CategoryNode[];
+  /** API tree used only to expand group → slugs. Never rendered as filter rows. */
+  categoryTree?: CategoryNode[];
   cities: CityCount[];
   neighbourhoods: NeighbourhoodCount[];
   showSearch?: boolean;
@@ -174,7 +175,7 @@ export function countActiveFilters(
 export function EventFilters({
   value,
   onChange,
-  categories,
+  categoryTree = [],
   cities,
   neighbourhoods,
   showSearch = true,
@@ -311,7 +312,7 @@ export function EventFilters({
                   categorySlugs: toggleFilterGroup(
                     value.categorySlugs,
                     group,
-                    categories,
+                    categoryTree,
                   ),
                 })
               }
