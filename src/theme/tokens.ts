@@ -1,6 +1,7 @@
 /**
  * Single source of truth for visual design tokens.
- * Adjust colors, spacing, type, and tab metrics here — both modes update together.
+ * EventsApp chrome (scheme A — Emerald): near-white surfaces, warm-gray cards,
+ * deep emerald actions (#0F766E). Category hues stay on pins and event icons only.
  */
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -25,6 +26,8 @@ export type ThemeColors = {
   warning: string;
   danger: string;
   overlay: string;
+  pinStroke: string;
+  pinOutline: string;
 };
 
 export type ThemeTokens = {
@@ -50,85 +53,96 @@ const radius = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
+  xl: 20,
   full: 9999,
 } as const;
 
 const typography = {
-  title: { fontSize: 28, fontWeight: '700' as const, lineHeight: 34 },
-  heading: { fontSize: 20, fontWeight: '600' as const, lineHeight: 26 },
+  title: { fontSize: 26, fontWeight: '800' as const, lineHeight: 32 },
+  heading: { fontSize: 20, fontWeight: '700' as const, lineHeight: 26 },
   body: { fontSize: 16, fontWeight: '400' as const, lineHeight: 22 },
-  caption: { fontSize: 13, fontWeight: '500' as const, lineHeight: 18 },
-  tabLabel: { fontSize: 11, fontWeight: '500' as const, lineHeight: 14 },
+  caption: { fontSize: 13, fontWeight: '600' as const, lineHeight: 18 },
+  tabLabel: { fontSize: 11, fontWeight: '600' as const, lineHeight: 14 },
 } as const;
 
 const tabBarMetrics = {
-  height: 56,
-  fabSize: 64,
-  fabProtrusion: 28,
-  iconSize: 24,
-  fabIconSize: 28,
+  height: 58,
+  fabSize: 0,
+  fabProtrusion: 0,
+  iconSize: 22,
+  fabIconSize: 22,
 } as const;
 
 const shadows = {
   fab: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
+    shadowColor: '#1C1917',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
     elevation: 8,
   },
   soft: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#1C1917',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  card: {
+    shadowColor: '#1C1917',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 6,
   },
 } as const;
 
 const lightColors: ThemeColors = {
   primary: '#0F766E',
-  primaryMuted: '#CCFBF1',
+  primaryMuted: '#E0F2F1',
   onPrimary: '#FFFFFF',
-  accent: '#F5B800',
-  onAccent: '#1A1A1A',
-  background: '#F1F5F9',
-  surface: '#FFFFFF',
-  surfaceElevated: '#FFFFFF',
-  text: '#0F172A',
-  textSecondary: '#475569',
-  textMuted: '#94A3B8',
-  border: '#E2E8F0',
-  hairline: '#E2E8F0',
+  accent: '#115E59',
+  onAccent: '#FFFFFF',
+  background: '#FAFAF8',
+  surface: '#F1EFEC',
+  surfaceElevated: '#E8E6E1',
+  text: '#1C1917',
+  textSecondary: '#44403C',
+  textMuted: '#78716C',
+  border: '#D4DBD4',
+  hairline: '#E6EAE5',
   tabBar: '#FFFFFF',
-  tabInactive: '#64748B',
-  success: '#059669',
+  tabInactive: '#78716C',
+  success: '#15803D',
   warning: '#D97706',
   danger: '#DC2626',
-  overlay: 'rgba(15, 23, 42, 0.4)',
+  overlay: 'rgba(28, 25, 23, 0.45)',
+  pinStroke: '#FFFFFF',
+  pinOutline: '#1C1917',
 };
 
 const darkColors: ThemeColors = {
   primary: '#2DD4BF',
   primaryMuted: '#134E4A',
   onPrimary: '#042F2E',
-  accent: '#FBBF24',
-  onAccent: '#1A1A1A',
-  background: '#0B1220',
-  surface: '#111827',
-  surfaceElevated: '#1F2937',
-  text: '#F8FAFC',
-  textSecondary: '#CBD5E1',
-  textMuted: '#64748B',
-  border: '#334155',
-  hairline: '#1E293B',
-  tabBar: '#111827',
-  tabInactive: '#94A3B8',
-  success: '#34D399',
+  accent: '#5EEAD4',
+  onAccent: '#042F2E',
+  background: '#0C1210',
+  surface: '#151C19',
+  surfaceElevated: '#1C2421',
+  text: '#F5F5F4',
+  textSecondary: '#D6D3D1',
+  textMuted: '#A8A29E',
+  border: '#2A3531',
+  hairline: '#1F2925',
+  tabBar: '#101714',
+  tabInactive: '#A8A29E',
+  success: '#4ADE80',
   warning: '#FBBF24',
   danger: '#F87171',
-  overlay: 'rgba(0, 0, 0, 0.55)',
+  overlay: 'rgba(0, 0, 0, 0.58)',
+  pinStroke: '#FFFFFF',
+  pinOutline: '#0C1210',
 };
 
 export const palettes: Record<ColorSchemeName, ThemeColors> = {

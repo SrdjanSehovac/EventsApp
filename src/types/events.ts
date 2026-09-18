@@ -23,6 +23,7 @@ export type SortField =
   | '-scraped_at';
 export type WhenPreset = 'now' | 'today' | 'tonight' | 'weekend' | 'upcoming';
 export type SettingFilter = 'indoor' | 'outdoor' | 'hybrid' | 'unknown';
+export type SaleKind = 'sale' | 'clearance';
 
 export type CategoryBrief = {
   category_id: string;
@@ -60,6 +61,9 @@ export type EventListItem = {
   starts_at?: string | null;
   ends_at?: string | null;
   is_free?: boolean | null;
+  price_min_cad?: number | string | null;
+  price_max_cad?: number | string | null;
+  sale_kind?: SaleKind | null;
   neighbourhood?: string | null;
   city?: string | null;
   primary_category?: CategoryBrief | null;
@@ -82,7 +86,13 @@ export type EventDetail = {
   title: string;
   description?: string | null;
   summary?: string | null;
+  bio?: string | null;
   image_url?: string | null;
+  image_urls?: string[] | null;
+  photo_urls?: string[] | null;
+  video_url?: string | null;
+  ticket_url?: string | null;
+  external_url?: string | null;
   venue?: VenueBrief | null;
   raw_venue_name?: string | null;
   raw_venue_address?: string | null;
@@ -103,6 +113,7 @@ export type EventDetail = {
   price_min_cad?: number | string | null;
   price_max_cad?: number | string | null;
   price_notes?: string | null;
+  sale_kind?: SaleKind | null;
   ticketing?: string | null;
   requires_rsvp?: boolean | null;
   age_restriction?: string | null;
@@ -133,9 +144,13 @@ export type EventMapPin = {
   starts_at?: string | null;
   ends_at?: string | null;
   is_free?: boolean | null;
+  price_min_cad?: number | string | null;
+  price_max_cad?: number | string | null;
+  sale_kind?: SaleKind | null;
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
   neighbourhood?: string | null;
+  city?: string | null;
   distance_m?: number | null;
 };
 

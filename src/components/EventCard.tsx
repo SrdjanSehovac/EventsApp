@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Image,
-  Linking,
   Pressable,
   Share,
   StyleSheet,
@@ -9,47 +8,41 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
-import { useTheme } from '../theme';
+import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
+import { eventDetailHref } from '../utils/eventDetail';
+import { formatEventPlace, formatEventPrice, formatFactsRow, formatSaleBadge } from '../utils/eventFormat';
+import { FavouriteButton } from './FavouriteButton';
+
+type EventCardVariant = 'card' | 'listing' | 'preview';
 
 type EventCardProps = {
   item: EventListItem;
+  variant?: EventCardVariant;
 };
-
-function formatEventDate(value?: string | null) {
-  if (!value) return 'Schedule TBD';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Schedule TBD';
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-function formatLocation(item: EventListItem) {
-  const parts = [item.neighbourhood, item.city].filter(Boolean);
-  return parts.length > 0 ? parts.join(', ') : 'Location TBD';
-}
 
 function isEnded(status: string) {
   return status === 'ended' || status === 'cancelled';
 }
 
-export function EventCard({ item }: EventCardProps) {
+export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const { colors, typography, spacing, radius, shadows } = useTheme();
+  const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
 
   const ended = isEnded(item.status);
   const showImage = Boolean(item.image_url) && !imageFailed;
-  const actionLabel = ended ? 'View Recap' : 'Get Ticket';
+  const categoryColor = colorForCategory(item.primary_category);
+  const facts = formatFactsRow(item);
+  const price = formatEventPrice(item);
+  const saleLabel = formatSaleBadge(item);
+  const chipLabel = saleLabel ?? price;
+  const place = formatEventPlace(item);
 
-  async function openSource() {
-    if (!item.source_url) return;
-    const canOpen = await Linking.canOpenURL(item.source_url);
-    if (canOpen) await Linking.openURL(item.source_url);
+  function openDetail() {
+    router.push(eventDetailHref(item.event_id));
   }
 
   async function shareEvent() {
@@ -63,62 +56,154 @@ export function EventCard({ item }: EventCardProps) {
     });
   }
 
+  const hero = showImage ? (
+    <Image
+      source={{ uri: item.image_url ?? undefined }}
+      style={styles.imageFill}
+      onError={() => setImageFailed(true)}
+    />
+  ) : (
+    <View
+      style={[
+        styles.imageFill,
+        styles.imageFallback,
+        {
+          backgroundColor: item.primary_category
+            ? tintForCategory(item.primary_category, '33')
+            : colors.primaryMuted,
+        },
+      ]}
+    >
+      <Ionicons
+        name="calendar"
+        size={variant === 'listing' ? 26 : 32}
+        color={item.primary_category ? categoryColor : colors.primary}
+      />
+    </View>
+  );
+
+  if (variant === 'listing') {
+    return (
+      <View
+        style={[
+          styles.listing,
+          shadows.soft,
+          {
+            backgroundColor: colors.surface,
+            borderRadius: radius.lg,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.title}`}
+          onPress={openDetail}
+          style={styles.listingMain}
+        >
+          <View style={styles.listingImage}>{hero}</View>
+          <View style={styles.listingBody}>
+            <View style={styles.listingTitleRow}>
+              <Text
+                numberOfLines={2}
+                style={[
+                  typography.body,
+                  {
+                    color: colors.text,
+                    fontWeight: '700',
+                    flex: 1,
+                    paddingRight: 8,
+                  },
+                ]}
+              >
+                {item.title}
+              </Text>
+            </View>
+            <Text
+              numberOfLines={1}
+              style={[
+                typography.caption,
+                { color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
+              ]}
+            >
+              {facts}
+            </Text>
+            <View style={styles.listingMeta}>
+              {chipLabel ? (
+                <View
+                  style={[
+                    styles.priceChip,
+                    {
+                      backgroundColor: saleLabel
+                        ? tintForCategory(item.primary_category, '22')
+                        : colors.primaryMuted,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      typography.caption,
+                      {
+                        color: saleLabel ? categoryColor : colors.primary,
+                        fontWeight: '800',
+                        fontSize: 12,
+                      },
+                    ]}
+                  >
+                    {chipLabel}
+                  </Text>
+                </View>
+              ) : null}
+              {item.primary_category ? (
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    typography.caption,
+                    { color: categoryColor, fontWeight: '700', flexShrink: 1 },
+                  ]}
+                >
+                  {item.primary_category.name}
+                </Text>
+              ) : null}
+            </View>
+            {place && place !== 'Location TBD' ? (
+              <Text
+                numberOfLines={1}
+                style={[
+                  typography.caption,
+                  { color: colors.textMuted, marginTop: 4 },
+                ]}
+              >
+                {place}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+        <View style={styles.listingHeart}>
+          <FavouriteButton item={item} variant="plain" />
+        </View>
+      </View>
+    );
+  }
+
+  const actionLabel = 'View details';
+
   return (
     <View
       style={[
         styles.card,
-        shadows.soft,
+        variant === 'preview' ? shadows.card : shadows.soft,
         {
           backgroundColor: colors.surface,
-          borderColor: colors.border,
-          borderRadius: radius.lg,
+          borderRadius: radius.xl,
         },
       ]}
     >
-      <View style={styles.imageWrap}>
-        {showImage ? (
-          <Image
-            source={{ uri: item.image_url ?? undefined }}
-            style={styles.image}
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <View
-            style={[
-              styles.image,
-              styles.imageFallback,
-              { backgroundColor: colors.surfaceElevated },
-            ]}
-          >
-            <Ionicons name="calendar" size={32} color={colors.textMuted} />
-          </View>
-        )}
+      <View style={[styles.imageWrap, variant === 'preview' && styles.previewImage]}>
+        {hero}
 
-        <View
-          style={[
-            styles.badge,
-            styles.statusBadge,
-            { backgroundColor: 'rgba(11, 11, 20, 0.78)' },
-          ]}
-        >
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: ended ? colors.danger : colors.success },
-            ]}
-          />
-          <Text
-            style={[
-              typography.caption,
-              {
-                color: ended ? colors.danger : colors.success,
-                fontSize: 11,
-                fontWeight: '600',
-              },
-            ]}
-          >
-            {ended ? 'Ended' : 'Active'}
-          </Text>
+        <View style={styles.heartWrap}>
+          <FavouriteButton item={item} variant="overlay" />
         </View>
 
         {item.primary_category ? (
@@ -126,17 +211,40 @@ export function EventCard({ item }: EventCardProps) {
             style={[
               styles.badge,
               styles.categoryBadge,
-              { backgroundColor: colors.primaryMuted },
+              { backgroundColor: categoryColor },
             ]}
           >
             <Text
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: colors.primary, fontSize: 11, fontWeight: '600' },
+                { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
               ]}
             >
               {item.primary_category.name}
+            </Text>
+          </View>
+        ) : null}
+
+        {chipLabel ? (
+          <View
+            style={[
+              styles.badge,
+              styles.priceBadge,
+              { backgroundColor: colors.surface },
+            ]}
+          >
+            <Text
+              style={[
+                typography.caption,
+                {
+                  color: saleLabel ? categoryColor : colors.text,
+                  fontSize: 11,
+                  fontWeight: '800',
+                },
+              ]}
+            >
+              {chipLabel}
             </Text>
           </View>
         ) : null}
@@ -149,14 +257,27 @@ export function EventCard({ item }: EventCardProps) {
         >
           {item.title}
         </Text>
+        <Text
+          numberOfLines={1}
+          style={[
+            typography.caption,
+            {
+              color: colors.textSecondary,
+              marginTop: spacing.sm,
+              fontWeight: '700',
+            },
+          ]}
+        >
+          {facts}
+        </Text>
         {item.summary ? (
           <Text
             numberOfLines={2}
             style={[
               typography.caption,
               {
-                color: colors.textSecondary,
-                marginTop: spacing.xs,
+                color: colors.textMuted,
+                marginTop: spacing.sm,
                 lineHeight: 18,
               },
             ]}
@@ -165,75 +286,73 @@ export function EventCard({ item }: EventCardProps) {
           </Text>
         ) : null}
 
-        <View style={[styles.metaRow, { marginTop: spacing.md }]}>
-          <Ionicons name="calendar-outline" size={14} color={colors.primary} />
-          <Text
-            numberOfLines={1}
-            style={[
-              typography.caption,
-              { color: colors.textSecondary, marginLeft: spacing.sm, flex: 1 },
-            ]}
-          >
-            {formatEventDate(item.starts_at)}
-          </Text>
-        </View>
-        <View style={[styles.metaRow, { marginTop: spacing.xs }]}>
-          <Ionicons name="location-outline" size={14} color={colors.primary} />
-          <Text
-            numberOfLines={1}
-            style={[
-              typography.caption,
-              { color: colors.textSecondary, marginLeft: spacing.sm, flex: 1 },
-            ]}
-          >
-            {formatLocation(item)}
-          </Text>
-        </View>
-
-        <View style={[styles.footer, { marginTop: spacing.lg }]}>
+        {variant === 'preview' ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
-            onPress={openSource}
-            disabled={!item.source_url}
+            onPress={openDetail}
             style={[
-              styles.action,
+              styles.previewCta,
               {
-                backgroundColor: ended ? 'transparent' : colors.primary,
-                borderColor: ended ? colors.border : colors.primary,
-                borderRadius: radius.md,
-                opacity: item.source_url ? 1 : 0.5,
+                backgroundColor: colors.primary,
+                borderRadius: radius.full,
+                marginTop: spacing.lg,
               },
             ]}
           >
             <Text
               style={[
                 typography.caption,
-                {
-                  color: ended ? colors.text : colors.onPrimary,
-                  fontWeight: '700',
-                },
+                { color: colors.onPrimary, fontWeight: '800' },
               ]}
             >
               {actionLabel}
             </Text>
           </Pressable>
+        ) : (
+          <View style={[styles.footer, { marginTop: spacing.lg }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={actionLabel}
+              onPress={openDetail}
+              style={[
+                styles.action,
+                {
+                  backgroundColor: ended ? 'transparent' : colors.primary,
+                  borderColor: ended ? colors.border : colors.primary,
+                  borderRadius: radius.full,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  typography.caption,
+                  {
+                    color: ended ? colors.text : colors.onPrimary,
+                    fontWeight: '700',
+                  },
+                ]}
+              >
+                {actionLabel}
+              </Text>
+            </Pressable>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Share event"
-            onPress={shareEvent}
-            style={[
-              styles.share,
-              {
-                borderColor: colors.border,
-                borderRadius: radius.full,
-              },
-            ]}
-          >
-            <Ionicons name="share-outline" size={16} color={colors.textSecondary} />
-          </Pressable>
-        </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share event"
+              onPress={shareEvent}
+              style={[
+                styles.share,
+                {
+                  borderColor: colors.border,
+                  borderRadius: radius.full,
+                },
+              ]}
+            >
+              <Ionicons name="share-outline" size={16} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -241,14 +360,16 @@ export function EventCard({ item }: EventCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
   },
   imageWrap: {
     height: 148,
     position: 'relative',
   },
-  image: {
+  previewImage: {
+    height: 168,
+  },
+  imageFill: {
     width: '100%',
     height: '100%',
   },
@@ -258,29 +379,25 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 10,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  statusBadge: {
-    left: 10,
-  },
   categoryBadge: {
+    left: 10,
+    bottom: 10,
+    maxWidth: '58%',
+  },
+  priceBadge: {
     right: 10,
-    maxWidth: '52%',
+    bottom: 10,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  heartWrap: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
   footer: {
     flexDirection: 'row',
@@ -294,11 +411,63 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginRight: 10,
   },
+  previewCta: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
   share: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+  },
+  listing: {
+    flexDirection: 'row',
+    overflow: 'hidden',
+    minHeight: 96,
+    position: 'relative',
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  listingMain: {
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
+    alignItems: 'stretch',
+  },
+  listingImage: {
+    width: 108,
+    minHeight: 96,
+    overflow: 'hidden',
+  },
+  listingBody: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingRight: 40,
+    justifyContent: 'center',
+  },
+  listingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  listingMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  priceChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  listingHeart: {
+    position: 'absolute',
+    top: 6,
+    right: 4,
   },
 });

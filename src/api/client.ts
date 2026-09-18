@@ -1,5 +1,6 @@
 import { API_V1_URL } from '../config/api';
 import type { ApiErrorBody, UserGeo } from '../types/common';
+import { getAuthToken, notifyUnauthorized } from './session';
 
 export class ApiError extends Error {
   status: number;
@@ -29,6 +30,8 @@ export type RequestOptions = {
   body?: unknown;
   geo?: UserGeo | null;
   signal?: AbortSignal;
+  /** When false, skip the Bearer token (login / signup). Default true. */
+  auth?: boolean;
 };
 
 function appendQuery(
@@ -55,6 +58,7 @@ export async function apiRequest<T>({
   body,
   geo,
   signal,
+  auth = true,
 }: RequestOptions): Promise<T> {
   const url = new URL(
     path.startsWith('http') ? path : `${API_V1_URL}${path}`,
@@ -74,6 +78,13 @@ export async function apiRequest<T>({
     headers['X-User-Lng'] = String(geo.lng);
   }
 
+  if (auth) {
+    const token = getAuthToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
   const response = await fetch(url.toString(), {
     method,
     headers,
@@ -82,6 +93,10 @@ export async function apiRequest<T>({
   });
 
   if (!response.ok) {
+    if (response.status === 401 && auth) {
+      notifyUnauthorized();
+    }
+
     let parsed: ApiErrorBody | null = null;
     let message = `Request failed (${response.status})`;
 

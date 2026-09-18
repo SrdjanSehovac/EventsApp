@@ -5,29 +5,33 @@ import type { BottomTabBarProps } from 'expo-router/tabs';
 
 import { useTheme } from '../theme';
 
-type SideTab = {
+type TabMeta = {
   name: string;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconFocused: keyof typeof Ionicons.glyphMap;
 };
 
-const SIDE_TABS: SideTab[] = [
+const TABS: TabMeta[] = [
+  {
+    name: 'index',
+    label: 'Map',
+    icon: 'map-outline',
+    iconFocused: 'map',
+  },
   {
     name: 'events',
-    label: 'Events',
-    icon: 'calendar-outline',
-    iconFocused: 'calendar',
+    label: 'List',
+    icon: 'list-outline',
+    iconFocused: 'list',
   },
   {
-    name: 'admin',
-    label: 'Admin',
-    icon: 'settings-outline',
-    iconFocused: 'settings',
+    name: 'profile',
+    label: 'Saved',
+    icon: 'heart-outline',
+    iconFocused: 'heart',
   },
 ];
-
-const CENTER_ROUTE = 'index';
 
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -35,9 +39,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
   const bottomPad = Math.max(insets.bottom, spacing.sm);
   const barHeight = tabBar.height + bottomPad;
-
   const activeRoute = state.routes[state.index]?.name;
-  const mapFocused = activeRoute === CENTER_ROUTE;
 
   function navigateTo(routeName: string) {
     const route = state.routes.find((r) => r.name === routeName);
@@ -54,85 +56,63 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     }
   }
 
-  function renderSideTab(tab: SideTab) {
-    const focused = activeRoute === tab.name;
-    const color = focused ? colors.primary : colors.tabInactive;
-    const iconName = focused ? tab.iconFocused : tab.icon;
-
-    return (
-      <Pressable
-        key={tab.name}
-        accessibilityRole="button"
-        accessibilityState={focused ? { selected: true } : {}}
-        accessibilityLabel={tab.label}
-        onPress={() => navigateTo(tab.name)}
-        style={styles.sideTab}
-      >
-        <Ionicons name={iconName} size={tabBar.iconSize} color={color} />
-        <Text style={[typography.tabLabel, { color, marginTop: 2 }]}>
-          {tab.label}
-        </Text>
-      </Pressable>
-    );
-  }
-
   return (
-    <View style={[styles.wrapper, { height: barHeight + tabBar.fabProtrusion }]}>
-      <View
-        style={[
-          styles.bar,
-          {
-            height: barHeight,
-            paddingBottom: bottomPad,
-            backgroundColor: colors.tabBar,
-            borderTopColor: colors.hairline,
-          },
-        ]}
-      >
-        <View style={styles.sideGroup}>{renderSideTab(SIDE_TABS[0])}</View>
+    <View
+      style={[
+        styles.bar,
+        shadows.soft,
+        {
+          height: barHeight,
+          paddingBottom: bottomPad,
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.hairline,
+        },
+      ]}
+    >
+      {TABS.map((tab) => {
+        const focused = activeRoute === tab.name;
+        const color = focused ? colors.primary : colors.tabInactive;
+        const iconName = focused ? tab.iconFocused : tab.icon;
 
-        <View style={styles.centerSpacer} />
-
-        <View style={styles.sideGroup}>{renderSideTab(SIDE_TABS[1])}</View>
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={mapFocused ? { selected: true } : {}}
-        accessibilityLabel="Map"
-        onPress={() => navigateTo(CENTER_ROUTE)}
-        style={[
-          styles.fab,
-          shadows.fab,
-          {
-            width: tabBar.fabSize,
-            height: tabBar.fabSize,
-            borderRadius: tabBar.fabSize / 2,
-            backgroundColor: colors.accent,
-            bottom: barHeight - tabBar.fabSize / 2,
-            borderColor: colors.tabBar,
-          },
-        ]}
-      >
-        <Ionicons
-          name={mapFocused ? 'map' : 'map-outline'}
-          size={tabBar.fabIconSize}
-          color={colors.onAccent}
-        />
-      </Pressable>
+        return (
+          <Pressable
+            key={tab.name}
+            accessibilityRole="button"
+            accessibilityState={focused ? { selected: true } : {}}
+            accessibilityLabel={tab.label}
+            onPress={() => navigateTo(tab.name)}
+            style={styles.tab}
+          >
+            <View
+              style={[
+                styles.iconWrap,
+                {
+                  backgroundColor: focused ? colors.primaryMuted : 'transparent',
+                },
+              ]}
+            >
+              <Ionicons name={iconName} size={tabBar.iconSize} color={color} />
+            </View>
+            <Text
+              style={[
+                typography.tabLabel,
+                {
+                  color,
+                  marginTop: 2,
+                  fontWeight: focused ? '700' : '600',
+                },
+              ]}
+            >
+              {tab.label}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
   bar: {
     position: 'absolute',
     left: 0,
@@ -142,25 +122,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  sideGroup: {
+  tab: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  sideTab: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 72,
-    paddingVertical: 6,
+    paddingTop: 6,
   },
-  centerSpacer: {
-    width: 72,
-  },
-  fab: {
-    position: 'absolute',
+  iconWrap: {
+    width: 44,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 4,
-    zIndex: 2,
   },
 });

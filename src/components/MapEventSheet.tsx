@@ -1,105 +1,132 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { useEvent } from '../hooks';
 import { useTheme } from '../theme';
-import type { EventDetail, EventListItem, EventMapPin } from '../types/events';
+import type { EventMapPin } from '../types/events';
+import {
+  detailToListItem,
+  eventDetailHref,
+  pinToListItem,
+} from '../utils/eventDetail';
 import { EventCard } from './EventCard';
 
 type MapEventSheetProps = {
-  pin: EventMapPin;
+  pins: EventMapPin[];
   bottomInset: number;
   onClose: () => void;
 };
 
-export function pinToListItem(pin: EventMapPin): EventListItem {
-  return {
-    event_id: pin.event_id,
-    title: pin.title,
-    source: '',
-    source_url: '',
-    status: 'active',
-    schedule_type: 'one_shot',
-    starts_at: pin.starts_at,
-    ends_at: pin.ends_at,
-    is_free: pin.is_free,
-    neighbourhood: pin.neighbourhood,
-    primary_category: pin.primary_category,
-    image_url: pin.image_url,
-    latitude: pin.latitude,
-    longitude: pin.longitude,
-    distance_km:
-      pin.distance_m != null ? pin.distance_m / 1000 : null,
-  };
-}
-
-function detailToListItem(detail: EventDetail): EventListItem {
-  return {
-    event_id: detail.event_id,
-    title: detail.title,
-    summary: detail.summary,
-    source: detail.source,
-    source_url: detail.source_url,
-    status: detail.status,
-    schedule_type: detail.schedule_type,
-    starts_at: detail.starts_at,
-    ends_at: detail.ends_at,
-    is_free: detail.is_free,
-    neighbourhood: detail.neighbourhood,
-    city: detail.venue?.city ?? null,
-    primary_category:
-      detail.categories.find((c) => c.is_primary) ??
-      detail.categories[0] ??
-      null,
-    image_url: detail.image_url,
-    latitude: detail.latitude,
-    longitude: detail.longitude,
-    tags: detail.tags,
-    vibe: detail.vibe,
-  };
-}
-
-export function MapEventSheet({
-  pin,
-  bottomInset,
-  onClose,
-}: MapEventSheetProps) {
-  const { colors, spacing } = useTheme();
+function SingleListing({ pin }: { pin: EventMapPin }) {
+  const { colors, typography, radius, spacing } = useTheme();
+  const router = useRouter();
   const detailQuery = useEvent(pin.event_id);
-
   const item =
     detailQuery.data != null
       ? detailToListItem(detailQuery.data)
       : pinToListItem(pin);
 
   return (
+    <View>
+      <EventCard item={item} variant="listing" />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="View details"
+        onPress={() => router.push(eventDetailHref(pin.event_id))}
+        style={[
+          styles.detailsCta,
+          {
+            backgroundColor: colors.primary,
+            borderRadius: radius.full,
+            marginHorizontal: spacing.md,
+            marginBottom: spacing.md,
+            marginTop: 2,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            typography.caption,
+            { color: colors.onPrimary, fontWeight: '800' },
+          ]}
+        >
+          View details
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.onPrimary} />
+      </Pressable>
+    </View>
+  );
+}
+
+export function MapEventSheet({
+  pins,
+  bottomInset,
+  onClose,
+}: MapEventSheetProps) {
+  const { colors, spacing, typography, shadows } = useTheme();
+  const router = useRouter();
+  const count = pins.length;
+
+  return (
     <View
       style={[
         styles.sheet,
         {
-          bottom: bottomInset + spacing.md,
-          paddingHorizontal: spacing.lg,
+          bottom: bottomInset + spacing.sm,
         },
       ]}
       pointerEvents="box-none"
     >
-      <View style={styles.cardWrap}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close event details"
-          onPress={onClose}
-          hitSlop={8}
-          style={[
-            styles.close,
-            {
-              backgroundColor: colors.surfaceElevated,
-              borderColor: colors.border,
-            },
-          ]}
+      <View
+        style={[
+          styles.panel,
+          shadows.card,
+          { backgroundColor: colors.surface },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
+            {count} {count === 1 ? 'event' : 'events'}
+          </Text>
+          <View style={styles.headerActions}>
+            {count === 1 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Expand event details"
+                onPress={() => router.push(eventDetailHref(pins[0].event_id))}
+                hitSlop={8}
+              >
+                <Ionicons name="expand-outline" size={18} color={colors.primary} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close event details"
+              onPress={onClose}
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+        </View>
+        <ScrollView
+          style={count > 1 ? styles.list : undefined}
+          bounces={false}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="close" size={18} color={colors.textSecondary} />
-        </Pressable>
-        <EventCard item={item} />
+          {pins.map((pin) =>
+            count === 1 ? (
+              <SingleListing key={pin.event_id} pin={pin} />
+            ) : (
+              <EventCard
+                key={pin.event_id}
+                item={pinToListItem(pin)}
+                variant="listing"
+              />
+            ),
+          )}
+        </ScrollView>
       </View>
     </View>
   );
@@ -108,22 +135,35 @@ export function MapEventSheet({
 const styles = StyleSheet.create({
   sheet: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-  },
-  cardWrap: {
-    position: 'relative',
-  },
-  close: {
-    position: 'absolute',
-    top: 10,
+    left: 10,
     right: 10,
-    zIndex: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
+    maxHeight: '52%',
+  },
+  panel: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  detailsCta: {
+    minHeight: 44,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 4,
+  },
+  list: {
+    maxHeight: 280,
   },
 });

@@ -7,7 +7,6 @@ import { useResponsive } from './useResponsive';
 
 type ScreenProps = ViewProps & {
   children: ReactNode;
-  /** Extra bottom inset so content clears the protruding Map FAB */
   edges?: ('top' | 'right' | 'bottom' | 'left')[];
 };
 
@@ -20,7 +19,7 @@ export function Screen({
   const { colors, spacing, tabBar } = useTheme();
   const { contentMaxWidth, horizontalPadding } = useResponsive();
 
-  const bottomClearance = tabBar.height + tabBar.fabProtrusion + spacing.lg;
+  const bottomClearance = tabBar.height + spacing.lg;
 
   return (
     <SafeAreaView
