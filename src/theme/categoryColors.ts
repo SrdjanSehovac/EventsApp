@@ -1,80 +1,108 @@
 import type { CategoryBrief } from '../types/events';
+import { FILTER_CATEGORY_GROUPS } from '../utils/filterCategories';
 
-/** Saturated palette used when a slug does not match a named category. */
-const FALLBACK_PALETTE = [
-  '#0E8A7D',
-  '#2563EB',
-  '#7C3AED',
-  '#EA580C',
-  '#DB2777',
-  '#CA8A04',
-  '#0284C7',
-  '#059669',
-] as const;
-
-const NAMED_COLORS: Record<string, string> = {
-  music: '#7C3AED',
-  concert: '#7C3AED',
-  gig: '#6D28D9',
-  nightlife: '#DB2777',
-  night: '#DB2777',
-  party: '#E11D48',
-  food: '#EA580C',
-  drink: '#C2410C',
-  dining: '#EA580C',
-  restaurant: '#EA580C',
-  sports: '#0284C7',
-  fitness: '#0D9488',
-  wellness: '#14B8A6',
-  arts: '#C026D3',
-  art: '#C026D3',
-  theatre: '#A21CAF',
-  theater: '#A21CAF',
-  comedy: '#CA8A04',
-  community: '#16A34A',
+/**
+ * Six pin families. The Filters sheet still shows 12 group chips;
+ * related groups share a hue on map/list pins and category tints.
+ */
+export const PIN_FAMILIES = {
+  night_out: '#DB2777',
+  culture: '#7C3AED',
+  eat_shop: '#EA580C',
+  active: '#0284C7',
   family: '#F59E0B',
-  kids: '#F59E0B',
-  education: '#2563EB',
-  workshop: '#1D4ED8',
-  business: '#4F46E5',
-  market: '#D97706',
-  festival: '#E11D48',
-  outdoor: '#059669',
-  outdoors: '#059669',
-  film: '#7C3AED',
-  movie: '#6D28D9',
-  tech: '#0F766E',
+  gather_learn: '#15803D',
+} as const;
+
+export type PinFamily = keyof typeof PIN_FAMILIES;
+
+/** Slightly darker orange within Eat & shop — already used for Clearance. */
+export const CLEARANCE_PIN = '#B45309';
+
+/** Unknown / uncategorised pins. Slate, not emerald chrome (`#0F766E`). */
+export const DEFAULT_PIN = '#78716C';
+
+/**
+ * 12 filter groups → 6 pin families.
+ * Keys are `FILTER_CATEGORY_GROUPS[].id`.
+ */
+export const FILTER_GROUP_FAMILY: Record<string, PinFamily> = {
+  nightlife: 'night_out',
+  music: 'night_out',
+  arts: 'culture',
+  comedy: 'culture',
+  festivals: 'culture',
+  food_drink: 'eat_shop',
+  markets: 'eat_shop',
+  sales: 'eat_shop',
+  sports_fitness: 'active',
+  family: 'family',
+  workshops: 'gather_learn',
+  community: 'gather_learn',
 };
 
-/** Retail sales — distinct from emerald chrome, which stays on chrome only. */
-const SALE_PIN = '#DC2626';
-const CLEARANCE_PIN = '#B45309';
+function normalizeSlug(value: string): string {
+  return value.trim().toLowerCase().replace(/-/g, '_');
+}
 
-const DEFAULT_PIN = '#0F766E';
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
 
-function hashKey(key: string): number {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+function buildSlugColorMap(): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const group of FILTER_CATEGORY_GROUPS) {
+    const family = FILTER_GROUP_FAMILY[group.id];
+    if (!family) {
+      throw new Error(`Filter group "${group.id}" has no pin family`);
+    }
+    const color = PIN_FAMILIES[family];
+    map[normalizeSlug(group.id)] = color;
+    map[slugify(group.label)] = color;
+    for (const slug of group.slugs) {
+      const key = normalizeSlug(slug);
+      map[key] = key === 'clearance' ? CLEARANCE_PIN : color;
+    }
   }
-  return hash;
+  return map;
+}
+
+const SLUG_TO_COLOR = buildSlugColorMap();
+
+function colorForSlug(key: string): string | undefined {
+  if (!key) return undefined;
+  const exact = SLUG_TO_COLOR[key];
+  if (exact) return exact;
+
+  // Longest contiguous segment: `retail_clearance` → clearance, not a hash hue.
+  const parts = key.split('_').filter(Boolean);
+  let best: string | undefined;
+  let bestLen = 0;
+  for (let i = 0; i < parts.length; i += 1) {
+    let acc = '';
+    for (let j = i; j < parts.length; j += 1) {
+      acc = acc ? `${acc}_${parts[j]}` : parts[j];
+      const color = SLUG_TO_COLOR[acc];
+      const len = j - i + 1;
+      if (color && len >= bestLen) {
+        best = color;
+        bestLen = len;
+      }
+    }
+  }
+  return best;
 }
 
 export function colorForCategory(
   category?: Pick<CategoryBrief, 'slug' | 'name'> | null,
 ): string {
-  const key = (category?.slug || category?.name || '').trim().toLowerCase();
-  if (!key) return DEFAULT_PIN;
-
-  const words = key.replace(/[-_]+/g, ' ');
-  if (/\bclearance\b/.test(words)) return CLEARANCE_PIN;
-  if (/\bsales?\b/.test(words)) return SALE_PIN;
-
-  for (const [needle, color] of Object.entries(NAMED_COLORS)) {
-    if (key.includes(needle)) return color;
-  }
-
-  return FALLBACK_PALETTE[hashKey(key) % FALLBACK_PALETTE.length];
+  const slugKey = slugify(category?.slug ?? '');
+  const nameKey = slugify(category?.name ?? '');
+  return colorForSlug(slugKey) ?? colorForSlug(nameKey) ?? DEFAULT_PIN;
 }
 
 export function tintForCategory(
