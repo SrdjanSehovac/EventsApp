@@ -153,7 +153,6 @@ check(
   formatSaleBadge({
     title: 'Open mic',
     primary_category: musicCategory,
-    is_free: true,
   }),
   null,
 );
