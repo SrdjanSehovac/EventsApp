@@ -1,3 +1,5 @@
+import type { SaleKind } from '../types/events';
+
 type PlaceLike = {
   neighbourhood?: string | null;
   city?: string | null;
@@ -10,9 +12,33 @@ type PriceLike = {
   price_notes?: string | null;
 };
 
+type CategoryLike = {
+  name?: string | null;
+  slug?: string | null;
+};
+
+type SaleLike = {
+  title?: string | null;
+  sale_kind?: SaleKind | null;
+  primary_category?: CategoryLike | null;
+};
+
 type WhenLike = {
   starts_at?: string | null;
 };
+
+const CLEARANCE_IN_TEXT = /\bclearance\b/i;
+const SALE_IN_CATEGORY = /\bsales?\b/i;
+const ON_SALE_NOISE = /\b(?:tickets?\s+)?on\s+sale\b/i;
+const SALE_IN_TITLE =
+  /\b(?:warehouse|trunk|garage|yard|sidewalk|sample|tent)\s+sales?\b|\bback[\s-]*to[\s-]*school\s+sales?\b|\bsales?\s*$/i;
+
+function categoryBlob(category?: CategoryLike | null): string {
+  if (!category) return '';
+  return `${category.slug ?? ''} ${category.name ?? ''}`
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ');
+}
 
 export function formatEventWhen(value?: string | null): string {
   if (!value) return 'Schedule TBD';
@@ -86,6 +112,36 @@ export function formatEventPrice(item: PriceLike): string | null {
   return null;
 }
 
+export function resolveSaleKind(item: SaleLike): SaleKind | null {
+  const category = categoryBlob(item.primary_category);
+  const title = item.title ?? '';
+
+  if (
+    item.sale_kind === 'clearance' ||
+    CLEARANCE_IN_TEXT.test(category) ||
+    CLEARANCE_IN_TEXT.test(title)
+  ) {
+    return 'clearance';
+  }
+
+  if (
+    item.sale_kind === 'sale' ||
+    SALE_IN_CATEGORY.test(category) ||
+    (!ON_SALE_NOISE.test(title) && SALE_IN_TITLE.test(title))
+  ) {
+    return 'sale';
+  }
+
+  return null;
+}
+
+export function formatSaleBadge(item: SaleLike): 'Sale' | 'Clearance' | null {
+  const kind = resolveSaleKind(item);
+  if (kind === 'clearance') return 'Clearance';
+  if (kind === 'sale') return 'Sale';
+  return null;
+}
+
 export function formatFactsRow(
   item: PlaceLike & PriceLike & WhenLike,
 ): string {
@@ -97,14 +153,19 @@ export function formatFactsRow(
   return parts.join(' · ');
 }
 
-/** Map pin label: Free/$ only — dates belong in filters/sheets, not badges. */
-export function formatPinBadge(item: PriceLike): string {
-  return formatEventPrice(item) ?? '';
+/** Map pin label: Sale/Clearance, else Free/$ amounts. Dates stay off badges. */
+export function formatPinBadge(item: PriceLike & SaleLike): string {
+  return formatSaleBadge(item) ?? formatEventPrice(item) ?? '';
 }
 
-/** Large listing fact — Free / $ / start time. */
-export function formatPriceLike(item: PriceLike & WhenLike): string {
-  return formatEventPrice(item) ?? formatPinTime(item.starts_at) ?? 'Soon';
+/** Large listing fact — Sale / Clearance / Free / $ / start time. */
+export function formatPriceLike(item: PriceLike & SaleLike & WhenLike): string {
+  return (
+    formatSaleBadge(item) ??
+    formatEventPrice(item) ??
+    formatPinTime(item.starts_at) ??
+    'Soon'
+  );
 }
 
 export function formatMetaRow(

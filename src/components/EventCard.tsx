@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
 import { eventDetailHref } from '../utils/eventDetail';
-import { formatEventPlace, formatEventPrice, formatFactsRow } from '../utils/eventFormat';
+import { formatEventPlace, formatEventPrice, formatFactsRow, formatSaleBadge } from '../utils/eventFormat';
 import { FavouriteButton } from './FavouriteButton';
 
 type EventCardVariant = 'card' | 'listing' | 'preview';
@@ -37,6 +37,8 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const categoryColor = colorForCategory(item.primary_category);
   const facts = formatFactsRow(item);
   const price = formatEventPrice(item);
+  const saleLabel = formatSaleBadge(item);
+  const chipLabel = saleLabel ?? price;
   const place = formatEventPlace(item);
 
   function openDetail() {
@@ -127,20 +129,28 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               {facts}
             </Text>
             <View style={styles.listingMeta}>
-              {price ? (
+              {chipLabel ? (
                 <View
                   style={[
                     styles.priceChip,
-                    { backgroundColor: colors.primaryMuted },
+                    {
+                      backgroundColor: saleLabel
+                        ? tintForCategory(item.primary_category, '22')
+                        : colors.primaryMuted,
+                    },
                   ]}
                 >
                   <Text
                     style={[
                       typography.caption,
-                      { color: colors.primary, fontWeight: '800', fontSize: 12 },
+                      {
+                        color: saleLabel ? categoryColor : colors.primary,
+                        fontWeight: '800',
+                        fontSize: 12,
+                      },
                     ]}
                   >
-                    {price}
+                    {chipLabel}
                   </Text>
                 </View>
               ) : null}
@@ -216,7 +226,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           </View>
         ) : null}
 
-        {price ? (
+        {chipLabel ? (
           <View
             style={[
               styles.badge,
@@ -227,10 +237,14 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
             <Text
               style={[
                 typography.caption,
-                { color: colors.text, fontSize: 11, fontWeight: '800' },
+                {
+                  color: saleLabel ? categoryColor : colors.text,
+                  fontSize: 11,
+                  fontWeight: '800',
+                },
               ]}
             >
-              {price}
+              {chipLabel}
             </Text>
           </View>
         ) : null}

@@ -29,6 +29,7 @@ import {
   openExternalUrl,
   uniqueUrls,
 } from '../utils/eventDetail';
+import { formatSaleBadge } from '../utils/eventFormat';
 import { EventMapSnippet } from './EventMapSnippet';
 import { FavouriteButton } from './FavouriteButton';
 
@@ -115,6 +116,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const venueName = detail ? formatVenueName(detail) : null;
   const address = detail ? formatFullAddress(detail) : null;
   const price = detail ? formatDetailPrice(detail) : null;
+  const saleLabel = listItem ? formatSaleBadge(listItem) : null;
   const scheduleLines = detail ? formatScheduleLines(detail) : [];
   const extraCategories = (detail?.categories ?? []).filter(
     (c) => c.category_id !== primaryCategory?.category_id,
@@ -258,6 +260,13 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               {primaryCategory ? (
                 <Chip
                   label={primaryCategory.name}
+                  color="#FFFFFF"
+                  background={categoryColor}
+                />
+              ) : null}
+              {saleLabel ? (
+                <Chip
+                  label={saleLabel}
                   color="#FFFFFF"
                   background={categoryColor}
                 />

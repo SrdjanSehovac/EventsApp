@@ -46,6 +46,10 @@ const NAMED_COLORS: Record<string, string> = {
   tech: '#0F766E',
 };
 
+/** Retail sales — distinct from emerald chrome, which stays on chrome only. */
+const SALE_PIN = '#DC2626';
+const CLEARANCE_PIN = '#B45309';
+
 const DEFAULT_PIN = '#0F766E';
 
 function hashKey(key: string): number {
@@ -61,6 +65,10 @@ export function colorForCategory(
 ): string {
   const key = (category?.slug || category?.name || '').trim().toLowerCase();
   if (!key) return DEFAULT_PIN;
+
+  const words = key.replace(/[-_]+/g, ' ');
+  if (/\bclearance\b/.test(words)) return CLEARANCE_PIN;
+  if (/\bsales?\b/.test(words)) return SALE_PIN;
 
   for (const [needle, color] of Object.entries(NAMED_COLORS)) {
     if (key.includes(needle)) return color;
