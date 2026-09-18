@@ -1,13 +1,14 @@
+import { useMemo } from 'react';
 import {
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { SW_ONTARIO_CITIES } from '../config/cities';
 import { useTheme } from '../theme';
 import type { CategoryNode } from '../types/categories';
 import type {
@@ -19,7 +20,13 @@ import type {
   Ticketing,
   WhenPreset,
 } from '../types/events';
-import { SW_ONTARIO_CITIES } from '../config/cities';
+import {
+  FILTER_CATEGORY_GROUPS,
+  countSelectedFilterGroups,
+  expandFilterGroupSlugs,
+  isFilterGroupSelected,
+  toggleFilterGroupSlugs,
+} from '../utils/filterCategories';
 import { SelectField } from './SelectField';
 
 export type EventsFilterState = {
@@ -72,12 +79,6 @@ type EventFiltersProps = {
   showSearch?: boolean;
   showClear?: boolean;
 };
-
-function toggleSlug(slugs: string[], slug: string) {
-  return slugs.includes(slug)
-    ? slugs.filter((item) => item !== slug)
-    : [...slugs, slug];
-}
 
 function toIsoDate(raw: string, endOfDay: boolean) {
   const trimmed = raw.trim();
@@ -159,7 +160,7 @@ export function countActiveFilters(
 ) {
   let count = 0;
   if (!options?.excludeQuery && filters.q.trim()) count += 1;
-  count += filters.categorySlugs.length;
+  count += countSelectedFilterGroups(filters.categorySlugs);
   if (filters.city) count += 1;
   if (filters.neighbourhood) count += 1;
   if (filters.when !== EMPTY_FILTERS.when) count += 1;
@@ -185,38 +186,38 @@ export function EventFilters({
     onChange({ ...value, ...partial });
   }
 
-  const apiByName = new Map(
-    cities.map((city) => [city.city.toLowerCase(), city] as const),
-  );
-  const pinnedCityOptions = SW_ONTARIO_CITIES.map((name) => {
-    const match = apiByName.get(name.toLowerCase());
-    return {
-      label: match?.city ?? name,
-      value: match?.city ?? name,
-    };
-  });
-  const otherCityOptions = cities
-    .filter(
-      (city) =>
-        !SW_ONTARIO_CITIES.some((name) => name.toLowerCase() === city.city.toLowerCase()),
-    )
-    .map((city) => ({
-      label: city.city,
-      value: city.city,
-    }));
-  const cityOptions = [
-    { label: 'Any city', value: null },
-    ...pinnedCityOptions,
-    ...otherCityOptions,
-  ];
+  const cityOptions = useMemo(() => {
+    const apiByName = new Map(
+      cities.map((city) => [city.city.toLowerCase(), city.city] as const),
+    );
+    return [
+      { label: 'Any', value: null },
+      ...SW_ONTARIO_CITIES.map((name) => ({
+        label: name,
+        value: apiByName.get(name.toLowerCase()) ?? name,
+      })),
+    ];
+  }, [cities]);
 
-  const neighbourhoodOptions = [
-    { label: 'Any neighbourhood', value: null },
-    ...neighbourhoods.map((item) => ({
-      label: item.neighbourhood,
-      value: item.neighbourhood,
-    })),
-  ];
+  const neighbourhoodOptions = useMemo(
+    () => [
+      { label: 'Any', value: null },
+      ...neighbourhoods.map((item) => ({
+        label: item.neighbourhood,
+        value: item.neighbourhood,
+      })),
+    ],
+    [neighbourhoods],
+  );
+
+  const categoryGroups = useMemo(
+    () =>
+      FILTER_CATEGORY_GROUPS.map((group) => ({
+        ...group,
+        expandedSlugs: expandFilterGroupSlugs(group, categories),
+      })),
+    [categories],
+  );
 
   const sectionLabel = [
     typography.caption,
@@ -255,7 +256,7 @@ export function EventFilters({
               backgroundColor: colors.surface,
               borderColor: colors.border,
               borderRadius: radius.md,
-              marginBottom: spacing.xl,
+              marginBottom: spacing.lg,
             },
           ]}
         >
@@ -263,7 +264,7 @@ export function EventFilters({
           <TextInput
             value={value.q}
             onChangeText={(q) => patch({ q })}
-            placeholder="Search events, neighbourhoods…"
+            placeholder="Search events"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -277,129 +278,66 @@ export function EventFilters({
       ) : null}
 
       <Text style={sectionLabel}>When</Text>
-      <View style={[styles.pillRow, { marginBottom: spacing.xl, gap: spacing.sm }]}>
-        {WHEN_OPTIONS.map((option) => {
-          const selected = value.when === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => patch({ when: option.value })}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  {
-                    color: selected ? colors.onPrimary : colors.textSecondary,
-                    fontWeight: '700',
-                  },
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={[styles.pillRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
+        {WHEN_OPTIONS.map((option) => (
+          <Chip
+            key={option.value}
+            label={option.label}
+            selected={value.when === option.value}
+            onPress={() => patch({ when: option.value })}
+          />
+        ))}
       </View>
 
       <Text style={sectionLabel}>City</Text>
-      <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
+      <View style={{ marginBottom: spacing.lg }}>
         <SelectField
           icon="business-outline"
+          placeholder="Any"
           value={value.city}
           options={cityOptions}
           onChange={(city) => patch({ city, neighbourhood: null })}
         />
+      </View>
+
+      <Text style={sectionLabel}>Neighbourhood</Text>
+      <View style={{ marginBottom: spacing.lg }}>
         <SelectField
           icon="location-outline"
+          placeholder="Any"
           value={value.neighbourhood}
           options={neighbourhoodOptions}
           onChange={(neighbourhood) => patch({ neighbourhood })}
         />
       </View>
 
-      <Text style={sectionLabel}>Category</Text>
-      <View style={{ marginBottom: spacing.xl }}>
-        {categories.map((category) => {
-          const checked = value.categorySlugs.includes(category.slug);
-          return (
-            <Pressable
-              key={category.category_id}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked }}
-              onPress={() =>
-                patch({ categorySlugs: toggleSlug(value.categorySlugs, category.slug) })
-              }
-              style={[styles.checkRow, { paddingVertical: spacing.sm }]}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  {
-                    borderColor: checked ? colors.primary : colors.border,
-                    backgroundColor: checked ? colors.primary : 'transparent',
-                    borderRadius: 4,
-                  },
-                ]}
-              >
-                {checked ? (
-                  <Ionicons name="checkmark" size={12} color={colors.onPrimary} />
-                ) : null}
-              </View>
-              <Text style={[typography.body, { color: colors.text, marginLeft: spacing.sm }]}>
-                {category.name}
-              </Text>
-            </Pressable>
+      <Text style={sectionLabel}>Categories</Text>
+      <View style={[styles.pillRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
+        {categoryGroups.map((group) => {
+          const selected = isFilterGroupSelected(
+            value.categorySlugs,
+            group.expandedSlugs,
           );
-        })}
-      </View>
-
-      <Text style={sectionLabel}>Price</Text>
-      <View style={[styles.pillRow, { marginBottom: spacing.xl, gap: spacing.sm }]}>
-        {TICKETING_OPTIONS.map((option) => {
-          const selected = value.ticketing === option.value;
           return (
-            <Pressable
-              key={option.value}
+            <Chip
+              key={group.id}
+              label={group.label}
+              selected={selected}
               onPress={() =>
-                patch({ ticketing: selected ? null : option.value })
+                patch({
+                  categorySlugs: toggleFilterGroupSlugs(
+                    value.categorySlugs,
+                    group.expandedSlugs,
+                  ),
+                })
               }
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  {
-                    color: selected ? colors.onPrimary : colors.textSecondary,
-                    fontWeight: '700',
-                  },
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>
 
       <Text style={sectionLabel}>Date range</Text>
-      <View style={[styles.dateRow, { gap: spacing.sm, marginBottom: spacing.xs }]}>
+      <View style={[styles.dateRow, { gap: spacing.sm, marginBottom: spacing.lg }]}>
         <DateInput
           value={value.startsAfter}
           placeholder="From"
@@ -411,27 +349,76 @@ export function EventFilters({
           onChange={(startsBefore) => patch({ startsBefore })}
         />
       </View>
+
+      <Text style={sectionLabel}>Ticketing</Text>
+      <View style={[styles.pillRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
+        {TICKETING_OPTIONS.map((option) => {
+          const selected = value.ticketing === option.value;
+          return (
+            <Chip
+              key={option.value}
+              label={option.label}
+              selected={selected}
+              onPress={() => patch({ ticketing: selected ? null : option.value })}
+            />
+          );
+        })}
+      </View>
+
+      <Text style={sectionLabel}>Indoor / outdoor</Text>
+      <View style={[styles.pillRow, { gap: spacing.sm }]}>
+        <Chip
+          label="Indoor"
+          selected={value.indoor}
+          onPress={() => patch({ indoor: !value.indoor })}
+        />
+        <Chip
+          label="Outdoor"
+          selected={value.outdoor}
+          onPress={() => patch({ outdoor: !value.outdoor })}
+        />
+      </View>
+    </View>
+  );
+}
+
+function Chip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { colors, typography, radius } = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[
+        styles.pill,
+        {
+          backgroundColor: selected ? colors.primary : colors.surface,
+          borderColor: selected ? colors.primary : colors.border,
+          borderRadius: radius.full,
+        },
+      ]}
+    >
       <Text
         style={[
           typography.caption,
-          { color: colors.textMuted, marginBottom: spacing.xl },
+          {
+            color: selected ? colors.onPrimary : colors.textSecondary,
+            fontWeight: '700',
+          },
         ]}
       >
-        Optional. Uses MM/DD/YYYY or YYYY-MM-DD.
+        {label}
       </Text>
-
-      <Text style={sectionLabel}>Setting</Text>
-      <SettingSwitch
-        label="Indoor"
-        value={value.indoor}
-        onValueChange={(indoor) => patch({ indoor })}
-      />
-      <SettingSwitch
-        label="Outdoor"
-        value={value.outdoor}
-        onValueChange={(outdoor) => patch({ outdoor })}
-      />
-    </View>
+    </Pressable>
   );
 }
 
@@ -475,30 +462,6 @@ function DateInput({
   );
 }
 
-function SettingSwitch({
-  label,
-  value,
-  onValueChange,
-}: {
-  label: string;
-  value: boolean;
-  onValueChange: (next: boolean) => void;
-}) {
-  const { colors, typography, spacing } = useTheme();
-
-  return (
-    <View style={[styles.switchRow, { paddingVertical: spacing.sm }]}>
-      <Text style={[typography.body, { color: colors.text }]}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onValueChange}
-        trackColor={{ false: colors.border, true: colors.primary }}
-        thumbColor={colors.surface}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
@@ -515,17 +478,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 10,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   dateRow: {
     flexDirection: 'row',
@@ -544,10 +496,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
 });

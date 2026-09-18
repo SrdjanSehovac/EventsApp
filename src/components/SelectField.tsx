@@ -39,6 +39,8 @@ export function SelectField({
   const [open, setOpen] = useState(false);
 
   const selected = options.find((option) => option.value === value);
+  // Always show the option's own label — never prefix the field `label`
+  // (e.g. "City: Toronto"). Section headers live outside this control.
   const display = selected?.label ?? placeholder;
 
   return (
@@ -129,6 +131,9 @@ export function SelectField({
                 return (
                   <Pressable
                     key={option.value ?? '__any__'}
+                    accessibilityRole="button"
+                    accessibilityLabel={option.label}
+                    accessibilityState={{ selected: selectedOption }}
                     onPress={() => {
                       onChange(option.value);
                       setOpen(false);
