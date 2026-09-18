@@ -83,17 +83,20 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Close filters"
-              onPress={onClose}
+              accessibilityLabel="Done"
+              onPress={() => {
+                setFilters({ ...draft, q: filters.q });
+                onClose();
+              }}
               hitSlop={8}
             >
               <Text
                 style={[
                   typography.body,
-                  { color: colors.textSecondary, fontWeight: '700' },
+                  { color: colors.primary, fontWeight: '700' },
                 ]}
               >
-                Close
+                Done
               </Text>
             </Pressable>
           </View>
@@ -102,7 +105,8 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             contentContainerStyle={{
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.lg,
-              paddingBottom: spacing.xxxl,
+              // Clear the sticky Apply bar so Indoor/Outdoor chips stay tappable.
+              paddingBottom: 112,
             }}
             keyboardShouldPersistTaps="handled"
           >
