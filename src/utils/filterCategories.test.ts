@@ -137,4 +137,11 @@ check(
 const cleared = toggleFilterGroupSlugs(selected, expandedMusic);
 check('unchecking Music removes its slugs', cleared, []);
 
+const musicAndFamily = toggleFilterGroupSlugs(selected, family.slugs);
+check(
+  'Music + Family count as two filters, not leaf slugs',
+  countSelectedFilterGroups(musicAndFamily),
+  2,
+);
+
 console.log('ok  filterCategories');

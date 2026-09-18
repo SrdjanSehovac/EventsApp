@@ -105,7 +105,8 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             contentContainerStyle={{
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.lg,
-              paddingBottom: spacing.xxxl,
+              // Clear the sticky Apply bar so Indoor/Outdoor chips stay tappable.
+              paddingBottom: 112,
             }}
             keyboardShouldPersistTaps="handled"
           >
