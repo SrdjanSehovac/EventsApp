@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBrowse } from '../browse';
+import { findProductCity, productCityQueryValue } from '../config/cities';
 import { useCategories, useCities, useNeighbourhoods } from '../hooks';
 import { useResponsive } from '../layout';
 import { useTheme } from '../theme';
@@ -132,7 +133,11 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
               accessibilityRole="button"
               accessibilityLabel="Done"
               onPress={() => {
-                setFilters({ ...draft, q: filters.q });
+                const city = findProductCity(draft.city);
+                const nextCity = city
+                  ? productCityQueryValue(city, citiesQuery.data ?? [])
+                  : draft.city;
+                setFilters({ ...draft, city: nextCity, q: filters.q });
                 onClose();
               }}
               style={[

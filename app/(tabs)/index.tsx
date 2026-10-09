@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { Region } from 'react-native-maps';
 
 import { useBrowse } from '../../src/browse';
+import { findProductCity } from '../../src/config/cities';
 import {
   BrowseSearchBar,
   EventsMap,
@@ -59,6 +60,11 @@ export default function MapScreen() {
   const cameraSeedRef = useRef<Region | null>(null);
   const adoptNextRegionRef = useRef(true);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const appliedCitySlugRef = useRef<string | null>(null);
+  const focusedCity = useMemo(
+    () => findProductCity(filters.city),
+    [filters.city],
+  );
 
   const beginProgrammaticMove = useCallback(() => {
     adoptNextRegionRef.current = true;
@@ -72,13 +78,35 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (!resolvedCenter || searchCenter) return;
-    const seed = regionForRadiusKm(resolvedCenter, INITIAL_RADIUS_KM);
+    const center = focusedCity
+      ? { lat: focusedCity.lat, lng: focusedCity.lng }
+      : resolvedCenter;
+    const radius = focusedCity?.radiusKm ?? INITIAL_RADIUS_KM;
+    const seed = regionForRadiusKm(center, radius);
     cameraSeedRef.current = seed;
+    appliedCitySlugRef.current = focusedCity?.slug ?? null;
     beginProgrammaticMove();
-    setSearchCenter(resolvedCenter);
-    setSearchRadiusKm(INITIAL_RADIUS_KM);
+    setSearchCenter(center);
+    setSearchRadiusKm(radius);
     setMapRegion(seed);
-  }, [resolvedCenter, searchCenter, beginProgrammaticMove]);
+  }, [resolvedCenter, searchCenter, focusedCity, beginProgrammaticMove]);
+
+  useEffect(() => {
+    if (!searchCenter || !focusedCity) {
+      if (!focusedCity) appliedCitySlugRef.current = null;
+      return;
+    }
+    if (appliedCitySlugRef.current === focusedCity.slug) return;
+    appliedCitySlugRef.current = focusedCity.slug;
+    const center = { lat: focusedCity.lat, lng: focusedCity.lng };
+    const next = regionForRadiusKm(center, focusedCity.radiusKm);
+    setSelectedPins(null);
+    beginProgrammaticMove();
+    setSearchCenter(center);
+    setSearchRadiusKm(focusedCity.radiusKm);
+    setMapRegion(next);
+    mapRef.current?.animateToRegion(next);
+  }, [focusedCity, searchCenter, beginProgrammaticMove]);
 
   useEffect(
     () => () => {

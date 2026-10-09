@@ -9,8 +9,8 @@ import {
 import { useRouter } from 'expo-router';
 
 import { ApiError } from '../src/api/client';
-import { AuthField, AuthScreen, DigitalProofNote } from '../src/components';
-import { SW_ONTARIO_CITIES } from '../src/config/cities';
+import { AuthField, AuthScreen, DigitalProofNote, SelectField } from '../src/components';
+import { PRODUCT_CITIES, buildCityOptions } from '../src/config/cities';
 import { domainsAlign, looksLikeEmail, looksLikeWebsite, normalizeWebsite } from '../src/business/proof';
 import { useApplyAsBusiness, useAuth, useMyBusiness } from '../src/hooks';
 import { useTheme } from '../src/theme';
@@ -39,7 +39,8 @@ function ApplyForm({ initial }: ApplyFormProps) {
   const [website, setWebsite] = useState(initial?.website ?? '');
   const [businessEmail, setBusinessEmail] = useState(initial?.business_email ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
-  const [city, setCity] = useState<string>(initial?.city ?? SW_ONTARIO_CITIES[0]);
+  const [city, setCity] = useState<string>(initial?.city ?? PRODUCT_CITIES[0].name);
+  const cityOptions = useMemo(() => buildCityOptions([], { includeAny: false }), []);
   const [kind, setKind] = useState<BusinessKind>(initial?.kind ?? 'venue');
   const [error, setError] = useState<string | null>(null);
 
@@ -142,51 +143,18 @@ function ApplyForm({ initial }: ApplyFormProps) {
         keyboardType="phone-pad"
       />
 
-      <Text
-        style={[
-          typography.caption,
-          {
-            color: colors.textMuted,
-            fontWeight: '700',
-            letterSpacing: 0.6,
-            marginBottom: spacing.sm,
-          },
-        ]}
-      >
-        CITY
-      </Text>
-      <View style={[styles.chipRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
-        {SW_ONTARIO_CITIES.map((name) => {
-          const selected = city === name;
-          return (
-            <Pressable
-              key={name}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setCity(name)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  {
-                    color: selected ? colors.onPrimary : colors.textSecondary,
-                    fontWeight: '700',
-                  },
-                ]}
-              >
-                {name}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginBottom: spacing.lg }}>
+        <SelectField
+          label="City"
+          placeholder="Toronto"
+          value={city}
+          options={cityOptions}
+          searchable
+          searchPlaceholder="Search cities…"
+          onChange={(next) => {
+            if (next) setCity(next);
+          }}
+        />
       </View>
 
       <Text

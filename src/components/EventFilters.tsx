@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { SW_ONTARIO_CITIES } from '../config/cities';
+import { buildCityOptions } from '../config/cities';
 import { useTheme } from '../theme';
 import type { CategoryNode } from '../types/categories';
 import type {
@@ -187,19 +187,7 @@ export function EventFilters({
     onChange({ ...value, ...partial });
   }
 
-  const apiByName = new Map(
-    cities.map((city) => [city.city.toLowerCase(), city] as const),
-  );
-  const cityOptions = [
-    { label: 'Any', value: null },
-    ...SW_ONTARIO_CITIES.map((name) => {
-      const match = apiByName.get(name.toLowerCase());
-      return {
-        label: name,
-        value: match?.city ?? name,
-      };
-    }),
-  ];
+  const cityOptions = buildCityOptions(cities);
 
   const neighbourhoodOptions = [
     { label: 'Any', value: null },
@@ -286,6 +274,8 @@ export function EventFilters({
           placeholder="Any"
           value={value.city}
           options={cityOptions}
+          searchable
+          searchPlaceholder="Search cities…"
           onChange={(city) => patch({ city, neighbourhood: null })}
         />
         <SelectField

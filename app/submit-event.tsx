@@ -9,8 +9,8 @@ import {
 import { useRouter } from 'expo-router';
 
 import { ApiError } from '../src/api/client';
-import { AuthField, AuthScreen, EventMediaFields } from '../src/components';
-import { SW_ONTARIO_CITIES } from '../src/config/cities';
+import { AuthField, AuthScreen, EventMediaFields, SelectField } from '../src/components';
+import { PRODUCT_CITIES, buildCityOptions } from '../src/config/cities';
 import { useAuth, useCategories, useMyBusiness } from '../src/hooks';
 import { useSubmitEvent } from '../src/hooks/submissions';
 import { colorForCategory, useTheme } from '../src/theme';
@@ -69,7 +69,8 @@ export default function SubmitEventScreen() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [city, setCity] = useState<string>(SW_ONTARIO_CITIES[0]);
+  const [city, setCity] = useState<string>(PRODUCT_CITIES[0].name);
+  const cityOptions = useMemo(() => buildCityOptions([], { includeAny: false }), []);
   const [venue, setVenue] = useState('');
   const [address, setAddress] = useState('');
   const [date, setDate] = useState('');
@@ -205,43 +206,18 @@ export default function SubmitEventScreen() {
         style={{ minHeight: 96, textAlignVertical: 'top' }}
       />
 
-      <Text
-        style={[
-          typography.caption,
-          { color: colors.textMuted, fontWeight: '700', letterSpacing: 0.6, marginBottom: spacing.sm },
-        ]}
-      >
-        CITY
-      </Text>
-      <View style={[styles.chipRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
-        {SW_ONTARIO_CITIES.map((name) => {
-          const selected = city === name;
-          return (
-            <Pressable
-              key={name}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setCity(name)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  { color: selected ? colors.onPrimary : colors.textSecondary, fontWeight: '700' },
-                ]}
-              >
-                {name}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginBottom: spacing.lg }}>
+        <SelectField
+          label="City"
+          placeholder="Toronto"
+          value={city}
+          options={cityOptions}
+          searchable
+          searchPlaceholder="Search cities…"
+          onChange={(next) => {
+            if (next) setCity(next);
+          }}
+        />
       </View>
 
       <AuthField

@@ -1,13 +1,20 @@
 import type { Region } from 'react-native-maps';
 
+import { findProductCity } from '../config/cities';
 import type { UserGeo } from '../types/common';
 
 /** ~111 km per degree of latitude */
 const KM_PER_DEG_LAT = 111;
 
+const toronto = findProductCity('toronto');
+if (!toronto) {
+  throw new Error('Toronto is missing from the product city registry');
+}
+
+/** Downtown Toronto — the camera until a city or device location is chosen. */
 export const DEFAULT_MAP_GEO: UserGeo = {
-  lat: 43.6532,
-  lng: -79.3832,
+  lat: toronto.lat,
+  lng: toronto.lng,
 };
 
 /** Search + camera radius on first load / recenter. */
