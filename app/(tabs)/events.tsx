@@ -26,7 +26,14 @@ import {
 import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 import type { PublicSortField } from '../../src/types/events';
-import { buildAreaListParams, selectAreaEvents } from '../../src/utils/areaQuery';
+import {
+  buildAreaListParams,
+  countEventsInView,
+  pinMatchesQuery,
+  selectAreaEvents,
+} from '../../src/utils/areaQuery';
+import { pinToListItem } from '../../src/utils/eventDetail';
+import { boundsFromRegion, pinInsideBounds } from '../../src/utils/mapViewport';
 
 const SORT_OPTIONS: { label: string; value: PublicSortField }[] = [
   { label: 'Soonest', value: 'starts_at' },
@@ -47,6 +54,8 @@ export default function EventsScreen() {
     setSortTouched,
     viewport,
     commitViewport,
+    loadedPins,
+    mapBoxTotal,
   } = useBrowse();
   useEnsureMapViewport();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -82,9 +91,31 @@ export default function EventsScreen() {
   }, [hasUserGeo, sort, sortTouched, setSort]);
 
   const activeFilterCount = countActiveFilters(filters, { excludeQuery: true });
-  const area = selectAreaEvents(eventsQuery.data?.pages, viewport);
-  const items = area.items;
-  const total = area.total;
+  const visiblePins = useMemo(
+    () => loadedPins.filter((pin) => pinMatchesQuery(pin, debouncedQ)),
+    [loadedPins, debouncedQ],
+  );
+  const area = useMemo(
+    () => selectAreaEvents(eventsQuery.data?.pages, viewport),
+    [eventsQuery.data?.pages, viewport],
+  );
+  const total = countEventsInView({
+    pins: visiblePins,
+    region: viewport,
+    listPages: eventsQuery.data?.pages,
+    mapTotal: mapBoxTotal,
+  });
+  const items = useMemo(() => {
+    if (!viewport) return [];
+    if (area.honoured) return area.items;
+    const bounds = boundsFromRegion(viewport);
+    const byId = new Map(area.items.map((item) => [item.event_id, item]));
+    for (const pin of visiblePins) {
+      if (!pinInsideBounds(pin, bounds) || byId.has(pin.event_id)) continue;
+      byId.set(pin.event_id, pinToListItem(pin));
+    }
+    return [...byId.values()];
+  }, [area.honoured, area.items, visiblePins, viewport]);
   const isLoading = !viewport || !geoQuery.isFetched || eventsQuery.isLoading;
 
   function showAllInArea() {
@@ -112,7 +143,7 @@ export default function EventsScreen() {
               { color: colors.text, fontSize: 18 },
             ]}
           >
-            {eventsQuery.data
+            {total > 0 || eventsQuery.data
               ? `${total.toLocaleString()} event${total === 1 ? '' : 's'} in this map area`
               : 'Events in this map area'}
           </Text>
@@ -179,6 +210,7 @@ export default function EventsScreen() {
               ) : null
             }
             onEndReached={() => {
+              if (!area.honoured) return;
               if (eventsQuery.hasNextPage && !eventsQuery.isFetchingNextPage) {
                 void eventsQuery.fetchNextPage();
               }

@@ -166,7 +166,10 @@ export type EventMapPin = {
 export type MapEventsResponse = {
   geo: GeoContext;
   items: EventMapPin[];
+  /** Number of items in this payload. Often the limit, not the box size. */
   count: number;
+  /** True box total, when the server sends one. `count` is not a substitute. */
+  total?: number | null;
 };
 
 export type PublicEventListResponse = {

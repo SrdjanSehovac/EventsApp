@@ -1,7 +1,9 @@
 import type { Region } from 'react-native-maps';
 
 import {
+  MAP_FETCH_OVERSCAN,
   boundsFromRegion,
+  expandRegion,
   mergeViewportPins,
   radiusKmForBounds,
   tilesForRegion,
@@ -86,6 +88,22 @@ check(
   mergeViewportPins([inside, outside], [], bounds).map((pin) => pin.event_id),
   ['a'],
 );
+const padded = expandRegion(base, MAP_FETCH_OVERSCAN);
+check(
+  'overscan grows each edge by 40%',
+  Math.abs(padded.latitudeDelta / base.latitudeDelta - 1.8) < 1e-9,
+  true,
+);
+
+const zoomedIn = { ...base, latitudeDelta: base.latitudeDelta / 4, longitudeDelta: base.longitudeDelta / 4 };
+const kept = { event_id: 'keep', latitude: zoomedIn.latitude, longitude: zoomedIn.longitude, title: 'stay' };
+const zoomBounds = boundsFromRegion(expandRegion(zoomedIn, MAP_FETCH_OVERSCAN));
+check(
+  'zoom in keeps an in-view pin the new response omitted',
+  mergeViewportPins([kept, outside], [], zoomBounds).map((pin) => pin.event_id),
+  ['keep'],
+);
+
 check(
   'merge prefers the newer row for the same id',
   mergeViewportPins(

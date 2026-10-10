@@ -63,6 +63,13 @@ const PinMarker = memo(function PinMarker({
 }: PinMarkerProps) {
   const pin = cluster.pins[0];
   const label = cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin);
+  const showDot = cluster.count === 1 && !label;
+  // Width includes padding and the white border, so "Free" / "$25" / "Sale"
+  // are not clipped to "Fr..." by a 44pt hit target.
+  const badgeWidth =
+    cluster.count > 1
+      ? Math.max(44, label.length * 16 + 20)
+      : Math.max(64, label.length * 8 + 28);
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
@@ -85,27 +92,42 @@ const PinMarker = memo(function PinMarker({
       stopPropagation
       onPress={() => onPress(cluster)}
     >
-      <View style={styles.markerHit} pointerEvents="none">
-        <View
-          style={[
-            cluster.count > 1 ? styles.cluster : styles.badge,
-            {
-              backgroundColor: fill,
-              borderColor: pinStroke,
-              shadowColor: pinOutline,
-            },
-          ]}
-        >
-          <Text
-            numberOfLines={1}
+      <View collapsable={false} style={styles.markerHit} pointerEvents="none">
+        {showDot ? (
+          <View
             style={[
-              styles.badgeText,
-              cluster.count > 1 && styles.clusterText,
+              styles.dot,
+              {
+                backgroundColor: fill,
+                borderColor: pinStroke,
+                shadowColor: pinOutline,
+              },
+            ]}
+          />
+        ) : (
+          <View
+            style={[
+              cluster.count > 1 ? styles.cluster : styles.badge,
+              cluster.count > 1
+                ? { width: badgeWidth, height: badgeWidth, borderRadius: badgeWidth / 2 }
+                : { width: badgeWidth },
+              {
+                backgroundColor: fill,
+                borderColor: pinStroke,
+                shadowColor: pinOutline,
+              },
             ]}
           >
-            {label}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.badgeText,
+                cluster.count > 1 && styles.clusterText,
+              ]}
+            >
+              {label}
+            </Text>
+          </View>
+        )}
         <View style={[styles.caret, { borderTopColor: fill }]} />
       </View>
     </Marker>
@@ -159,6 +181,13 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           mapType={mapType === 'satellite' ? 'satellite' : 'standard'}
           showsUserLocation={Boolean(userGeo)}
           showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          showsPointsOfInterests={false}
+          showsTraffic={false}
+          showsIndoors={false}
+          toolbarEnabled={false}
+          mapPadding={{ top: 8, right: 8, bottom: 8, left: 8 }}
           onRegionChangeComplete={onRegionChangeComplete}
           onPress={() => {
             if (Date.now() < ignoreMapPressUntilRef.current) return;
@@ -225,21 +254,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markerHit: {
-    width: 44,
+    minWidth: 44,
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'flex-end',
+    overflow: 'visible',
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
     borderWidth: 2,
-    maxWidth: 128,
-    minWidth: 28,
+    minWidth: 44,
     minHeight: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  dot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.35,
     shadowRadius: 2,

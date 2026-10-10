@@ -25,24 +25,24 @@ import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 import type { EventMapPin } from '../../src/types/events';
 import type { UserGeo } from '../../src/types/common';
-import { buildAreaListParams, selectAreaEvents } from '../../src/utils/areaQuery';
+import {
+  buildAreaListParams,
+  countEventsInView,
+  pinMatchesQuery,
+} from '../../src/utils/areaQuery';
 import {
   DEFAULT_MAP_GEO,
   INITIAL_RADIUS_KM,
   regionForRadiusKm,
 } from '../../src/utils/mapRegion';
 import {
+  MAP_FETCH_OVERSCAN,
   VIEWPORT_COMMIT_MS,
   boundsFromRegion,
+  expandRegion,
   mergeViewportPins,
   viewportMeaningfullyChanged,
 } from '../../src/utils/mapViewport';
-
-function pinMatchesQuery(pin: EventMapPin, query: string) {
-  if (!query) return true;
-  const haystack = `${pin.title} ${pin.neighbourhood ?? ''}`.toLowerCase();
-  return haystack.includes(query);
-}
 
 export default function MapScreen() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
@@ -57,6 +57,10 @@ export default function MapScreen() {
     viewportReason,
     commitViewport,
     setAppliedCitySlug,
+    loadedPins,
+    setLoadedPins,
+    mapBoxTotal,
+    setMapBoxTotal,
   } = useBrowse();
   useEnsureMapViewport();
   const geoQuery = useUserGeo();
@@ -64,10 +68,8 @@ export default function MapScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [gestureRegion, setGestureRegion] = useState<Region | null>(null);
   const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
-  const [pinCache, setPinCache] = useState<{ key: string; pins: EventMapPin[] }>({
-    key: '',
-    pins: [],
-  });
+  const pinKeyRef = useRef('');
+  const loadedRef = useRef<EventMapPin[]>([]);
   const skipFirstAnimate = useRef(true);
 
   const resolvedCenter = useMemo<UserGeo | null>(() => {
@@ -95,17 +97,42 @@ export default function MapScreen() {
 
   const mapParams = useMemo(() => filtersToMapParams(filters), [filters]);
   const mapQuery = useMapViewport(mapParams, viewport, Boolean(viewport));
-  const incomingPins = mapQuery.data?.items;
 
   useEffect(() => {
-    if (!viewport || !incomingPins) return;
+    if (!viewport || !mapQuery.data) return;
     const key = JSON.stringify(mapParams);
-    const bounds = boundsFromRegion(viewport);
-    setPinCache((prev) => ({
-      key,
-      pins: mergeViewportPins(prev.key === key ? prev.pins : [], incomingPins, bounds),
-    }));
-  }, [incomingPins, viewport, mapParams]);
+    // New filters are still in flight: keep every marker until the new
+    // payload succeeds. A zoom only adds events and drops ones that left
+    // the padded view.
+    if (pinKeyRef.current !== key && mapQuery.isPlaceholderData) return;
+    const replace = pinKeyRef.current !== key;
+    pinKeyRef.current = key;
+    const bounds = boundsFromRegion(expandRegion(viewport, MAP_FETCH_OVERSCAN));
+    const incoming = mapQuery.data.items ?? [];
+    const next = mergeViewportPins(
+      replace ? [] : loadedRef.current,
+      incoming,
+      bounds,
+    );
+    loadedRef.current = next;
+    setLoadedPins(next);
+    // Placeholder data still belongs to the previous box. Don't keep
+    // advertising that box's total while the camera has moved.
+    if (!mapQuery.isPlaceholderData) {
+      setMapBoxTotal(
+        typeof mapQuery.data.total === 'number' ? mapQuery.data.total : null,
+      );
+    } else {
+      setMapBoxTotal(null);
+    }
+  }, [
+    mapQuery.data,
+    mapQuery.isPlaceholderData,
+    viewport,
+    mapParams,
+    setLoadedPins,
+    setMapBoxTotal,
+  ]);
 
   const debouncedQ = useDebouncedValue(filters.q);
   const areaParams = useMemo(
@@ -123,13 +150,17 @@ export default function MapScreen() {
     areaGeo,
     Boolean(areaParams),
   );
-  const area = selectAreaEvents(areaQuery.data?.pages, viewport);
-
   const pins = useMemo(() => {
     const query = debouncedQ.trim().toLowerCase();
-    if (!query) return pinCache.pins;
-    return pinCache.pins.filter((pin) => pinMatchesQuery(pin, query));
-  }, [pinCache.pins, debouncedQ]);
+    if (!query) return loadedPins;
+    return loadedPins.filter((pin) => pinMatchesQuery(pin, query));
+  }, [loadedPins, debouncedQ]);
+  const areaTotal = countEventsInView({
+    pins,
+    region: viewport,
+    listPages: areaQuery.data?.pages,
+    mapTotal: mapBoxTotal,
+  });
 
   const isInitialLoading =
     !geoQuery.isFetched ||
@@ -167,13 +198,13 @@ export default function MapScreen() {
     );
   }
 
-  const countReady = Boolean(areaQuery.data);
+  const countReady = areaTotal > 0 || Boolean(areaQuery.data || mapQuery.data);
   const statusLabel = error
     ? error instanceof Error
       ? error.message
       : 'Failed to load map events'
     : countReady
-      ? `${area.total.toLocaleString()} event${area.total === 1 ? '' : 's'} in view`
+      ? `${areaTotal.toLocaleString()} event${areaTotal === 1 ? '' : 's'} in view`
       : 'Updating map…';
 
   return (

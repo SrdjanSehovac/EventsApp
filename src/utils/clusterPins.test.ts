@@ -61,6 +61,12 @@ const tight = clusterPins(
 if (!tight) {
   throw new Error('expected a cluster at city zoom');
 }
+check(
+  'cluster sits on the centroid',
+  Math.abs(tight.latitude - (43.65 + 43.6502) / 2) < 1e-9 &&
+    Math.abs(tight.longitude - (-79.38 + -79.3802) / 2) < 1e-9,
+  true,
+);
 const fitted = regionForCluster(tight);
 check(
   'cluster tap reaches street zoom',

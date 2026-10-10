@@ -99,6 +99,11 @@ export function useMapEvents(
 /**
  * Visible-region map query. The caller commits the region only after a
  * meaningful pan or zoom and a gesture debounce, so this does not wait again.
+ *
+ * The request is the visible box. The server's `total` counts that box and
+ * matches the list `meta.total`. A padded request would report off-screen
+ * events and, past `limit`, can drop events that are actually on screen.
+ * Pins already loaded just outside a zoom-in are kept locally.
  */
 export function useMapViewport(
   params: Omit<

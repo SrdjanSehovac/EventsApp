@@ -93,10 +93,15 @@ export function clusterPins(
     if (group.length === 1) return toSingle(group[0]);
     const latIndex = Math.round(group[0].latitude / cell);
     const lngIndex = Math.round(group[0].longitude / cell);
+    const latitude =
+      group.reduce((sum, pin) => sum + pin.latitude, 0) / group.length;
+    const longitude =
+      group.reduce((sum, pin) => sum + pin.longitude, 0) / group.length;
     return {
+      // Cell key stays stable across a pan. Position is the real centroid.
       id: `z${zoom}:${latIndex}:${lngIndex}`,
-      latitude: latIndex * cell,
-      longitude: lngIndex * cell,
+      latitude,
+      longitude,
       count: group.length,
       pins: group,
     };

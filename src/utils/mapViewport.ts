@@ -16,9 +16,12 @@ const KM_PER_DEG_LAT = 111;
  * Preferred (bbox-aware server):
  *   GET /v1/events/map?north=&south=&east=&west=&limit=
  *   Header X-User-Lat / X-User-Lng is the tile centre (distance only).
- *   Return events inside the box. If `limit` truncates the box, spread
- *   the sample across the box (grid or random), do not return only the
- *   N closest to the header coordinate.
+ *   Return events inside the box. `total` is the number of events in that
+ *   box (`count` is only how many items are in this payload). The app
+ *   requests the visible box, so `total` is the "events in view" count and
+ *   matches GET /v1/events `meta.total` for the same box.
+ *   If `limit` truncates the box, spread the sample across the box (grid
+ *   or random), do not return only the N closest to the header coordinate.
  *
  * Fallback (server ignores unknown bbox params, or answers 400/422):
  *   The same call without north/south/east/west, with radius_km large
@@ -38,7 +41,26 @@ export type MapTile = MapBounds & {
   radiusKm: number;
 };
 
-export const MAP_TILE_EVENT_LIMIT = 200;
+/** Per-tile cap. Downtown boxes of a few hundred events fit in one tile. */
+export const MAP_TILE_EVENT_LIMIT = 500;
+
+/**
+ * How far past the new camera we keep pins that were already loaded.
+ * Zooming in does not drop events that are still on screen. The network
+ * request itself stays the visible box so `total` matches that box.
+ */
+export const MAP_FETCH_OVERSCAN = 0.4;
+
+/** Grow the region by `fraction` of its size past every edge. */
+export function expandRegion(region: Region, fraction = MAP_FETCH_OVERSCAN): Region {
+  const grow = 1 + fraction * 2;
+  return {
+    latitude: region.latitude,
+    longitude: region.longitude,
+    latitudeDelta: region.latitudeDelta * grow,
+    longitudeDelta: region.longitudeDelta * grow,
+  };
+}
 
 export function boundsFromRegion(region: Region): MapBounds {
   return {

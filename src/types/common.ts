@@ -16,7 +16,7 @@ export type DistBucket = {
   count: number;
 };
 
-export type GeoMode = 'default' | 'nearby' | 'city';
+export type GeoMode = 'default' | 'nearby' | 'city' | 'bbox';
 export type GeoSource = 'default' | 'header' | 'city';
 
 export type GeoContext = {

@@ -108,6 +108,14 @@ function buildLeafletHtml(
       transition: transform 140ms ease-out;
       transform-origin: 50% 100%;
     }
+    .evt-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      background: var(--c, ${chrome.pin});
+      border: 2px solid #fff;
+      box-shadow: 0 2px 6px rgba(17,24,39,.22);
+    }
     .evt-badge {
       background: var(--c, ${chrome.primary});
       color: #fff;
@@ -117,11 +125,9 @@ function buildLeafletHtml(
       border: 2px solid #fff;
       box-shadow: 0 2px 6px rgba(17,24,39,.22);
       white-space: nowrap;
-      max-width: 132px;
-      min-width: 14px;
-      min-height: 14px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      min-width: 44px;
+      min-height: 28px;
+      box-sizing: border-box;
       transition: transform 140ms ease-out, border-width 140ms ease-out,
         box-shadow 140ms ease-out, filter 140ms ease-out, padding 140ms ease-out;
     }
@@ -174,7 +180,11 @@ function buildLeafletHtml(
       margin-top: -2px;
       filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
     }
-    .leaflet-div-icon { background: transparent; border: 0; }
+    .leaflet-div-icon, .leaflet-marker-icon {
+      background: transparent;
+      border: 0;
+      overflow: visible !important;
+    }
   </style>
 </head>
 <body>
@@ -194,8 +204,11 @@ function buildLeafletHtml(
 
     function pinIcon(p, selected) {
       const cls = 'evt-wrap' + (selected ? ' selected' : '') + (p.live ? ' live' : '');
-      const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
-      const w = 48;
+      const body = p.label
+        ? '<div class="evt-badge">' + p.label + '</div>'
+        : '<div class="evt-dot"></div>';
+      const html = '<div class="' + cls + '" style="--c:' + p.color + '">' + body + '<div class="evt-caret"></div></div>';
+      const w = p.label ? Math.max(64, p.label.length * 8 + 28) : 32;
       const h = 48;
       return L.divIcon({
         className: '',

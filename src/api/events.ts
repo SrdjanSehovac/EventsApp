@@ -182,10 +182,17 @@ export async function fetchViewportMapEvents(
     }
   }
 
+  // One tile's `total` is the whole requested box. Summing tile totals
+  // double-counts events on the shared edges, so a grid leaves `total`
+  // unset and the list `meta.total` for the same box is the count.
+  const total =
+    pages.length === 1 && typeof pages[0].total === 'number' ? pages[0].total : null;
+
   return {
     geo: pages[0].geo,
     items: [...byId.values()],
     count: byId.size,
+    total,
   };
 }
 

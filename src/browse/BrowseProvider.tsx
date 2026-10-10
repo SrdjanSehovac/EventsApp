@@ -12,7 +12,7 @@ import {
   EMPTY_FILTERS,
   type EventsFilterState,
 } from '../components/EventFilters';
-import type { PublicSortField } from '../types/events';
+import type { EventMapPin, PublicSortField } from '../types/events';
 
 export type MapBaseType = 'standard' | 'satellite';
 
@@ -35,6 +35,12 @@ type BrowseContextValue = {
   commitViewport: (region: Region, reason?: ViewportReason) => void;
   appliedCitySlug: string | null;
   setAppliedCitySlug: (slug: string | null) => void;
+  /** Pins kept on the map, including ones still inside a zoomed-in view. */
+  loadedPins: EventMapPin[];
+  setLoadedPins: (pins: EventMapPin[]) => void;
+  /** Explicit box total from GET /events/map `total`, when the server sends it. */
+  mapBoxTotal: number | null;
+  setMapBoxTotal: (total: number | null) => void;
 };
 
 const BrowseContext = createContext<BrowseContextValue | null>(null);
@@ -47,6 +53,11 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
   const [viewport, setViewport] = useState<Region | null>(null);
   const [viewportReason, setViewportReason] = useState<ViewportReason>('program');
   const [appliedCitySlug, setAppliedCitySlug] = useState<string | null>(null);
+  const [loadedPins, setLoadedPinsState] = useState<EventMapPin[]>([]);
+  const [mapBoxTotal, setMapBoxTotal] = useState<number | null>(null);
+  const setLoadedPins = useCallback((pins: EventMapPin[]) => {
+    setLoadedPinsState(pins);
+  }, []);
 
   const patchFilters = useCallback((partial: Partial<EventsFilterState>) => {
     setFilters((prev) => ({ ...prev, ...partial }));
@@ -76,6 +87,10 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
       commitViewport,
       appliedCitySlug,
       setAppliedCitySlug,
+      loadedPins,
+      setLoadedPins,
+      mapBoxTotal,
+      setMapBoxTotal,
     }),
     [
       filters,
@@ -87,6 +102,9 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
       viewportReason,
       commitViewport,
       appliedCitySlug,
+      loadedPins,
+      setLoadedPins,
+      mapBoxTotal,
     ],
   );
 
