@@ -27,9 +27,15 @@ import {
   formatVenueName,
   mapsSearchUrl,
   openExternalUrl,
-  uniqueUrls,
 } from '../utils/eventDetail';
 import { formatSaleBadge } from '../utils/eventFormat';
+import {
+  allowedOutboundUrl,
+  isBlockedSourceLabel,
+  resolveOutboundLink,
+  sanitizePublicText,
+  visibleLabels,
+} from '../utils/outboundLinks';
 import { EventMapSnippet } from './EventMapSnippet';
 import { FavouriteButton } from './FavouriteButton';
 
@@ -115,41 +121,40 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const coords = detail ? eventCoords(detail) : null;
   const venueName = detail ? formatVenueName(detail) : null;
   const address = detail ? formatFullAddress(detail) : null;
-  const price = detail ? formatDetailPrice(detail) : null;
+  const price = detail
+    ? sanitizePublicText(formatDetailPrice(detail))
+    : null;
   const saleLabel = listItem ? formatSaleBadge(listItem) : null;
   const scheduleLines = detail ? formatScheduleLines(detail) : [];
   const extraCategories = (detail?.categories ?? []).filter(
     (c) => c.category_id !== primaryCategory?.category_id,
   );
-  const tags = asLabelList(detail?.tags);
-  const vibes = asLabelList(detail?.vibe);
-  const audience = asLabelList(detail?.audience);
-  const performers = asLabelList(detail?.performers);
-  const ticketUrl = detail?.ticket_url?.trim() || null;
-  const sourceUrl = detail?.source_url?.trim() || null;
-  const externalUrl = detail?.external_url?.trim() || null;
-  const videoUrl = detail?.video_url?.trim() || null;
-  const linkUrls = uniqueUrls(ticketUrl, sourceUrl, externalUrl, videoUrl);
-  const description =
-    detail?.description?.trim() ||
-    detail?.bio?.trim() ||
-    detail?.summary?.trim() ||
-    null;
-  const bio =
-    detail?.bio?.trim() &&
-    detail.bio.trim() !== detail.description?.trim() &&
-    detail.bio.trim() !== detail.summary?.trim()
-      ? detail.bio.trim()
-      : null;
-  const summary =
-    detail?.summary?.trim() &&
-    detail.summary.trim() !== detail.description?.trim()
-      ? detail.summary.trim()
-      : null;
+  const tags = visibleLabels(asLabelList(detail?.tags));
+  const vibes = visibleLabels(asLabelList(detail?.vibe));
+  const audience = visibleLabels(asLabelList(detail?.audience));
+  const performers = visibleLabels(asLabelList(detail?.performers));
+  const outbound = detail ? resolveOutboundLink(detail) : null;
+  const videoUrl = allowedOutboundUrl(detail?.video_url);
+  const description = sanitizePublicText(
+    detail?.description || detail?.bio || detail?.summary,
+  );
+  const bio = (() => {
+    const next = sanitizePublicText(detail?.bio);
+    if (!next || next === description) return null;
+    const summaryText = sanitizePublicText(detail?.summary);
+    if (next === summaryText) return null;
+    return next;
+  })();
+  const summary = (() => {
+    const next = sanitizePublicText(detail?.summary);
+    if (!next || next === description) return null;
+    return next;
+  })();
+  const seriesName = sanitizePublicText(detail?.series_name);
 
   async function shareEvent() {
     if (!detail) return;
-    const url = ticketUrl || sourceUrl || externalUrl;
+    const url = outbound?.url ?? null;
     const message = url ? `${detail.title}\n${url}` : detail.title;
     await Share.share({ title: detail.title, message, url: url ?? undefined });
   }
@@ -168,8 +173,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingBottom:
-            linkUrls.length > 0 ? 120 + insets.bottom : spacing.xxxl,
+          paddingBottom: outbound ? 120 + insets.bottom : spacing.xxxl,
         }}
       >
         <View style={styles.hero}>
@@ -261,7 +265,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
         ) : detail ? (
           <View style={[styles.body, { paddingHorizontal: spacing.lg }]}>
             <View style={styles.chipRow}>
-              {primaryCategory ? (
+              {primaryCategory && !isBlockedSourceLabel(primaryCategory.name) ? (
                 <Chip
                   label={primaryCategory.name}
                   color="#FFFFFF"
@@ -299,14 +303,14 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             >
               {detail.title}
             </Text>
-            {detail.series_name ? (
+            {seriesName && !isBlockedSourceLabel(seriesName) ? (
               <Text
                 style={[
                   typography.caption,
                   { color: colors.textMuted, marginTop: spacing.xs },
                 ]}
               >
-                {detail.series_name}
+                {seriesName}
               </Text>
             ) : null}
 
@@ -473,7 +477,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             detail.rain_or_shine ? (
               <Section icon="pricetag-outline" title="Details">
                 <View style={styles.chipRow}>
-                  {extraCategories.map((category) => (
+                  {extraCategories.filter((category) => !isBlockedSourceLabel(category.name)).map((category) => (
                     <Chip
                       key={category.category_id}
                       label={category.name}
@@ -482,6 +486,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                     />
                   ))}
                   {detail.setting &&
+                  !isBlockedSourceLabel(detail.setting) &&
                   ![primaryCategory, ...extraCategories].some(
                     (category) =>
                       category &&
@@ -551,7 +556,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                     {performers.join(' · ')}
                   </Text>
                 ) : null}
-                {detail.accessibility_notes ? (
+                {sanitizePublicText(detail.accessibility_notes) ? (
                   <Text
                     style={[
                       typography.caption,
@@ -561,107 +566,40 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                       },
                     ]}
                   >
-                    {detail.accessibility_notes}
+                    {sanitizePublicText(detail.accessibility_notes)}
                   </Text>
                 ) : null}
               </Section>
             ) : null}
 
-            {linkUrls.length ? (
+            {videoUrl ? (
               <Section icon="link-outline" title="Links">
-                {ticketUrl ? (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => void openExternalUrl(ticketUrl)}
-                    style={styles.linkRow}
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => void openExternalUrl(videoUrl)}
+                  style={styles.linkRow}
+                >
+                  <Ionicons
+                    name="play-circle-outline"
+                    size={18}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={[
+                      typography.body,
+                      { color: colors.primary, fontWeight: '700' },
+                    ]}
                   >
-                    <Ionicons
-                      name="ticket-outline"
-                      size={18}
-                      color={colors.primary}
-                    />
-                    <Text
-                      style={[
-                        typography.body,
-                        { color: colors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      Get tickets
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {sourceUrl && sourceUrl !== ticketUrl ? (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => void openExternalUrl(sourceUrl)}
-                    style={styles.linkRow}
-                  >
-                    <Ionicons
-                      name="open-outline"
-                      size={18}
-                      color={colors.primary}
-                    />
-                    <Text
-                      style={[
-                        typography.body,
-                        { color: colors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      Source / website
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {externalUrl &&
-                externalUrl !== ticketUrl &&
-                externalUrl !== sourceUrl ? (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => void openExternalUrl(externalUrl)}
-                    style={styles.linkRow}
-                  >
-                    <Ionicons
-                      name="globe-outline"
-                      size={18}
-                      color={colors.primary}
-                    />
-                    <Text
-                      style={[
-                        typography.body,
-                        { color: colors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      More info
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {videoUrl ? (
-                  <Pressable
-                    accessibilityRole="link"
-                    onPress={() => void openExternalUrl(videoUrl)}
-                    style={styles.linkRow}
-                  >
-                    <Ionicons
-                      name="play-circle-outline"
-                      size={18}
-                      color={colors.primary}
-                    />
-                    <Text
-                      style={[
-                        typography.body,
-                        { color: colors.primary, fontWeight: '700' },
-                      ]}
-                    >
-                      Watch video
-                    </Text>
-                  </Pressable>
-                ) : null}
+                    Watch video
+                  </Text>
+                </Pressable>
               </Section>
             ) : null}
           </View>
         ) : null}
       </ScrollView>
 
-      {detail && (ticketUrl || sourceUrl) ? (
+      {outbound ? (
         <SafeAreaView
           edges={['bottom']}
           style={[
@@ -673,30 +611,10 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             },
           ]}
         >
-          {sourceUrl && ticketUrl ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open source website"
-              onPress={() => void openExternalUrl(sourceUrl)}
-              style={[
-                styles.secondaryCta,
-                { borderColor: colors.border, borderRadius: radius.full },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  { color: colors.text, fontWeight: '800' },
-                ]}
-              >
-                Website
-              </Text>
-            </Pressable>
-          ) : null}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={ticketUrl ? 'Get tickets' : 'Open source'}
-            onPress={() => void openExternalUrl(ticketUrl || sourceUrl)}
+            accessibilityLabel={outbound.label}
+            onPress={() => void openExternalUrl(outbound.url)}
             style={[
               styles.primaryCta,
               {
@@ -711,7 +629,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 { color: colors.onPrimary, fontWeight: '800' },
               ]}
             >
-              {ticketUrl ? 'Get tickets' : 'Open source'}
+              {outbound.label}
             </Text>
           </Pressable>
         </SafeAreaView>
@@ -819,12 +737,5 @@ const styles = StyleSheet.create({
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  secondaryCta: {
-    minHeight: 48,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
   },
 });

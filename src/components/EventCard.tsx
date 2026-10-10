@@ -12,8 +12,14 @@ import { useRouter } from 'expo-router';
 
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
-import { eventDetailHref } from '../utils/eventDetail';
+import { eventDetailHref, openExternalUrl } from '../utils/eventDetail';
 import { formatEventPlace, formatEventPrice, formatFactsRow, formatSaleBadge } from '../utils/eventFormat';
+import {
+  allowedImageUrl,
+  isBlockedSourceLabel,
+  resolveOutboundLink,
+  sanitizePublicText,
+} from '../utils/outboundLinks';
 import { FavouriteButton } from './FavouriteButton';
 
 type EventCardVariant = 'card' | 'listing' | 'preview';
@@ -33,7 +39,10 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
 
   const ended = isEnded(item.status);
-  const showImage = Boolean(item.image_url) && !imageFailed;
+  const imageUrl = allowedImageUrl(item.image_url);
+  const showImage = Boolean(imageUrl) && !imageFailed;
+  const outbound = resolveOutboundLink(item);
+  const summary = sanitizePublicText(item.summary);
   const categoryColor = colorForCategory(item.primary_category);
   const facts = formatFactsRow(item);
   const price = formatEventPrice(item);
@@ -46,13 +55,12 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   }
 
   async function shareEvent() {
-    const message = item.source_url
-      ? `${item.title}\n${item.source_url}`
-      : item.title;
+    const url = outbound?.url;
+    const message = url ? `${item.title}\n${url}` : item.title;
     await Share.share({
       title: item.title,
       message,
-      url: item.source_url,
+      url,
     });
   }
 
@@ -63,7 +71,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
     <View style={[styles.imageFrame, { backgroundColor: thumbTint }]}>
       {showImage ? (
         <Image
-          source={{ uri: item.image_url ?? undefined, cache: 'force-cache' }}
+          source={{ uri: imageUrl ?? undefined, cache: 'force-cache' }}
           style={styles.imageFill}
           resizeMode="cover"
           resizeMethod="resize"
@@ -94,14 +102,21 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           },
         ]}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Open ${item.title}`}
-          onPress={openDetail}
-          style={styles.listingMain}
-        >
-          <View style={styles.listingImage}>{hero}</View>
+        <View style={styles.listingMain}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${item.title}`}
+            onPress={openDetail}
+            style={styles.listingImage}
+          >
+            {hero}
+          </Pressable>
           <View style={styles.listingBody}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${item.title}`}
+              onPress={openDetail}
+            >
             <View style={styles.listingTitleRow}>
               <Text
                 numberOfLines={2}
@@ -153,7 +168,8 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
                   </Text>
                 </View>
               ) : null}
-              {item.primary_category ? (
+              {item.primary_category &&
+              !isBlockedSourceLabel(item.primary_category.name) ? (
                 <Text
                   numberOfLines={1}
                   style={[
@@ -176,8 +192,27 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
                 {place}
               </Text>
             ) : null}
+            </Pressable>
+            {outbound ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={outbound.label}
+                onPress={() => void openExternalUrl(outbound.url)}
+                style={styles.listingLink}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    typography.caption,
+                    { color: colors.primary, fontWeight: '800' },
+                  ]}
+                >
+                  {outbound.label}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
-        </Pressable>
+        </View>
         <View style={styles.listingHeart}>
           <FavouriteButton item={item} variant="plain" />
         </View>
@@ -205,7 +240,8 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           <FavouriteButton item={item} variant="overlay" />
         </View>
 
-        {item.primary_category ? (
+        {item.primary_category &&
+        !isBlockedSourceLabel(item.primary_category.name) ? (
           <View
             style={[
               styles.badge,
@@ -269,7 +305,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
         >
           {facts}
         </Text>
-        {item.summary ? (
+        {summary ? (
           <Text
             numberOfLines={2}
             style={[
@@ -281,8 +317,32 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               },
             ]}
           >
-            {item.summary}
+            {summary}
           </Text>
+        ) : null}
+        {outbound ? (
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={outbound.label}
+            onPress={() => void openExternalUrl(outbound.url)}
+            style={[
+              styles.outboundCta,
+              {
+                borderColor: colors.primary,
+                borderRadius: radius.full,
+                marginTop: spacing.md,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                typography.caption,
+                { color: colors.primary, fontWeight: '800' },
+              ]}
+            >
+              {outbound.label}
+            </Text>
+          </Pressable>
         ) : null}
 
         {variant === 'preview' ? (
@@ -471,6 +531,19 @@ const styles = StyleSheet.create({
   listingTitleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+  },
+  listingLink: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+  },
+  outboundCta: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 16,
   },
   listingMeta: {
     flexDirection: 'row',

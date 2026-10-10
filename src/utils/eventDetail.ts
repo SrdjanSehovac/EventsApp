@@ -6,6 +6,11 @@ import type {
   EventListItem,
   EventMapPin,
 } from '../types/events';
+import {
+  allowedImageUrl,
+  allowedOutboundUrl,
+  isBlockedUrl,
+} from './outboundLinks';
 
 export function eventDetailHref(eventId: string) {
   return {
@@ -31,7 +36,9 @@ export function pinToListItem(pin: EventMapPin): EventListItem {
     neighbourhood: pin.neighbourhood,
     city: pin.city,
     primary_category: pin.primary_category,
-    image_url: pin.image_url,
+    image_url: allowedImageUrl(pin.image_url),
+    external_url: pin.external_url,
+    link_type: pin.link_type,
     latitude: pin.latitude,
     longitude: pin.longitude,
     distance_km: pin.distance_m != null ? pin.distance_m / 1000 : null,
@@ -59,7 +66,10 @@ export function detailToListItem(detail: EventDetail): EventListItem {
       detail.categories.find((c) => c.is_primary) ??
       detail.categories[0] ??
       null,
-    image_url: detail.image_url ?? collectPhotoUrls(detail)[0] ?? null,
+    image_url:
+      allowedImageUrl(detail.image_url) ?? collectPhotoUrls(detail)[0] ?? null,
+    external_url: detail.external_url,
+    link_type: detail.link_type,
     latitude: detail.latitude ?? detail.venue?.latitude,
     longitude: detail.longitude ?? detail.venue?.longitude,
     tags: detail.tags,
@@ -67,18 +77,23 @@ export function detailToListItem(detail: EventDetail): EventListItem {
   };
 }
 
+function imageSrc(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const src = record.url ?? record.src ?? record.image_url;
+  return typeof src === 'string' ? src : null;
+}
+
 function asUrlList(value: unknown): string[] {
   if (!value) return [];
-  if (Array.isArray(value)) {
-    return value.filter(
-      (entry): entry is string =>
-        typeof entry === 'string' && /^https?:\/\//i.test(entry.trim()),
-    );
+  const entries = Array.isArray(value) ? value : [value];
+  const urls: string[] = [];
+  for (const entry of entries) {
+    const src = allowedImageUrl(imageSrc(entry));
+    if (src) urls.push(src);
   }
-  if (typeof value === 'string' && /^https?:\/\//i.test(value.trim())) {
-    return [value.trim()];
-  }
-  return [];
+  return urls;
 }
 
 export function collectPhotoUrls(detail: EventDetail): string[] {
@@ -89,7 +104,7 @@ export function collectPhotoUrls(detail: EventDetail): string[] {
     urls.push(next);
   };
 
-  push(detail.image_url);
+  push(allowedImageUrl(detail.image_url));
   for (const url of asUrlList(detail.image_urls)) push(url);
   for (const url of asUrlList(detail.photo_urls)) push(url);
   return urls;
@@ -372,9 +387,10 @@ export function mapsSearchUrl(
 }
 
 export async function openExternalUrl(url?: string | null): Promise<void> {
-  if (!url) return;
+  const next = allowedOutboundUrl(url);
+  if (!next || isBlockedUrl(next)) return;
   try {
-    await Linking.openURL(url);
+    await Linking.openURL(next);
   } catch {
     // Ignore platforms that reject the scheme.
   }
