@@ -17,7 +17,6 @@ import {
   searchEvents,
 } from '../api/events';
 import { quantizeRegion } from '../utils/mapViewport';
-import { useDebouncedValue } from './useDebouncedValue';
 import type { UserGeo } from '../types/common';
 import type {
   MapEventsParams,
@@ -97,7 +96,10 @@ export function useMapEvents(
   });
 }
 
-/** Visible-region map query. Debounced so a pan settles before the next fetch. */
+/**
+ * Visible-region map query. The caller commits the region only after a
+ * meaningful pan or zoom and a gesture debounce, so this does not wait again.
+ */
 export function useMapViewport(
   params: Omit<
     MapEventsParams,
@@ -106,13 +108,12 @@ export function useMapViewport(
   region: Region | null,
   enabled = true,
 ) {
-  const debounced = useDebouncedValue(region, 400);
-  const keyRegion = debounced ? quantizeRegion(debounced) : null;
+  const keyRegion = region ? quantizeRegion(region) : null;
 
   return useQuery({
     queryKey: [...eventKeys.all, 'map', 'viewport', params, keyRegion] as const,
-    queryFn: ({ signal }) => fetchViewportMapEvents(params, debounced!, signal),
-    enabled: enabled && debounced != null,
+    queryFn: ({ signal }) => fetchViewportMapEvents(params, region!, signal),
+    enabled: enabled && region != null,
     placeholderData: keepPreviousData,
     staleTime: 20_000,
   });

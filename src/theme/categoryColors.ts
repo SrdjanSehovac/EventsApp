@@ -2,8 +2,8 @@ import type { CategoryBrief } from '../types/events';
 import { FILTER_CATEGORY_GROUPS } from '../utils/filterCategories';
 
 /**
- * Six pin families. The Filters sheet still shows 12 group chips;
- * related groups share a hue on map/list pins and category tints.
+ * Six subtle category hues for chips and list accents.
+ * Map pins do not use these — every pin is the emerald `colors.pin`.
  */
 export const PIN_FAMILIES = {
   night_out: '#DB2777',

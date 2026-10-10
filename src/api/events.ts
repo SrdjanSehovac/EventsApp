@@ -1,6 +1,11 @@
 import type { Region } from 'react-native-maps';
 
-import { MAP_TILE_EVENT_LIMIT, tilesForRegion, type MapTile } from '../utils/mapViewport';
+import {
+  MAP_TILE_EVENT_LIMIT,
+  radiusKmForBounds,
+  tilesForRegion,
+  type MapTile,
+} from '../utils/mapViewport';
 import { ApiError, apiRequest } from './client';
 import type { UserGeo } from '../types/common';
 import type {
@@ -20,8 +25,8 @@ import type {
   TodayEventsResponse,
 } from '../types/events';
 
-export function fetchEvents(
-  params: PublicEventListParams = {},
+function requestEvents(
+  params: PublicEventListParams,
   geo?: UserGeo | null,
   signal?: AbortSignal,
 ) {
@@ -31,6 +36,59 @@ export function fetchEvents(
     geo,
     signal,
   });
+}
+
+/**
+ * List contract for the visible map area:
+ *   GET /v1/events?north=&south=&east=&west=&page=&page_size=
+ *   plus the same filters as the map (city, categories, when, q).
+ *   `meta.total` is the count inside that box.
+ * If the server rejects the box (400/422), retry once with radius_km
+ * covering the box and the box centre in the geo headers.
+ */
+let listBBoxUnsupported = false;
+
+export async function fetchEvents(
+  params: PublicEventListParams = {},
+  geo?: UserGeo | null,
+  signal?: AbortSignal,
+) {
+  const hasBox =
+    params.north != null &&
+    params.south != null &&
+    params.east != null &&
+    params.west != null;
+
+  if (hasBox && !listBBoxUnsupported) {
+    try {
+      return await requestEvents(params, geo, signal);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (error.status === 400 || error.status === 422)
+      ) {
+        listBBoxUnsupported = true;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  if (hasBox && listBBoxUnsupported) {
+    const radius_km = Number(
+      radiusKmForBounds({
+        north: params.north!,
+        south: params.south!,
+        east: params.east!,
+        west: params.west!,
+      }).toFixed(2),
+    );
+    const { north: _north, south: _south, east: _east, west: _west, ...rest } =
+      params;
+    return requestEvents({ ...rest, radius_km }, geo, signal);
+  }
+
+  return requestEvents(params, geo, signal);
 }
 
 export function fetchMapEvents(

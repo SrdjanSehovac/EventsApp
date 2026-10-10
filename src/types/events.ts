@@ -231,6 +231,10 @@ export type PublicEventListParams = {
   starts_after?: string;
   starts_before?: string;
   radius_km?: number;
+  north?: number;
+  south?: number;
+  east?: number;
+  west?: number;
   sort?: PublicSortField;
 };
 

@@ -94,6 +94,73 @@ export function tilesForRegion(region: Region): MapTile[] {
   return tiles;
 }
 
+/**
+ * Fraction of the viewport the centre must move before a pan refetches.
+ * Smaller drifts keep the current pins.
+ */
+export const VIEWPORT_MOVE_FRACTION = 0.28;
+
+/** Wait until the finger has been up before committing a new area. */
+export const VIEWPORT_COMMIT_MS = 700;
+
+/** Integer zoom. Street level and closer shows individual pins. */
+export const STREET_ZOOM = 16;
+
+export function zoomLevelFromRegion(region: Region): number {
+  return Math.log2(360 / Math.max(region.latitudeDelta, 1e-6));
+}
+
+export function zoomBucket(region: Region): number {
+  return Math.max(0, Math.floor(zoomLevelFromRegion(region)));
+}
+
+/**
+ * True when the camera should load a new area: the integer zoom changed,
+ * or the centre moved by more than ~28% of the viewport. A small pan is not
+ * enough.
+ */
+export function viewportMeaningfullyChanged(prev: Region, next: Region): boolean {
+  if (zoomBucket(prev) !== zoomBucket(next)) return true;
+  const latShift = Math.abs(next.latitude - prev.latitude);
+  const lngShift = Math.abs(next.longitude - prev.longitude);
+  return (
+    latShift > Math.abs(prev.latitudeDelta) * VIEWPORT_MOVE_FRACTION ||
+    lngShift > Math.abs(prev.longitudeDelta) * VIEWPORT_MOVE_FRACTION
+  );
+}
+
+export function pinInsideBounds(
+  pin: { latitude: number; longitude: number },
+  bounds: MapBounds,
+): boolean {
+  return (
+    pin.latitude <= bounds.north + 1e-6 &&
+    pin.latitude >= bounds.south - 1e-6 &&
+    pin.longitude <= bounds.east + 1e-6 &&
+    pin.longitude >= bounds.west - 1e-6
+  );
+}
+
+/**
+ * Keep pins that are still inside the committed view, then overlay fresher
+ * rows by event id. Pins already on screen keep their identity so markers
+ * are not torn down on every response.
+ */
+export function mergeViewportPins<T extends { event_id: string; latitude: number; longitude: number }>(
+  previous: T[],
+  incoming: T[],
+  bounds: MapBounds,
+): T[] {
+  const byId = new Map<string, T>();
+  for (const pin of previous) {
+    if (pinInsideBounds(pin, bounds)) byId.set(pin.event_id, pin);
+  }
+  for (const pin of incoming) {
+    if (pinInsideBounds(pin, bounds)) byId.set(pin.event_id, pin);
+  }
+  return [...byId.values()];
+}
+
 /** Stable query key so sub-pixel camera noise does not refetch. */
 export function quantizeRegion(region: Region): Region {
   const round = (value: number) => Math.round(value * 1000) / 1000;

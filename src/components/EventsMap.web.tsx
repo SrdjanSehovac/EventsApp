@@ -18,7 +18,7 @@ import {
 import type { Region } from 'react-native-maps';
 
 import type { MapBaseType } from '../browse';
-import { colorForCategory, useTheme } from '../theme';
+import { useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import { isEventLive } from '../utils/eventLive';
@@ -62,7 +62,7 @@ function buildLeafletHtml(
   region: Region,
   selectedEventId: string | null | undefined,
   mapType: MapBaseType,
-  chrome: { background: string; primary: string },
+  chrome: { background: string; primary: string; pin: string },
 ): string {
   const nowMs = Date.now();
   // Pass every pin individually — leaflet.markercluster handles zoom splits.
@@ -79,14 +79,14 @@ function buildLeafletHtml(
       label: escapeHtml(formatPinBadge(pin)),
       selected: pin.event_id === selectedEventId,
       live: isEventLive(pin, nowMs),
-      color: colorForCategory(pin.primary_category),
+      color: chrome.pin,
     }));
 
   const centerLat = region.latitude;
   const centerLng = region.longitude;
   const zoom = zoomFromRegion(region);
   const satellite = mapType === 'satellite';
-  const clusterColor = chrome.primary;
+  const clusterColor = chrome.pin;
 
   return `<!DOCTYPE html>
 <html>
@@ -195,8 +195,8 @@ function buildLeafletHtml(
     function pinIcon(p, selected) {
       const cls = 'evt-wrap' + (selected ? ' selected' : '') + (p.live ? ' live' : '');
       const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
-      const w = selected ? 108 : 88;
-      const h = selected ? 50 : 40;
+      const w = 48;
+      const h = 48;
       return L.divIcon({
         className: '',
         html,
@@ -210,13 +210,7 @@ function buildLeafletHtml(
       zoomToBoundsOnClick: true,
       spiderfyOnMaxZoom: true,
       disableClusteringAtZoom: 16,
-      maxClusterRadius: function (z) {
-        // Shrink radius as zoom increases so clusters split earlier.
-        if (z >= 15) return 28;
-        if (z >= 13) return 40;
-        if (z >= 11) return 52;
-        return 64;
-      },
+      maxClusterRadius: 48,
       iconCreateFunction: function (cluster) {
         const count = cluster.getChildCount();
         const size = count >= 100 ? 44 : count >= 10 ? 38 : 34;
@@ -384,11 +378,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
         buildLeafletHtml(pins, liveRegionRef.current, selectedEventId, mapType, {
           background: colors.background,
           primary: colors.primary,
+          pin: colors.pin,
         }),
       // Rebuild on pin set / basemap / chrome — clustering lives inside Leaflet
       // and recomputes on every zoom/pan without a React rebuild.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [pins, mapType, colors.background, colors.primary],
+      [pins, mapType, colors.background, colors.primary, colors.pin],
     );
 
     return (

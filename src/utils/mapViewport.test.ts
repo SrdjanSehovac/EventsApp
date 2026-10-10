@@ -2,8 +2,11 @@ import type { Region } from 'react-native-maps';
 
 import {
   boundsFromRegion,
+  mergeViewportPins,
   radiusKmForBounds,
   tilesForRegion,
+  viewportMeaningfullyChanged,
+  zoomBucket,
 } from './mapViewport';
 
 function check(name: string, actual: unknown, expected: unknown) {
@@ -63,6 +66,34 @@ check(
     west: single.west,
   },
   boundsFromRegion(neighbourhood),
+);
+
+const base = region({ latitude: 43.65, longitude: -79.38, latitudeDelta: 0.2, longitudeDelta: 0.2 });
+const smallPan = { ...base, latitude: base.latitude + base.latitudeDelta * 0.1 };
+const realPan = { ...base, latitude: base.latitude + base.latitudeDelta * 0.3 };
+const zoomed = { ...base, latitudeDelta: base.latitudeDelta / 2, longitudeDelta: base.longitudeDelta / 2 };
+
+check('small pan does not commit', viewportMeaningfullyChanged(base, smallPan), false);
+check('centre shift past 28% commits', viewportMeaningfullyChanged(base, realPan), true);
+check('zoom bucket change commits', viewportMeaningfullyChanged(base, zoomed), true);
+check('zoom buckets differ', zoomBucket(base) === zoomBucket(zoomed), false);
+
+const inside = { event_id: 'a', latitude: 43.65, longitude: -79.38 };
+const outside = { event_id: 'b', latitude: 45, longitude: -75 };
+const bounds = boundsFromRegion(base);
+check(
+  'merge keeps pins inside and drops the rest',
+  mergeViewportPins([inside, outside], [], bounds).map((pin) => pin.event_id),
+  ['a'],
+);
+check(
+  'merge prefers the newer row for the same id',
+  mergeViewportPins(
+    [{ event_id: 'a', latitude: 43.65, longitude: -79.38, title: 'old' }],
+    [{ event_id: 'a', latitude: 43.66, longitude: -79.39, title: 'new' }],
+    bounds,
+  ).map((pin) => pin.title),
+  ['new'],
 );
 
 console.log('all map viewport checks passed');

@@ -3,19 +3,20 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
-import { useBrowse } from '../../src/browse';
+import { regionForCurrentCity, useBrowse, useEnsureMapViewport } from '../../src/browse';
+import { findProductCity } from '../../src/config/cities';
 import {
   BrowseHeader,
   EventCard,
   FilterSheet,
   SelectField,
   countActiveFilters,
-  filtersToParams,
 } from '../../src/components';
 import {
   useDebouncedValue,
@@ -25,6 +26,7 @@ import {
 import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 import type { PublicSortField } from '../../src/types/events';
+import { buildAreaListParams, selectAreaEvents } from '../../src/utils/areaQuery';
 
 const SORT_OPTIONS: { label: string; value: PublicSortField }[] = [
   { label: 'Soonest', value: 'starts_at' },
@@ -43,28 +45,34 @@ export default function EventsScreen() {
     setSort,
     sortTouched,
     setSortTouched,
+    viewport,
+    commitViewport,
   } = useBrowse();
+  useEnsureMapViewport();
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const debouncedQ = useDebouncedValue(filters.q);
   const geoQuery = useUserGeo();
   const hasUserGeo = Boolean(geoQuery.data);
-  const params = useMemo(
+  const focusedCity = useMemo(
+    () => findProductCity(filters.city),
+    [filters.city],
+  );
+  const areaParams = useMemo(
     () =>
-      filtersToParams({ ...filters, q: debouncedQ }, sort, {
-        localizeNearUser: hasUserGeo,
-      }),
-    [filters, debouncedQ, sort, hasUserGeo],
+      viewport
+        ? buildAreaListParams({ ...filters, q: debouncedQ }, sort, viewport)
+        : null,
+    [viewport, filters, debouncedQ, sort],
   );
-  const listParams = useMemo(
-    () => ({ ...params, page_size: 24 }),
-    [params],
-  );
+  const areaGeo = viewport
+    ? { lat: viewport.latitude, lng: viewport.longitude }
+    : null;
 
   const eventsQuery = useInfiniteEvents(
-    listParams,
-    geoQuery.data ?? null,
-    geoQuery.isFetched,
+    areaParams ?? { page_size: 24 },
+    areaGeo,
+    Boolean(areaParams),
   );
 
   useEffect(() => {
@@ -74,9 +82,18 @@ export default function EventsScreen() {
   }, [hasUserGeo, sort, sortTouched, setSort]);
 
   const activeFilterCount = countActiveFilters(filters, { excludeQuery: true });
-  const items = eventsQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const total = eventsQuery.data?.pages[0]?.meta.total ?? 0;
-  const isLoading = !geoQuery.isFetched || eventsQuery.isLoading;
+  const area = selectAreaEvents(eventsQuery.data?.pages, viewport);
+  const items = area.items;
+  const total = area.total;
+  const isLoading = !viewport || !geoQuery.isFetched || eventsQuery.isLoading;
+
+  function showAllInArea() {
+    patchFilters({ neighbourhood: null });
+    commitViewport(
+      regionForCurrentCity(filters.city, geoQuery.data),
+      'program',
+    );
+  }
   const error = eventsQuery.error;
 
   return (
@@ -95,8 +112,22 @@ export default function EventsScreen() {
               { color: colors.text, fontSize: 18 },
             ]}
           >
-            {eventsQuery.data ? `${total.toLocaleString()} nearby` : 'Nearby events'}
+            {eventsQuery.data
+              ? `${total.toLocaleString()} event${total === 1 ? '' : 's'} in this map area`
+              : 'Events in this map area'}
           </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              focusedCity ? `Show all in ${focusedCity.name}` : 'Show all nearby'
+            }
+            onPress={showAllInArea}
+            style={styles.showAll}
+          >
+            <Text style={[typography.caption, { color: colors.primary, fontWeight: '800' }]}>
+              {focusedCity ? `Show all in ${focusedCity.name}` : 'Show all nearby'}
+            </Text>
+          </Pressable>
           <View style={styles.sortRow}>
             <Text style={[typography.caption, { color: colors.textSecondary }]}>
               Sort
@@ -136,7 +167,7 @@ export default function EventsScreen() {
                   { color: colors.textMuted, padding: spacing.lg },
                 ]}
               >
-                No upcoming events found.
+                No events in this map area.
               </Text>
             }
             ListFooterComponent={
@@ -184,7 +215,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 8,
-    gap: 8,
+    gap: 4,
+  },
+  showAll: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
   },
   sortRow: {
     flexDirection: 'row',
