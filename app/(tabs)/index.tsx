@@ -21,16 +21,14 @@ import {
   filtersToMapParams,
   type EventsMapHandle,
 } from '../../src/components';
-import { useDebouncedValue, useMapEvents, useUserGeo } from '../../src/hooks';
+import { useDebouncedValue, useMapViewport, useUserGeo } from '../../src/hooks';
+import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 import type { EventMapPin } from '../../src/types/events';
 import type { UserGeo } from '../../src/types/common';
 import {
   DEFAULT_MAP_GEO,
   INITIAL_RADIUS_KM,
-  geoFromRegion,
-  isRegionDirty,
-  radiusKmFromRegion,
   regionForRadiusKm,
 } from '../../src/utils/mapRegion';
 
@@ -41,7 +39,8 @@ function pinMatchesQuery(pin: EventMapPin, query: string) {
 }
 
 export default function MapScreen() {
-  const { colors, typography, spacing, radius, shadows, tabBar } = useTheme();
+  const { colors, typography, spacing, radius, shadows } = useTheme();
+  const tabBarInset = useTabBarInset();
   const { filters, patchFilters, mapType, setMapType } = useBrowse();
   const geoQuery = useUserGeo();
   const mapRef = useRef<EventsMapHandle>(null);
@@ -52,79 +51,46 @@ export default function MapScreen() {
     return geoQuery.data ?? DEFAULT_MAP_GEO;
   }, [geoQuery.isFetched, geoQuery.data]);
 
-  const [searchCenter, setSearchCenter] = useState<UserGeo | null>(null);
-  const [searchRadiusKm, setSearchRadiusKm] = useState(INITIAL_RADIUS_KM);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
-  const [baselineRegion, setBaselineRegion] = useState<Region | null>(null);
+  const [cameraSeed, setCameraSeed] = useState<Region | null>(null);
   const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
-  const cameraSeedRef = useRef<Region | null>(null);
-  const adoptNextRegionRef = useRef(true);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const appliedCitySlugRef = useRef<string | null>(null);
   const focusedCity = useMemo(
     () => findProductCity(filters.city),
     [filters.city],
   );
 
-  const beginProgrammaticMove = useCallback(() => {
-    adoptNextRegionRef.current = true;
-    setBaselineRegion(null);
-    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = setTimeout(() => {
-      adoptNextRegionRef.current = false;
-      settleTimerRef.current = null;
-    }, 600);
-  }, []);
-
   useEffect(() => {
-    if (!resolvedCenter || searchCenter) return;
+    if (!resolvedCenter || cameraSeed) return;
     const center = focusedCity
       ? { lat: focusedCity.lat, lng: focusedCity.lng }
       : resolvedCenter;
     const radius = focusedCity?.radiusKm ?? INITIAL_RADIUS_KM;
     const seed = regionForRadiusKm(center, radius);
-    cameraSeedRef.current = seed;
     appliedCitySlugRef.current = focusedCity?.slug ?? null;
-    beginProgrammaticMove();
-    setSearchCenter(center);
-    setSearchRadiusKm(radius);
+    setCameraSeed(seed);
     setMapRegion(seed);
-  }, [resolvedCenter, searchCenter, focusedCity, beginProgrammaticMove]);
+  }, [resolvedCenter, cameraSeed, focusedCity]);
 
   useEffect(() => {
-    if (!searchCenter || !focusedCity) {
+    if (!cameraSeed || !focusedCity) {
       if (!focusedCity) appliedCitySlugRef.current = null;
       return;
     }
     if (appliedCitySlugRef.current === focusedCity.slug) return;
     appliedCitySlugRef.current = focusedCity.slug;
-    const center = { lat: focusedCity.lat, lng: focusedCity.lng };
-    const next = regionForRadiusKm(center, focusedCity.radiusKm);
+    const next = regionForRadiusKm(
+      { lat: focusedCity.lat, lng: focusedCity.lng },
+      focusedCity.radiusKm,
+    );
     setSelectedPins(null);
-    beginProgrammaticMove();
-    setSearchCenter(center);
-    setSearchRadiusKm(focusedCity.radiusKm);
     setMapRegion(next);
     mapRef.current?.animateToRegion(next);
-  }, [focusedCity, searchCenter, beginProgrammaticMove]);
+  }, [focusedCity, cameraSeed]);
 
-  useEffect(
-    () => () => {
-      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    },
-    [],
-  );
+  const mapParams = useMemo(() => filtersToMapParams(filters), [filters]);
 
-  const mapParams = useMemo(
-    () => ({
-      ...filtersToMapParams(filters),
-      radius_km: searchRadiusKm,
-      limit: 200,
-    }),
-    [filters, searchRadiusKm],
-  );
-
-  const mapQuery = useMapEvents(mapParams, searchCenter, Boolean(searchCenter));
+  const mapQuery = useMapViewport(mapParams, mapRegion, Boolean(mapRegion));
 
   const debouncedQ = useDebouncedValue(filters.q);
   const pins = useMemo(() => {
@@ -134,48 +100,28 @@ export default function MapScreen() {
     return items.filter((pin) => pinMatchesQuery(pin, query));
   }, [mapQuery.data?.items, debouncedQ]);
 
-  const areaDirty =
-    mapRegion != null &&
-    baselineRegion != null &&
-    isRegionDirty(mapRegion, baselineRegion);
-
   const isInitialLoading =
     !geoQuery.isFetched ||
-    (Boolean(searchCenter) &&
-      mapQuery.isLoading &&
-      !mapQuery.isPlaceholderData);
+    (Boolean(mapRegion) && mapQuery.isLoading && !mapQuery.isPlaceholderData);
   const isSearching = mapQuery.isFetching && !mapQuery.isLoading;
   const error = mapQuery.error;
-  const bottomInset = tabBar.height;
   const filterCount = countActiveFilters(filters, { excludeQuery: true });
 
   const onRegionChangeComplete = useCallback((region: Region) => {
     setMapRegion(region);
-    setBaselineRegion((prev) =>
-      adoptNextRegionRef.current || prev == null ? region : prev,
-    );
   }, []);
-
-  const onSearchThisArea = useCallback(() => {
-    if (!mapRegion) return;
-    setSelectedPins(null);
-    setSearchCenter(geoFromRegion(mapRegion));
-    setSearchRadiusKm(radiusKmFromRegion(mapRegion));
-    setBaselineRegion(mapRegion);
-  }, [mapRegion]);
 
   const onRecenter = useCallback(() => {
     if (!resolvedCenter) return;
+    appliedCitySlugRef.current = null;
+    patchFilters({ city: null, neighbourhood: null });
     const next = regionForRadiusKm(resolvedCenter, INITIAL_RADIUS_KM);
     setSelectedPins(null);
-    beginProgrammaticMove();
-    setSearchCenter(resolvedCenter);
-    setSearchRadiusKm(INITIAL_RADIUS_KM);
     setMapRegion(next);
     mapRef.current?.animateToRegion(next);
-  }, [resolvedCenter, beginProgrammaticMove]);
+  }, [resolvedCenter, patchFilters]);
 
-  if (!searchCenter || !cameraSeedRef.current) {
+  if (!cameraSeed || !mapRegion) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
@@ -197,9 +143,11 @@ export default function MapScreen() {
     ? error instanceof Error
       ? error.message
       : 'Failed to load map events'
-    : mapQuery.data
-      ? `${pins.length} event${pins.length === 1 ? '' : 's'} nearby`
-      : 'Loading…';
+    : isSearching
+      ? 'Updating map…'
+      : mapQuery.data
+        ? `${pins.length} event${pins.length === 1 ? '' : 's'} in view`
+        : 'Loading…';
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -207,7 +155,7 @@ export default function MapScreen() {
         <EventsMap
           ref={mapRef}
           pins={pins}
-          initialRegion={cameraSeedRef.current}
+          initialRegion={cameraSeed}
           userGeo={geoQuery.data ?? null}
           selectedEventId={selectedPins?.[0]?.event_id ?? null}
           isLoading={isInitialLoading}
@@ -247,49 +195,6 @@ export default function MapScreen() {
           </View>
         </SafeAreaView>
 
-        {areaDirty ? (
-          <View style={styles.searchWrap} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Search this area"
-              onPress={onSearchThisArea}
-              disabled={mapQuery.isFetching}
-              style={[
-                styles.searchButton,
-                shadows.fab,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: radius.full,
-                  opacity: mapQuery.isFetching ? 0.7 : 1,
-                },
-              ]}
-            >
-              {isSearching ? (
-                <ActivityIndicator
-                  color={colors.onPrimary}
-                  size="small"
-                  style={{ marginRight: spacing.sm }}
-                />
-              ) : (
-                <Ionicons
-                  name="refresh"
-                  size={16}
-                  color={colors.onPrimary}
-                  style={{ marginRight: spacing.sm }}
-                />
-              )}
-              <Text
-                style={[
-                  typography.caption,
-                  { color: colors.onPrimary, fontWeight: '800' },
-                ]}
-              >
-                Search this area
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Toggle satellite map"
@@ -321,13 +226,13 @@ export default function MapScreen() {
         {selectedPins?.length ? (
           <MapEventSheet
             pins={selectedPins}
-            bottomInset={8}
+            bottomInset={12}
             onClose={() => setSelectedPins(null)}
           />
         ) : null}
       </View>
       <FilterSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} />
-      <View style={{ height: bottomInset }} />
+      <View style={{ height: tabBarInset }} />
     </View>
   );
 }
@@ -358,19 +263,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
-  },
-  searchWrap: {
-    position: 'absolute',
-    top: 126,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  searchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
   },
   layersButton: {
     position: 'absolute',

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
 import { useResponsive } from './useResponsive';
+import { useTabBarInset } from './useTabBarInset';
 
 type ScreenProps = ViewProps & {
   children: ReactNode;
@@ -16,10 +17,9 @@ export function Screen({
   edges = ['top', 'left', 'right'],
   ...rest
 }: ScreenProps) {
-  const { colors, spacing, tabBar } = useTheme();
+  const { colors } = useTheme();
   const { contentMaxWidth, horizontalPadding } = useResponsive();
-
-  const bottomClearance = tabBar.height + spacing.lg;
+  const bottomClearance = useTabBarInset();
 
   return (
     <SafeAreaView

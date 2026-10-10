@@ -68,7 +68,7 @@ export function FavouriteButton({
         overlay
           ? { backgroundColor: colors.surface, borderWidth: 0 }
           : plain
-            ? { borderWidth: 0, width: 36, height: 36 }
+            ? { borderWidth: 0, width: 44, height: 44 }
             : { borderColor: colors.border },
         { opacity: toggle.isPending ? 0.6 : 1 },
       ]}

@@ -39,8 +39,10 @@ export default function ProfileScreen() {
   return (
     <Screen>
       <ScrollView
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.xl }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.lg }}
       >
         <Text style={[typography.title, { color: colors.text }]}>Saved</Text>
         <Text
@@ -301,6 +303,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
   accountCard: {
     flexDirection: 'row',
     alignItems: 'center',

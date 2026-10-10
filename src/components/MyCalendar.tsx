@@ -448,9 +448,10 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   modeChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    minWidth: 58,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 72,
+    minHeight: 36,
     alignItems: 'center',
   },
   navRow: {
@@ -460,9 +461,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   navBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

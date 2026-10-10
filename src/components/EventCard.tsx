@@ -56,29 +56,28 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
     });
   }
 
-  const hero = showImage ? (
-    <Image
-      source={{ uri: item.image_url ?? undefined }}
-      style={styles.imageFill}
-      onError={() => setImageFailed(true)}
-    />
-  ) : (
-    <View
-      style={[
-        styles.imageFill,
-        styles.imageFallback,
-        {
-          backgroundColor: item.primary_category
-            ? tintForCategory(item.primary_category, '33')
-            : colors.primaryMuted,
-        },
-      ]}
-    >
-      <Ionicons
-        name="calendar"
-        size={variant === 'listing' ? 26 : 32}
-        color={item.primary_category ? categoryColor : colors.primary}
-      />
+  const thumbTint = item.primary_category
+    ? tintForCategory(item.primary_category, '33')
+    : colors.primaryMuted;
+  const hero = (
+    <View style={[styles.imageFrame, { backgroundColor: thumbTint }]}>
+      {showImage ? (
+        <Image
+          source={{ uri: item.image_url ?? undefined, cache: 'force-cache' }}
+          style={styles.imageFill}
+          resizeMode="cover"
+          resizeMethod="resize"
+          onError={() => setImageFailed(true)}
+        />
+      ) : (
+        <View style={styles.imageFallback}>
+          <Ionicons
+            name="calendar"
+            size={variant === 'listing' ? 26 : 32}
+            color={item.primary_category ? categoryColor : colors.primary}
+          />
+        </View>
+      )}
     </View>
   );
 
@@ -365,15 +364,20 @@ const styles = StyleSheet.create({
   imageWrap: {
     height: 148,
     position: 'relative',
+    overflow: 'hidden',
   },
   previewImage: {
     height: 168,
   },
+  imageFrame: {
+    ...StyleSheet.absoluteFill,
+    overflow: 'hidden',
+  },
   imageFill: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFill,
   },
   imageFallback: {
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -425,29 +429,43 @@ const styles = StyleSheet.create({
   },
   listing: {
     flexDirection: 'row',
+    flexGrow: 0,
+    flexShrink: 0,
+    alignSelf: 'stretch',
+    alignItems: 'center',
     overflow: 'hidden',
-    minHeight: 96,
     position: 'relative',
     marginHorizontal: 12,
     marginBottom: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },
   listingMain: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     flexDirection: 'row',
+    alignItems: 'center',
     minWidth: 0,
-    alignItems: 'stretch',
   },
+  // Fixed box. A percentage height resolves against the list viewport on
+  // iOS and stretches every card to one screen, which also kills scrolling.
   listingImage: {
-    width: 108,
-    minHeight: 96,
+    width: 96,
+    height: 96,
+    marginLeft: 8,
+    marginVertical: 8,
+    borderRadius: 12,
     overflow: 'hidden',
+    flexGrow: 0,
+    flexShrink: 0,
+    position: 'relative',
   },
   listingBody: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    paddingRight: 40,
+    paddingRight: 44,
     justifyContent: 'center',
   },
   listingTitleRow: {

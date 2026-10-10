@@ -1,4 +1,7 @@
-import { apiRequest } from './client';
+import type { Region } from 'react-native-maps';
+
+import { MAP_TILE_EVENT_LIMIT, tilesForRegion, type MapTile } from '../utils/mapViewport';
+import { ApiError, apiRequest } from './client';
 import type { UserGeo } from '../types/common';
 import type {
   CityCount,
@@ -41,6 +44,91 @@ export function fetchMapEvents(
     geo,
     signal,
   });
+}
+
+/** Remember a server that rejects bbox params for the rest of this session. */
+let mapBBoxUnsupported = false;
+
+async function fetchMapTile(
+  params: Omit<
+    MapEventsParams,
+    'north' | 'south' | 'east' | 'west' | 'radius_km' | 'limit'
+  >,
+  tile: MapTile,
+  signal?: AbortSignal,
+) {
+  const radiusParams: MapEventsParams = {
+    ...params,
+    radius_km: Number(tile.radiusKm.toFixed(2)),
+    limit: MAP_TILE_EVENT_LIMIT,
+  };
+
+  if (!mapBBoxUnsupported) {
+    try {
+      return await fetchMapEvents(
+        {
+          ...radiusParams,
+          north: Number(tile.north.toFixed(5)),
+          south: Number(tile.south.toFixed(5)),
+          east: Number(tile.east.toFixed(5)),
+          west: Number(tile.west.toFixed(5)),
+        },
+        tile.center,
+        signal,
+      );
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        (error.status === 400 || error.status === 422)
+      ) {
+        mapBBoxUnsupported = true;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  return fetchMapEvents(radiusParams, tile.center, signal);
+}
+
+/**
+ * Events for the visible map. Zoomed-out regions are split into tiles so a
+ * nearest-N cap cannot leave pins in only one part of the city.
+ * See the contract note in `src/utils/mapViewport.ts`.
+ */
+export async function fetchViewportMapEvents(
+  params: Omit<
+    MapEventsParams,
+    'north' | 'south' | 'east' | 'west' | 'radius_km' | 'limit'
+  >,
+  region: Region,
+  signal?: AbortSignal,
+): Promise<MapEventsResponse> {
+  const tiles = tilesForRegion(region);
+  const settled = await Promise.allSettled(
+    tiles.map((tile) => fetchMapTile(params, tile, signal)),
+  );
+  const pages = settled.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  );
+  if (pages.length === 0) {
+    const failure = settled.find((result) => result.status === 'rejected');
+    if (failure && failure.status === 'rejected') throw failure.reason;
+    throw new Error('Failed to load map events');
+  }
+
+  const byId = new Map<string, MapEventsResponse['items'][number]>();
+  for (const page of pages) {
+    for (const pin of page.items ?? []) {
+      if (pin?.event_id) byId.set(pin.event_id, pin);
+    }
+  }
+
+  return {
+    geo: pages[0].geo,
+    items: [...byId.values()],
+    count: byId.size,
+  };
 }
 
 export function fetchTodayEvents(

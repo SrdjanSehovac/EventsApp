@@ -164,17 +164,21 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <ScrollView
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingBottom:
-            linkUrls.length > 0 ? 108 + insets.bottom : spacing.xxxl,
+            linkUrls.length > 0 ? 120 + insets.bottom : spacing.xxxl,
         }}
       >
         <View style={styles.hero}>
           {heroUrl && !heroFailed ? (
             <Image
-              source={{ uri: heroUrl }}
+              source={{ uri: heroUrl, cache: 'force-cache' }}
               style={styles.heroImage}
+              resizeMode="cover"
+              resizeMethod="resize"
               onError={() => setHeroFailed(true)}
             />
           ) : (
@@ -334,8 +338,10 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                       ]}
                     >
                       <Image
-                        source={{ uri: url }}
+                        source={{ uri: url, cache: 'force-cache' }}
                         style={styles.thumbImage}
+                        resizeMode="cover"
+                        resizeMethod="resize"
                         onError={() =>
                           setFailedThumbs((prev) => ({ ...prev, [index]: true }))
                         }
@@ -663,6 +669,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             {
               backgroundColor: colors.background,
               borderTopColor: colors.hairline,
+              paddingBottom: Math.max(insets.bottom, 12),
             },
           ]}
         >
@@ -717,14 +724,17 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  scroll: {
+    flex: 1,
+  },
   hero: {
     height: 280,
     position: 'relative',
+    overflow: 'hidden',
     backgroundColor: '#1C1917',
   },
   heroImage: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFill,
   },
   heroFallback: {
     alignItems: 'center',
@@ -775,10 +785,10 @@ const styles = StyleSheet.create({
     height: 72,
     overflow: 'hidden',
     borderWidth: 2,
+    position: 'relative',
   },
   thumbImage: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFill,
   },
   sectionHead: {
     flexDirection: 'row',

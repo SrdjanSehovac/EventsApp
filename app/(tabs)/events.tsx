@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -21,6 +22,7 @@ import {
   useInfiniteEvents,
   useUserGeo,
 } from '../../src/hooks';
+import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 import type { PublicSortField } from '../../src/types/events';
 
@@ -32,7 +34,8 @@ const SORT_OPTIONS: { label: string; value: PublicSortField }[] = [
 ];
 
 export default function EventsScreen() {
-  const { colors, typography, spacing, tabBar } = useTheme();
+  const { colors, typography, spacing } = useTheme();
+  const tabBarInset = useTabBarInset();
   const {
     filters,
     patchFilters,
@@ -53,9 +56,13 @@ export default function EventsScreen() {
       }),
     [filters, debouncedQ, sort, hasUserGeo],
   );
+  const listParams = useMemo(
+    () => ({ ...params, page_size: 24 }),
+    [params],
+  );
 
   const eventsQuery = useInfiniteEvents(
-    params,
+    listParams,
     geoQuery.data ?? null,
     geoQuery.isFetched,
   );
@@ -118,6 +125,7 @@ export default function EventsScreen() {
           </Text>
         ) : (
           <FlatList
+            style={styles.list}
             data={items}
             keyExtractor={(item) => item.event_id}
             renderItem={({ item }) => <EventCard item={item} variant="listing" />}
@@ -131,9 +139,31 @@ export default function EventsScreen() {
                 No upcoming events found.
               </Text>
             }
+            ListFooterComponent={
+              eventsQuery.isFetchingNextPage ? (
+                <ActivityIndicator
+                  color={colors.primary}
+                  style={{ marginVertical: spacing.md }}
+                />
+              ) : null
+            }
+            onEndReached={() => {
+              if (eventsQuery.hasNextPage && !eventsQuery.isFetchingNextPage) {
+                void eventsQuery.fetchNextPage();
+              }
+            }}
+            onEndReachedThreshold={0.6}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === 'android'}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: tabBar.height + 12 }}
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{
+              flexGrow: 0,
+              paddingBottom: tabBarInset + 12,
+            }}
           />
         )}
       </View>
@@ -164,6 +194,9 @@ const styles = StyleSheet.create({
   sortWrap: {
     flex: 1,
     minWidth: 0,
+  },
+  list: {
+    flex: 1,
   },
   centered: {
     flex: 1,

@@ -3,3 +3,4 @@ export type { BreakpointName } from './breakpoints';
 export { useResponsive } from './useResponsive';
 export type { ResponsiveValue } from './useResponsive';
 export { Screen } from './Screen';
+export { useTabBarInset } from './useTabBarInset';

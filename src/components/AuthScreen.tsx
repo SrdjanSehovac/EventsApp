@@ -66,7 +66,9 @@ export function AuthScreen({
         </View>
         {scroll ? (
           <ScrollView
+            style={styles.scroll}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             contentContainerStyle={{
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.xl,
@@ -129,9 +131,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   back: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  scroll: {
+    flex: 1,
   },
 });

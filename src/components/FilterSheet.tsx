@@ -101,12 +101,13 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
           </View>
 
           <ScrollView
+            style={styles.scroll}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.lg,
               paddingBottom: spacing.xxxl,
             }}
-            keyboardShouldPersistTaps="handled"
           >
             <EventFilters
               value={draft}
@@ -167,6 +168,9 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
 
 const styles = StyleSheet.create({
   safe: {
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   header: {

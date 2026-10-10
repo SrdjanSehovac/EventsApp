@@ -3,6 +3,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from '@tanstack/react-query';
+import type { Region } from 'react-native-maps';
 
 import {
   fetchCities,
@@ -12,8 +13,11 @@ import {
   fetchNeighbourhoods,
   fetchSimilarEvents,
   fetchTodayEvents,
+  fetchViewportMapEvents,
   searchEvents,
 } from '../api/events';
+import { quantizeRegion } from '../utils/mapViewport';
+import { useDebouncedValue } from './useDebouncedValue';
 import type { UserGeo } from '../types/common';
 import type {
   MapEventsParams,
@@ -70,8 +74,10 @@ export function useInfiniteEvents(
       fetchEvents({ ...params, page: pageParam }, geo, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      const { page, total_pages } = lastPage.meta;
-      return page < total_pages ? page + 1 : undefined;
+      const page = lastPage.meta?.page;
+      const totalPages = lastPage.meta?.total_pages;
+      if (page == null || totalPages == null) return undefined;
+      return page < totalPages ? page + 1 : undefined;
     },
     enabled,
   });
@@ -88,6 +94,27 @@ export function useMapEvents(
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
+  });
+}
+
+/** Visible-region map query. Debounced so a pan settles before the next fetch. */
+export function useMapViewport(
+  params: Omit<
+    MapEventsParams,
+    'north' | 'south' | 'east' | 'west' | 'radius_km' | 'limit'
+  >,
+  region: Region | null,
+  enabled = true,
+) {
+  const debounced = useDebouncedValue(region, 400);
+  const keyRegion = debounced ? quantizeRegion(debounced) : null;
+
+  return useQuery({
+    queryKey: [...eventKeys.all, 'map', 'viewport', params, keyRegion] as const,
+    queryFn: ({ signal }) => fetchViewportMapEvents(params, debounced!, signal),
+    enabled: enabled && debounced != null,
+    placeholderData: keepPreviousData,
+    staleTime: 20_000,
   });
 }
 

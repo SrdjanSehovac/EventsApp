@@ -70,20 +70,18 @@ export default function FavouritesScreen() {
         </Text>
       ) : (
         <FlatList
+          style={styles.list}
           data={items}
           keyExtractor={(item) => item.event_id}
-          renderItem={({ item }) => (
-            <View style={{ marginBottom: spacing.lg }}>
-                  <EventCard item={item} variant="listing" />
-            </View>
-          )}
+          renderItem={({ item }) => <EventCard item={item} variant="listing" />}
           ListEmptyComponent={
             <Text style={[typography.body, { color: colors.textMuted }]}>
               No favourites yet. Open an event and tap the heart to save it.
             </Text>
           }
-          contentContainerStyle={{ paddingBottom: spacing.xxxl }}
+          contentContainerStyle={{ flexGrow: 0, paddingBottom: spacing.xl }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </AuthScreen>
@@ -91,6 +89,9 @@ export default function FavouritesScreen() {
 }
 
 const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+  },
   button: {
     minHeight: 48,
     alignItems: 'center',
