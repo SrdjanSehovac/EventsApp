@@ -4,6 +4,7 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { hideDevMenuButton } from '../src/dev/hideDevMenuButton';
 import { useUserGeo } from '../src/hooks';
 import { AppQueryProvider } from '../src/query';
 import { AuthProvider } from '../src/auth';
@@ -13,6 +14,10 @@ function RootNavigator() {
   const { colors, isDark } = useTheme();
   // Request location once at launch; screens share the cached result.
   useUserGeo();
+
+  useEffect(() => {
+    hideDevMenuButton();
+  }, []);
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(colors.background);

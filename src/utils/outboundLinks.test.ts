@@ -85,6 +85,29 @@ check(
   null,
 );
 check(
+  'checkout_url opens instead of the event page',
+  resolveOutboundLink({
+    external_url: 'https://www.eventbrite.com/e/driven-to-move',
+    checkout_url: 'https://www.eventbrite.com/checkout-external?eid=1',
+    link_type: 'website',
+  }),
+  {
+    url: 'https://www.eventbrite.com/checkout-external?eid=1',
+    linkType: 'tickets',
+    label: 'Get tickets',
+  },
+);
+
+check(
+  'missing checkout falls back to external_url',
+  resolveOutboundLink({
+    external_url: 'https://tickets.example.com/1',
+    checkout_url: null,
+    link_type: 'tickets',
+  })?.url,
+  'https://tickets.example.com/1',
+);
+check(
   'blocked external_url is hidden',
   resolveOutboundLink({
     external_url: 'https://www.allevents.in/london/x',

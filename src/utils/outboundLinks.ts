@@ -166,19 +166,23 @@ export function outboundLinkLabel(linkType?: string | null): string {
 }
 
 /**
- * The only public outbound action. Ignores source_url and ticket_url.
- * Returns null when external_url is missing or blocked.
+ * The only public outbound action.
+ * `checkout_url` opens the host checkout when the server sends one.
+ * Otherwise `external_url`. `source_url` and `ticket_url` are never a fallback.
  */
 export function resolveOutboundLink(
   event: {
     external_url?: string | null;
+    checkout_url?: string | null;
     link_type?: string | null;
   },
   extraHosts?: readonly string[],
 ): OutboundLink | null {
-  const url = allowedOutboundUrl(event.external_url, extraHosts);
+  const checkout = allowedOutboundUrl(event.checkout_url, extraHosts);
+  const external = allowedOutboundUrl(event.external_url, extraHosts);
+  const url = checkout ?? external;
   if (!url) return null;
-  const linkType = normalizeLinkType(event.link_type);
+  const linkType = checkout ? 'tickets' : normalizeLinkType(event.link_type);
   return { url, linkType, label: outboundLinkLabel(linkType) };
 }
 

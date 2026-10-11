@@ -20,11 +20,13 @@ import {
   collectPhotoUrls,
   detailToListItem,
   eventCoords,
+  formatAboutBody,
+  formatActionLabel,
   formatDetailPrice,
-  formatFullAddress,
   formatOccurrenceLine,
+  formatPlaceLines,
   formatScheduleLines,
-  formatVenueName,
+  isSchemaOrgType,
   mapsSearchUrl,
   openExternalUrl,
 } from '../utils/eventDetail';
@@ -114,47 +116,41 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
     [detail],
   );
   const heroUrl = photos[heroIndex] ?? photos[0] ?? null;
+  const showPhoto = Boolean(heroUrl && !heroFailed);
   const listItem = detail ? detailToListItem(detail) : null;
   const primaryCategory =
     detail?.categories.find((c) => c.is_primary) ?? detail?.categories[0] ?? null;
   const categoryColor = colorForCategory(primaryCategory);
   const coords = detail ? eventCoords(detail) : null;
-  const venueName = detail ? formatVenueName(detail) : null;
-  const address = detail ? formatFullAddress(detail) : null;
-  const price = detail
-    ? sanitizePublicText(formatDetailPrice(detail))
-    : null;
+  const place = detail ? formatPlaceLines(detail) : { name: null, address: null };
+  const price = detail ? sanitizePublicText(formatDetailPrice(detail)) : null;
   const saleLabel = listItem ? formatSaleBadge(listItem) : null;
   const scheduleLines = detail ? formatScheduleLines(detail) : [];
+  const occurrenceLines =
+    detail && detail.occurrences && detail.occurrences.length > 1
+      ? detail.occurrences
+          .map((occurrence) => formatOccurrenceLine(occurrence, detail.timezone))
+          .filter((line, index, all) => line !== scheduleLines[0] && all.indexOf(line) === index)
+      : [];
   const extraCategories = (detail?.categories ?? []).filter(
     (c) => c.category_id !== primaryCategory?.category_id,
   );
-  const tags = visibleLabels(asLabelList(detail?.tags));
-  const vibes = visibleLabels(asLabelList(detail?.vibe));
-  const audience = visibleLabels(asLabelList(detail?.audience));
-  const performers = visibleLabels(asLabelList(detail?.performers));
+  const publicLabels = (value: unknown) =>
+    visibleLabels(asLabelList(value)).filter((label) => !isSchemaOrgType(label));
+  const tags = publicLabels(detail?.tags);
+  const vibes = publicLabels(detail?.vibe);
+  const audience = publicLabels(detail?.audience);
+  const performers = publicLabels(detail?.performers);
   const outbound = detail ? resolveOutboundLink(detail) : null;
+  const actionLabel = outbound ? formatActionLabel(outbound.label, price) : null;
   const videoUrl = allowedOutboundUrl(detail?.video_url);
-  const description = sanitizePublicText(
-    detail?.description || detail?.bio || detail?.summary,
-  );
-  const bio = (() => {
-    const next = sanitizePublicText(detail?.bio);
-    if (!next || next === description) return null;
-    const summaryText = sanitizePublicText(detail?.summary);
-    if (next === summaryText) return null;
-    return next;
-  })();
-  const summary = (() => {
-    const next = sanitizePublicText(detail?.summary);
-    if (!next || next === description) return null;
-    return next;
-  })();
+  const about = detail ? formatAboutBody(detail) : null;
   const seriesName = sanitizePublicText(detail?.series_name);
 
   async function shareEvent() {
     if (!detail) return;
-    const url = outbound?.url ?? null;
+    const url =
+      allowedOutboundUrl(detail.external_url) ?? outbound?.url ?? null;
     const message = url ? `${detail.title}\n${url}` : detail.title;
     await Share.share({ title: detail.title, message, url: url ?? undefined });
   }
@@ -164,7 +160,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
     else router.replace('/');
   }
 
-  const mapsLabel = [venueName, address].filter(Boolean).join(', ');
+  const mapsLabel = [place.name, place.address].filter(Boolean).join(', ');
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -176,10 +172,10 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
           paddingBottom: outbound ? 120 + insets.bottom : spacing.xxxl,
         }}
       >
-        <View style={styles.hero}>
-          {heroUrl && !heroFailed ? (
+        <View style={showPhoto ? styles.hero : styles.heroCompact}>
+          {showPhoto ? (
             <Image
-              source={{ uri: heroUrl, cache: 'force-cache' }}
+              source={{ uri: heroUrl!, cache: 'force-cache' }}
               style={styles.heroImage}
               resizeMode="cover"
               resizeMethod="resize"
@@ -188,20 +184,31 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
           ) : (
             <View
               style={[
-                styles.heroImage,
                 styles.heroFallback,
                 {
-                  backgroundColor: primaryCategory
-                    ? tintForCategory(primaryCategory, '33')
-                    : colors.primaryMuted,
+                  backgroundColor: colors.surface,
+                  paddingTop: insets.top + 64,
                 },
               ]}
             >
-              <Ionicons
-                name="calendar"
-                size={48}
-                color={primaryCategory ? categoryColor : colors.primary}
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: categoryColor, opacity: 0.18 },
+                ]}
               />
+              {detail?.title ? (
+                <Text
+                  numberOfLines={3}
+                  style={[
+                    typography.heading,
+                    styles.heroTitle,
+                    { color: colors.text },
+                  ]}
+                >
+                  {detail.title}
+                </Text>
+              ) : null}
             </View>
           )}
           <View
@@ -295,14 +302,16 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               ) : null}
             </View>
 
-            <Text
-              style={[
-                typography.title,
-                { color: colors.text, marginTop: spacing.md, fontSize: 24 },
-              ]}
-            >
-              {detail.title}
-            </Text>
+            {showPhoto ? (
+              <Text
+                style={[
+                  typography.title,
+                  { color: colors.text, marginTop: spacing.md, fontSize: 24 },
+                ]}
+              >
+                {detail.title}
+              </Text>
+            ) : null}
             {seriesName && !isBlockedSourceLabel(seriesName) ? (
               <Text
                 style={[
@@ -369,9 +378,9 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 </Text>
               ))}
               {detail.occurrences?.length > 1
-                ? detail.occurrences.map((occurrence) => (
+                ? occurrenceLines.map((line) => (
                     <Text
-                      key={occurrence.occurrence_id}
+                      key={line}
                       style={[
                         typography.caption,
                         {
@@ -380,7 +389,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                         },
                       ]}
                     >
-                      {formatOccurrenceLine(occurrence, detail.timezone)}
+                      {line}
                     </Text>
                   ))
                 : null}
@@ -393,16 +402,16 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                   { color: colors.text, fontWeight: '700' },
                 ]}
               >
-                {venueName || 'Location TBD'}
+                {place.name || place.address || 'Location TBD'}
               </Text>
-              {address ? (
+              {place.name && place.address ? (
                 <Text
                   style={[
                     typography.body,
                     { color: colors.textSecondary, marginTop: 4 },
                   ]}
                 >
-                  {address}
+                  {place.address}
                 </Text>
               ) : null}
               {coords ? (
@@ -433,35 +442,11 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               ) : null}
             </Section>
 
-            {description ? (
+            {about ? (
               <Section icon="document-text-outline" title="About">
-                {summary && summary !== description ? (
-                  <Text
-                    style={[
-                      typography.body,
-                      {
-                        color: colors.textSecondary,
-                        fontWeight: '600',
-                        marginBottom: spacing.sm,
-                      },
-                    ]}
-                  >
-                    {summary}
-                  </Text>
-                ) : null}
                 <Text style={[typography.body, { color: colors.text }]}>
-                  {description}
+                  {about}
                 </Text>
-                {bio ? (
-                  <Text
-                    style={[
-                      typography.body,
-                      { color: colors.textSecondary, marginTop: spacing.md },
-                    ]}
-                  >
-                    {bio}
-                  </Text>
-                ) : null}
               </Section>
             ) : null}
 
@@ -486,6 +471,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                     />
                   ))}
                   {detail.setting &&
+                  !isSchemaOrgType(detail.setting) &&
                   !isBlockedSourceLabel(detail.setting) &&
                   ![primaryCategory, ...extraCategories].some(
                     (category) =>
@@ -613,7 +599,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
         >
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={outbound.label}
+            accessibilityLabel={actionLabel ?? outbound.label}
             onPress={() => void openExternalUrl(outbound.url)}
             style={[
               styles.primaryCta,
@@ -629,7 +615,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 { color: colors.onPrimary, fontWeight: '800' },
               ]}
             >
-              {outbound.label}
+              {actionLabel}
             </Text>
           </Pressable>
         </SafeAreaView>
@@ -651,12 +637,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#1C1917',
   },
+  heroCompact: {
+    position: 'relative',
+    overflow: 'hidden',
+  },
   heroImage: {
     ...StyleSheet.absoluteFill,
   },
   heroFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    justifyContent: 'flex-end',
+    minHeight: 148,
+  },
+  heroTitle: {
+    fontSize: 22,
+    lineHeight: 28,
   },
   heroScrim: {
     ...StyleSheet.absoluteFill,

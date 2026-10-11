@@ -70,6 +70,8 @@ export type EventListItem = {
   image_url?: string | null;
   /** Organizer or ticketing page. Never a discovery-platform URL. */
   external_url?: string | null;
+  /** Direct checkout, when the list payload includes one. */
+  checkout_url?: string | null;
   /** tickets | register | website. Labels the outbound button. */
   link_type?: string | null;
   scraped_at?: string | null;
@@ -96,10 +98,16 @@ export type EventDetail = {
   photo_urls?: string[] | null;
   video_url?: string | null;
   ticket_url?: string | null;
-  /** Organizer or ticketing page. The only public outbound link. */
+  /** Organizer or ticketing page. */
   external_url?: string | null;
+  /** Direct checkout, when the host provides one. Preferred over external_url. */
+  checkout_url?: string | null;
   /** tickets | register | website. Labels the outbound button. */
   link_type?: string | null;
+  /** Clean venue name, when the server has one. */
+  venue_name?: string | null;
+  /** Clean street address, when the server has one. */
+  address_line?: string | null;
   venue?: VenueBrief | null;
   raw_venue_name?: string | null;
   raw_venue_address?: string | null;
@@ -157,6 +165,7 @@ export type EventMapPin = {
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
   external_url?: string | null;
+  checkout_url?: string | null;
   link_type?: string | null;
   neighbourhood?: string | null;
   city?: string | null;
