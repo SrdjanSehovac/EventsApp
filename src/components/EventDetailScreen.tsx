@@ -23,6 +23,7 @@ import {
   eventCoords,
   formatAboutBody,
   formatActionLabel,
+  hostedByLine,
   formatDetailPrice,
   formatOccurrenceLine,
   formatPlaceLines,
@@ -148,6 +149,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const videoUrl = allowedOutboundUrl(detail?.video_url);
   const about = detail ? formatAboutBody(detail) : null;
   const seriesName = sanitizePublicText(detail?.series_name);
+  const hostedBy = hostedByLine(detail?.organizer_name);
 
   async function shareEvent() {
     if (!detail) return;
@@ -209,6 +211,16 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                   ]}
                 >
                   {detail.title}
+                </Text>
+              ) : null}
+              {hostedBy ? (
+                <Text
+                  style={[
+                    typography.caption,
+                    { color: colors.textSecondary, marginTop: spacing.xs },
+                  ]}
+                >
+                  {hostedBy}
                 </Text>
               ) : null}
             </View>
@@ -312,6 +324,16 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 ]}
               >
                 {detail.title}
+              </Text>
+            ) : null}
+            {showPhoto && hostedBy ? (
+              <Text
+                style={[
+                  typography.caption,
+                  { color: colors.textSecondary, marginTop: spacing.xs },
+                ]}
+              >
+                {hostedBy}
               </Text>
             ) : null}
             {seriesName && !isBlockedSourceLabel(seriesName) ? (

@@ -2,21 +2,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
+import { friendlyAuthError } from '../src/auth/authErrors';
 import { AuthField, AuthScreen } from '../src/components';
 import { useAuth } from '../src/hooks';
 import { useTheme } from '../src/theme';
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Sign-in is not available yet (EventServer needs POST /v1/auth/login).';
-    }
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Could not sign in.';
-}
 
 export default function SignInScreen() {
   const { colors, typography, spacing, radius } = useTheme();
@@ -39,7 +28,7 @@ export default function SignInScreen() {
       if (router.canGoBack()) router.back();
       else router.replace('/');
     } catch (err) {
-      setError(errorMessage(err));
+      setError(friendlyAuthError(err, 'sign-in'));
     } finally {
       setSubmitting(false);
     }

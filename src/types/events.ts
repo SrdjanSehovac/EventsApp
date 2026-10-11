@@ -144,6 +144,8 @@ export type EventDetail = {
   is_pet_friendly?: boolean | null;
   rain_or_shine?: boolean | null;
   series_name?: string | null;
+  /** Organizer display name, when the server has one. */
+  organizer_name?: string | null;
   performers?: unknown[];
   enrichment_confidence?: number | string | null;
   enriched_at?: string | null;

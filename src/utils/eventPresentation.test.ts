@@ -2,6 +2,7 @@ import {
   cleanAddressLine,
   formatAboutBody,
   formatActionLabel,
+  hostedByLine,
   formatDetailPrice,
   formatPlaceLines,
   formatScheduleLines,
@@ -336,6 +337,11 @@ check('schema SportsEvent is hidden', isSchemaOrgType('SportsEvent'), true);
 check('schema Event is hidden', isSchemaOrgType('Event'), true);
 check('a normal tag stays', isSchemaOrgType('Family friendly'), false);
 check('Community stays', isSchemaOrgType('Community'), false);
+
+check('hosted by uses the organizer name', hostedByLine('BFitness'), 'Hosted by BFitness');
+check('missing organizer is hidden', hostedByLine(null), null);
+check('blank organizer is hidden', hostedByLine('   '), null);
+check('blocked organizer name is hidden', hostedByLine('AllEvents'), null);
 
 check(
   'ticket button carries the price',

@@ -16,6 +16,7 @@ import {
 export {
   formatAboutBody,
   formatActionLabel,
+  hostedByLine,
   formatDetailPrice,
   formatOccurrenceLine,
   formatPlaceLines,

@@ -2,21 +2,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
+import { friendlyAuthError } from '../src/auth/authErrors';
 import { AuthField, AuthScreen } from '../src/components';
 import { useAuth } from '../src/hooks';
 import { useTheme } from '../src/theme';
-
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Sign-up is not available yet (EventServer needs POST /v1/auth/signup).';
-    }
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Could not create account.';
-}
 
 export default function SignUpScreen() {
   const { colors, typography, spacing, radius } = useTheme();
@@ -47,7 +36,7 @@ export default function SignUpScreen() {
       });
       router.replace('/');
     } catch (err) {
-      setError(errorMessage(err));
+      setError(friendlyAuthError(err, 'sign-up'));
     } finally {
       setSubmitting(false);
     }

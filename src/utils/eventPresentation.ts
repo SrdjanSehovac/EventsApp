@@ -1,5 +1,5 @@
 import type { EventDetail } from '../types/events';
-import { sanitizePublicText } from './outboundLinks';
+import { isBlockedSourceLabel, sanitizePublicText } from './outboundLinks';
 
 type ScheduleInput = Pick<
   EventDetail,
@@ -114,6 +114,13 @@ export function formatDetailPrice(detail: PriceInput): string | null {
   const notes = detail.price_notes?.trim() ?? '';
   if (notes && notes.toLowerCase() !== 'free') return notes;
   return null;
+}
+
+/** `Hosted by Name`, or null when the server sent no organizer. */
+export function hostedByLine(name?: string | null): string | null {
+  const clean = sanitizePublicText(name);
+  if (!clean || isBlockedSourceLabel(clean)) return null;
+  return `Hosted by ${clean}`;
 }
 
 export function formatActionLabel(label: string, price?: string | null): string {
