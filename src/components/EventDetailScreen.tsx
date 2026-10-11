@@ -40,6 +40,7 @@ import {
   sanitizePublicText,
   visibleLabels,
 } from '../utils/outboundLinks';
+import { eventPhase } from '../utils/eventLive';
 import { parseImageFallback } from '../utils/imageFallback';
 import { EventMapSnippet } from './EventMapSnippet';
 import { FavouriteButton } from './FavouriteButton';
@@ -157,6 +158,9 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const about = detail ? formatAboutBody(detail) : null;
   const seriesName = sanitizePublicText(detail?.series_name);
   const hostedBy = hostedByLine(detail?.organizer_name);
+  const phase = detail ? eventPhase(detail) : 'unscheduled';
+  const ended = phase === 'ended';
+  const live = phase === 'live';
 
   async function shareEvent() {
     if (!detail) return;
@@ -180,7 +184,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingBottom: outbound ? 120 + insets.bottom : spacing.xxxl,
+          paddingBottom: ended || outbound ? 120 + insets.bottom : spacing.xxxl,
         }}
       >
         <View style={showPhoto || imageTile ? styles.hero : styles.heroCompact}>
@@ -399,17 +403,49 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             ) : null}
 
             <Section icon="time-outline" title="When">
-              {scheduleLines.map((line) => (
-                <Text
-                  key={line}
-                  style={[
-                    typography.body,
-                    { color: colors.text, marginTop: 4 },
-                  ]}
-                >
-                  {line}
-                </Text>
+              {scheduleLines.map((line, index) => (
+                <View key={line} style={styles.whenRow}>
+                  <Text
+                    style={[
+                      typography.body,
+                      {
+                        color: ended ? colors.textMuted : colors.text,
+                        flexShrink: 1,
+                      },
+                    ]}
+                  >
+                    {line}
+                  </Text>
+                  {index === 0 && ended ? (
+                    <Chip
+                      label="Event ended"
+                      color={colors.textSecondary}
+                      background={colors.surfaceElevated}
+                    />
+                  ) : null}
+                  {index === 0 && live ? (
+                    <Chip
+                      label="Happening now"
+                      color={colors.primary}
+                      background={colors.primaryMuted}
+                    />
+                  ) : null}
+                </View>
               ))}
+              {scheduleLines.length === 0 && ended ? (
+                <Chip
+                  label="Event ended"
+                  color={colors.textSecondary}
+                  background={colors.surfaceElevated}
+                />
+              ) : null}
+              {scheduleLines.length === 0 && live ? (
+                <Chip
+                  label="Happening now"
+                  color={colors.primary}
+                  background={colors.primaryMuted}
+                />
+              ) : null}
               {detail.occurrences?.length > 1
                 ? occurrenceLines.map((line) => (
                     <Text
@@ -417,7 +453,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                       style={[
                         typography.caption,
                         {
-                          color: colors.textSecondary,
+                          color: ended ? colors.textMuted : colors.textSecondary,
                           marginTop: spacing.sm,
                         },
                       ]}
@@ -618,7 +654,42 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
         ) : null}
       </ScrollView>
 
-      {outbound ? (
+      {ended ? (
+        <SafeAreaView
+          edges={['bottom']}
+          style={[
+            styles.footer,
+            {
+              backgroundColor: colors.background,
+              borderTopColor: colors.hairline,
+              paddingBottom: Math.max(insets.bottom, 12),
+            },
+          ]}
+        >
+          <Pressable
+            disabled
+            accessibilityRole="button"
+            accessibilityState={{ disabled: true }}
+            accessibilityLabel="This event has ended"
+            style={[
+              styles.primaryCta,
+              {
+                backgroundColor: colors.surfaceElevated,
+                borderRadius: radius.full,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                typography.body,
+                { color: colors.textSecondary, fontWeight: '800' },
+              ]}
+            >
+              This event has ended
+            </Text>
+          </Pressable>
+        </SafeAreaView>
+      ) : outbound ? (
         <SafeAreaView
           edges={['bottom']}
           style={[
@@ -743,6 +814,13 @@ const styles = StyleSheet.create({
   },
   thumbImage: {
     ...StyleSheet.absoluteFill,
+  },
+  whenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
   },
   sectionHead: {
     flexDirection: 'row',

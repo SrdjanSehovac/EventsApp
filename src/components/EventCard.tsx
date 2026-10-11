@@ -21,6 +21,7 @@ import {
   resolveOutboundLink,
   sanitizePublicText,
 } from '../utils/outboundLinks';
+import { eventPhase, type EventPhase } from '../utils/eventLive';
 import { parseImageFallback } from '../utils/imageFallback';
 import { FavouriteButton } from './FavouriteButton';
 import { ImageFallbackTile } from './ImageFallbackTile';
@@ -36,6 +37,32 @@ function isEnded(status: string) {
   return status === 'ended' || status === 'cancelled';
 }
 
+function TimingChip({ phase }: { phase: Extract<EventPhase, 'ended' | 'live'> }) {
+  const { colors, typography } = useTheme();
+  const ended = phase === 'ended';
+  return (
+    <View
+      style={[
+        styles.timingChip,
+        { backgroundColor: ended ? colors.surfaceElevated : colors.primaryMuted },
+      ]}
+    >
+      <Text
+        style={[
+          typography.caption,
+          {
+            color: ended ? colors.textSecondary : colors.primary,
+            fontWeight: '800',
+            fontSize: 11,
+          },
+        ]}
+      >
+        {ended ? 'Ended' : 'Happening now'}
+      </Text>
+    </View>
+  );
+}
+
 export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const openTickets = useOpenTickets();
@@ -46,7 +73,9 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
     setImageFailed(false);
   }, [item.event_id, item.image_url]);
 
-  const ended = isEnded(item.status);
+  const phase = eventPhase(item);
+  const ended = phase === 'ended' || isEnded(item.status);
+  const timingPhase = phase === 'ended' || phase === 'live' ? phase : null;
   const imageUrl = allowedImageUrl(item.image_url);
   const showImage = Boolean(imageUrl) && !imageFailed;
   const imageTile = showImage ? null : parseImageFallback(item.image_fallback);
@@ -148,12 +177,17 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               numberOfLines={1}
               style={[
                 typography.caption,
-                { color: colors.textSecondary, marginTop: 4, fontWeight: '600' },
+                {
+                  color: phase === 'ended' ? colors.textMuted : colors.textSecondary,
+                  marginTop: 4,
+                  fontWeight: '600',
+                },
               ]}
             >
               {facts}
             </Text>
             <View style={styles.listingMeta}>
+              {timingPhase ? <TimingChip phase={timingPhase} /> : null}
               {chipLabel ? (
                 <View
                   style={[
@@ -204,7 +238,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               </Text>
             ) : null}
             </Pressable>
-            {outbound ? (
+            {outbound && phase !== 'ended' ? (
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel={outbound.label}
@@ -305,19 +339,22 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
         >
           {item.title}
         </Text>
-        <Text
-          numberOfLines={1}
-          style={[
-            typography.caption,
-            {
-              color: colors.textSecondary,
-              marginTop: spacing.sm,
-              fontWeight: '700',
-            },
-          ]}
-        >
-          {facts}
-        </Text>
+        <View style={[styles.factsRow, { marginTop: spacing.sm }]}>
+          <Text
+            numberOfLines={1}
+            style={[
+              typography.caption,
+              {
+                color: phase === 'ended' ? colors.textMuted : colors.textSecondary,
+                fontWeight: '700',
+                flexShrink: 1,
+              },
+            ]}
+          >
+            {facts}
+          </Text>
+          {timingPhase ? <TimingChip phase={timingPhase} /> : null}
+        </View>
         {summary ? (
           <Text
             numberOfLines={2}
@@ -333,7 +370,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
             {summary}
           </Text>
         ) : null}
-        {outbound ? (
+        {outbound && phase !== 'ended' ? (
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={outbound.label}
@@ -570,6 +607,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 999,
+  },
+  timingChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  factsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   listingHeart: {
     position: 'absolute',

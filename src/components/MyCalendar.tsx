@@ -21,6 +21,7 @@ import {
   weekCells,
 } from '../utils/calendar';
 import { eventDetailHref } from '../utils/eventDetail';
+import { eventPhase } from '../utils/eventLive';
 import { FavouriteButton } from './FavouriteButton';
 
 type CalendarMode = 'month' | 'week';
@@ -384,6 +385,9 @@ function CalendarEventRow({ item }: { item: EventListItem }) {
   const { colors, typography, spacing, radius } = useTheme();
   const router = useRouter();
   const place = [item.neighbourhood, item.city].filter(Boolean).join(', ');
+  const phase = eventPhase(item);
+  const timing =
+    phase === 'ended' ? 'Ended' : phase === 'live' ? 'Happening now' : null;
 
   return (
     <View
@@ -411,9 +415,16 @@ function CalendarEventRow({ item }: { item: EventListItem }) {
         </Text>
         <Text
           numberOfLines={1}
-          style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}
+          style={[
+            typography.caption,
+            {
+              color: phase === 'ended' ? colors.textMuted : colors.textSecondary,
+              marginTop: 2,
+            },
+          ]}
         >
           {formatEventTime(item.starts_at)}
+          {timing ? ` · ${timing}` : ''}
           {place ? ` · ${place}` : ''}
         </Text>
       </Pressable>

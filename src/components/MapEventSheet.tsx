@@ -10,6 +10,7 @@ import {
   eventDetailHref,
   pinToListItem,
 } from '../utils/eventDetail';
+import { withEndedLast } from '../utils/eventLive';
 import { EventCard } from './EventCard';
 
 type MapEventSheetProps = {
@@ -66,7 +67,8 @@ export function MapEventSheet({
 }: MapEventSheetProps) {
   const { colors, spacing, typography, shadows } = useTheme();
   const router = useRouter();
-  const count = pins.length;
+  const orderedPins = withEndedLast(pins);
+  const count = orderedPins.length;
 
   return (
     <View
@@ -94,7 +96,7 @@ export function MapEventSheet({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Expand event details"
-              onPress={() => router.push(eventDetailHref(pins[0].event_id))}
+              onPress={() => router.push(eventDetailHref(orderedPins[0].event_id))}
               hitSlop={8}
               style={styles.iconBtn}
             >
@@ -118,7 +120,7 @@ export function MapEventSheet({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {pins.map((pin) =>
+          {orderedPins.map((pin) =>
             count === 1 ? (
               <SingleListing key={pin.event_id} pin={pin} />
             ) : (

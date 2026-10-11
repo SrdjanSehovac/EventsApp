@@ -33,6 +33,7 @@ import {
   selectAreaEvents,
 } from '../../src/utils/areaQuery';
 import { pinToListItem } from '../../src/utils/eventDetail';
+import { withEndedLast } from '../../src/utils/eventLive';
 import { DEFAULT_LIST_SORT, orderBySoonest } from '../../src/utils/listSort';
 import { boundsFromRegion, pinInsideBounds } from '../../src/utils/mapViewport';
 
@@ -100,15 +101,18 @@ export default function EventsScreen() {
   });
   const items = useMemo(() => {
     if (!viewport) return [];
-    if (area.honoured) return area.items;
-    const bounds = boundsFromRegion(viewport);
-    const byId = new Map(area.items.map((item) => [item.event_id, item]));
-    for (const pin of visiblePins) {
-      if (!pinInsideBounds(pin, bounds) || byId.has(pin.event_id)) continue;
-      byId.set(pin.event_id, pinToListItem(pin));
+    let ordered = area.items;
+    if (!area.honoured) {
+      const bounds = boundsFromRegion(viewport);
+      const byId = new Map(area.items.map((item) => [item.event_id, item]));
+      for (const pin of visiblePins) {
+        if (!pinInsideBounds(pin, bounds) || byId.has(pin.event_id)) continue;
+        byId.set(pin.event_id, pinToListItem(pin));
+      }
+      const merged = [...byId.values()];
+      ordered = sort === DEFAULT_LIST_SORT ? orderBySoonest(merged) : merged;
     }
-    const merged = [...byId.values()];
-    return sort === DEFAULT_LIST_SORT ? orderBySoonest(merged) : merged;
+    return withEndedLast(ordered);
   }, [area.honoured, area.items, visiblePins, viewport, sort]);
   const isLoading = !viewport || !geoQuery.isFetched || eventsQuery.isLoading;
 
