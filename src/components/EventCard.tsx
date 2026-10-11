@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -21,7 +21,9 @@ import {
   resolveOutboundLink,
   sanitizePublicText,
 } from '../utils/outboundLinks';
+import { parseImageFallback } from '../utils/imageFallback';
 import { FavouriteButton } from './FavouriteButton';
+import { ImageFallbackTile } from './ImageFallbackTile';
 
 type EventCardVariant = 'card' | 'listing' | 'preview';
 
@@ -40,9 +42,14 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
 
+  useEffect(() => {
+    setImageFailed(false);
+  }, [item.event_id, item.image_url]);
+
   const ended = isEnded(item.status);
   const imageUrl = allowedImageUrl(item.image_url);
   const showImage = Boolean(imageUrl) && !imageFailed;
+  const imageTile = showImage ? null : parseImageFallback(item.image_fallback);
   const outbound = resolveOutboundLink(item);
   const summary = sanitizePublicText(item.summary);
   const categoryColor = colorForCategory(item.primary_category);
@@ -79,6 +86,8 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           resizeMethod="resize"
           onError={() => setImageFailed(true)}
         />
+      ) : imageTile ? (
+        <ImageFallbackTile tile={imageTile} compact={variant === 'listing'} />
       ) : (
         <View style={styles.imageFallback}>
           <Ionicons

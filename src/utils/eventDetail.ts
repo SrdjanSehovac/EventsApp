@@ -49,6 +49,7 @@ export function pinToListItem(pin: EventMapPin): EventListItem {
     city: pin.city,
     primary_category: pin.primary_category,
     image_url: allowedImageUrl(pin.image_url),
+    image_fallback: pin.image_fallback,
     external_url: pin.external_url,
     checkout_url: pin.checkout_url,
     eventbrite_event_id: pin.eventbrite_event_id,
@@ -82,6 +83,7 @@ export function detailToListItem(detail: EventDetail): EventListItem {
       null,
     image_url:
       allowedImageUrl(detail.image_url) ?? collectPhotoUrls(detail)[0] ?? null,
+    image_fallback: detail.image_fallback,
     external_url: detail.external_url,
     checkout_url: detail.checkout_url,
     eventbrite_event_id: detail.eventbrite_event_id,

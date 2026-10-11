@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -40,8 +40,10 @@ import {
   sanitizePublicText,
   visibleLabels,
 } from '../utils/outboundLinks';
+import { parseImageFallback } from '../utils/imageFallback';
 import { EventMapSnippet } from './EventMapSnippet';
 import { FavouriteButton } from './FavouriteButton';
+import { ImageFallbackTile } from './ImageFallbackTile';
 
 type EventDetailScreenProps = {
   eventId: string;
@@ -111,6 +113,10 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const query = useEvent(eventId);
   const detail = query.data;
   const [heroFailed, setHeroFailed] = useState(false);
+
+  useEffect(() => {
+    setHeroFailed(false);
+  }, [eventId]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [failedThumbs, setFailedThumbs] = useState<Record<number, boolean>>({});
 
@@ -120,6 +126,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   );
   const heroUrl = photos[heroIndex] ?? photos[0] ?? null;
   const showPhoto = Boolean(heroUrl && !heroFailed);
+  const imageTile = showPhoto ? null : parseImageFallback(detail?.image_fallback);
   const listItem = detail ? detailToListItem(detail) : null;
   const primaryCategory =
     detail?.categories.find((c) => c.is_primary) ?? detail?.categories[0] ?? null;
@@ -176,7 +183,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
           paddingBottom: outbound ? 120 + insets.bottom : spacing.xxxl,
         }}
       >
-        <View style={showPhoto ? styles.hero : styles.heroCompact}>
+        <View style={showPhoto || imageTile ? styles.hero : styles.heroCompact}>
           {showPhoto ? (
             <Image
               source={{ uri: heroUrl!, cache: 'force-cache' }}
@@ -185,6 +192,8 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               resizeMethod="resize"
               onError={() => setHeroFailed(true)}
             />
+          ) : imageTile ? (
+            <ImageFallbackTile tile={imageTile} />
           ) : (
             <View
               style={[
@@ -316,7 +325,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               ) : null}
             </View>
 
-            {showPhoto ? (
+            {showPhoto || imageTile ? (
               <Text
                 style={[
                   typography.title,
@@ -326,7 +335,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 {detail.title}
               </Text>
             ) : null}
-            {showPhoto && hostedBy ? (
+            {(showPhoto || imageTile) && hostedBy ? (
               <Text
                 style={[
                   typography.caption,

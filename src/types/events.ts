@@ -68,6 +68,8 @@ export type EventListItem = {
   city?: string | null;
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
+  /** Placeholder when image_url is missing: `campus:<slug>` or `category:<slug>`. */
+  image_fallback?: string | null;
   /** Organizer or ticketing page. Never a discovery-platform URL. */
   external_url?: string | null;
   /** Direct checkout, when the list payload includes one. */
@@ -96,6 +98,8 @@ export type EventDetail = {
   summary?: string | null;
   bio?: string | null;
   image_url?: string | null;
+  /** Placeholder when image_url is missing: `campus:<slug>` or `category:<slug>`. */
+  image_fallback?: string | null;
   image_urls?: string[] | null;
   photo_urls?: string[] | null;
   video_url?: string | null;
@@ -170,6 +174,8 @@ export type EventMapPin = {
   sale_kind?: SaleKind | null;
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
+  /** Placeholder when image_url is missing: `campus:<slug>` or `category:<slug>`. */
+  image_fallback?: string | null;
   external_url?: string | null;
   checkout_url?: string | null;
   eventbrite_event_id?: string | null;
