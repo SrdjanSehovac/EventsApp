@@ -72,6 +72,8 @@ type EventFiltersProps = {
   neighbourhoods: NeighbourhoodCount[];
   showSearch?: boolean;
   showClear?: boolean;
+  /** Fired with the filter clear. Used to return list sort to Soonest. */
+  onReset?: () => void;
 };
 
 function toIsoDate(raw: string, endOfDay: boolean) {
@@ -180,6 +182,7 @@ export function EventFilters({
   neighbourhoods,
   showSearch = true,
   showClear = true,
+  onReset,
 }: EventFiltersProps) {
   const { colors, typography, spacing, radius } = useTheme();
 
@@ -216,7 +219,10 @@ export function EventFilters({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear all filters"
-            onPress={() => onChange({ ...EMPTY_FILTERS, q: value.q })}
+            onPress={() => {
+              onChange({ ...EMPTY_FILTERS, q: value.q });
+              onReset?.();
+            }}
             hitSlop={8}
           >
             <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>

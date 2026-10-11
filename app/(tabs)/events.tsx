@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -33,6 +33,7 @@ import {
   selectAreaEvents,
 } from '../../src/utils/areaQuery';
 import { pinToListItem } from '../../src/utils/eventDetail';
+import { DEFAULT_LIST_SORT, orderBySoonest } from '../../src/utils/listSort';
 import { boundsFromRegion, pinInsideBounds } from '../../src/utils/mapViewport';
 
 const SORT_OPTIONS: { label: string; value: PublicSortField }[] = [
@@ -50,7 +51,6 @@ export default function EventsScreen() {
     patchFilters,
     sort,
     setSort,
-    sortTouched,
     setSortTouched,
     viewport,
     commitViewport,
@@ -62,7 +62,6 @@ export default function EventsScreen() {
 
   const debouncedQ = useDebouncedValue(filters.q);
   const geoQuery = useUserGeo();
-  const hasUserGeo = Boolean(geoQuery.data);
   const focusedCity = useMemo(
     () => findProductCity(filters.city),
     [filters.city],
@@ -83,12 +82,6 @@ export default function EventsScreen() {
     areaGeo,
     Boolean(areaParams),
   );
-
-  useEffect(() => {
-    if (!sortTouched && hasUserGeo && sort === 'starts_at') {
-      setSort('distance');
-    }
-  }, [hasUserGeo, sort, sortTouched, setSort]);
 
   const activeFilterCount = countActiveFilters(filters, { excludeQuery: true });
   const visiblePins = useMemo(
@@ -114,8 +107,9 @@ export default function EventsScreen() {
       if (!pinInsideBounds(pin, bounds) || byId.has(pin.event_id)) continue;
       byId.set(pin.event_id, pinToListItem(pin));
     }
-    return [...byId.values()];
-  }, [area.honoured, area.items, visiblePins, viewport]);
+    const merged = [...byId.values()];
+    return sort === DEFAULT_LIST_SORT ? orderBySoonest(merged) : merged;
+  }, [area.honoured, area.items, visiblePins, viewport, sort]);
   const isLoading = !viewport || !geoQuery.isFetched || eventsQuery.isLoading;
 
   function showAllInArea() {
@@ -170,7 +164,7 @@ export default function EventsScreen() {
                 options={SORT_OPTIONS}
                 onChange={(value) => {
                   setSortTouched(true);
-                  setSort((value as PublicSortField) ?? 'starts_at');
+                  setSort((value as PublicSortField) ?? DEFAULT_LIST_SORT);
                 }}
               />
             </View>

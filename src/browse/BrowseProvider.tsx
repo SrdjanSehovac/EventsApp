@@ -2,7 +2,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -12,7 +14,9 @@ import {
   EMPTY_FILTERS,
   type EventsFilterState,
 } from '../components/EventFilters';
+import { loadListSort, saveListSort } from '../preferences/listSort';
 import type { EventMapPin, PublicSortField } from '../types/events';
+import { DEFAULT_LIST_SORT } from '../utils/listSort';
 
 export type MapBaseType = 'standard' | 'satellite';
 
@@ -47,8 +51,31 @@ const BrowseContext = createContext<BrowseContextValue | null>(null);
 
 export function BrowseProvider({ children }: { children: ReactNode }) {
   const [filters, setFilters] = useState<EventsFilterState>(EMPTY_FILTERS);
-  const [sort, setSort] = useState<PublicSortField>('starts_at');
-  const [sortTouched, setSortTouched] = useState(false);
+  const [sort, setSortState] = useState<PublicSortField>(DEFAULT_LIST_SORT);
+  const [sortTouched, setSortTouchedState] = useState(false);
+  const userChoseSort = useRef(false);
+
+  useEffect(() => {
+    let live = true;
+    void loadListSort().then((next) => {
+      if (!live || userChoseSort.current) return;
+      setSortState(next);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const setSort = useCallback((next: PublicSortField) => {
+    userChoseSort.current = true;
+    setSortState(next);
+    void saveListSort(next);
+  }, []);
+
+  const setSortTouched = useCallback((next: boolean) => {
+    setSortTouchedState(next);
+  }, []);
+
   const [mapType, setMapType] = useState<MapBaseType>('standard');
   const [viewport, setViewport] = useState<Region | null>(null);
   const [viewportReason, setViewportReason] = useState<ViewportReason>('program');
@@ -96,7 +123,9 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
       filters,
       patchFilters,
       sort,
+      setSort,
       sortTouched,
+      setSortTouched,
       mapType,
       viewport,
       viewportReason,
