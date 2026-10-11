@@ -4,10 +4,11 @@ import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { AuthProvider } from '../src/auth';
+import { TicketCheckoutProvider } from '../src/checkout/TicketCheckoutProvider';
 import { hideDevMenuButton } from '../src/dev/hideDevMenuButton';
 import { useUserGeo } from '../src/hooks';
 import { AppQueryProvider } from '../src/query';
-import { AuthProvider } from '../src/auth';
 import { ThemeProvider, useTheme } from '../src/theme';
 
 function RootNavigator() {
@@ -53,7 +54,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <AppQueryProvider>
           <AuthProvider>
-            <RootNavigator />
+            <TicketCheckoutProvider>
+              <RootNavigator />
+            </TicketCheckoutProvider>
           </AuthProvider>
         </AppQueryProvider>
       </ThemeProvider>

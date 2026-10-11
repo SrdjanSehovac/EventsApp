@@ -72,6 +72,8 @@ export type EventListItem = {
   external_url?: string | null;
   /** Direct checkout, when the list payload includes one. */
   checkout_url?: string | null;
+  /** Eventbrite event id, when the server already parsed one. */
+  eventbrite_event_id?: string | null;
   /** tickets | register | website. Labels the outbound button. */
   link_type?: string | null;
   scraped_at?: string | null;
@@ -102,6 +104,8 @@ export type EventDetail = {
   external_url?: string | null;
   /** Direct checkout, when the host provides one. Preferred over external_url. */
   checkout_url?: string | null;
+  /** Eventbrite event id, when the server already parsed one. */
+  eventbrite_event_id?: string | null;
   /** tickets | register | website. Labels the outbound button. */
   link_type?: string | null;
   /** Clean venue name, when the server has one. */
@@ -166,6 +170,7 @@ export type EventMapPin = {
   image_url?: string | null;
   external_url?: string | null;
   checkout_url?: string | null;
+  eventbrite_event_id?: string | null;
   link_type?: string | null;
   neighbourhood?: string | null;
   city?: string | null;

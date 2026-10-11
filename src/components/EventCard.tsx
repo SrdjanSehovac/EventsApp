@@ -10,9 +10,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
-import { eventDetailHref, openExternalUrl } from '../utils/eventDetail';
+import { eventDetailHref } from '../utils/eventDetail';
 import { formatEventPlace, formatEventPrice, formatFactsRow, formatSaleBadge } from '../utils/eventFormat';
 import {
   allowedImageUrl,
@@ -35,6 +36,7 @@ function isEnded(status: string) {
 
 export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const { colors, typography, spacing, radius, shadows } = useTheme();
+  const openTickets = useOpenTickets();
   const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
 
@@ -197,7 +199,9 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel={outbound.label}
-                onPress={() => void openExternalUrl(outbound.url)}
+                onPress={() =>
+                  openTickets({ url: outbound.url, event: item, item })
+                }
                 style={styles.listingLink}
               >
                 <Text
@@ -324,7 +328,9 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel={outbound.label}
-            onPress={() => void openExternalUrl(outbound.url)}
+            onPress={() =>
+              openTickets({ url: outbound.url, event: item, item })
+            }
             style={[
               styles.outboundCta,
               {

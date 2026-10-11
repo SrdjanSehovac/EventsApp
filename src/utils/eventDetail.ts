@@ -49,6 +49,8 @@ export function pinToListItem(pin: EventMapPin): EventListItem {
     primary_category: pin.primary_category,
     image_url: allowedImageUrl(pin.image_url),
     external_url: pin.external_url,
+    checkout_url: pin.checkout_url,
+    eventbrite_event_id: pin.eventbrite_event_id,
     link_type: pin.link_type,
     latitude: pin.latitude,
     longitude: pin.longitude,
@@ -81,6 +83,7 @@ export function detailToListItem(detail: EventDetail): EventListItem {
       allowedImageUrl(detail.image_url) ?? collectPhotoUrls(detail)[0] ?? null,
     external_url: detail.external_url,
     checkout_url: detail.checkout_url,
+    eventbrite_event_id: detail.eventbrite_event_id,
     link_type: detail.link_type,
     latitude: detail.latitude ?? detail.venue?.latitude,
     longitude: detail.longitude ?? detail.venue?.longitude,
@@ -180,10 +183,10 @@ export function mapsSearchUrl(
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
+/** Maps and other non-ticket links. Ticket buttons use the in-app checkout. */
 export async function openExternalUrl(url?: string | null): Promise<void> {
   const next = allowedOutboundUrl(url);
   if (!next || isBlockedUrl(next)) return;
-  // expo-web-browser is not part of this dev build, so the system browser is used.
   try {
     await Linking.openURL(next);
   } catch {

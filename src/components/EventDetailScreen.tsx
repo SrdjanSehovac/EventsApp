@@ -13,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
 import { useEvent } from '../hooks';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import {
@@ -103,6 +104,7 @@ function Section({
 
 export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const { colors, typography, spacing, radius } = useTheme();
+  const openTickets = useOpenTickets();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const query = useEvent(eventId);
@@ -600,7 +602,14 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={actionLabel ?? outbound.label}
-            onPress={() => void openExternalUrl(outbound.url)}
+            onPress={() => {
+              if (!detail || !listItem) return;
+              openTickets({
+                url: outbound.url,
+                event: detail,
+                item: listItem,
+              });
+            }}
             style={[
               styles.primaryCta,
               {
