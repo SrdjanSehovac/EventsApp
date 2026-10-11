@@ -132,101 +132,190 @@ export function isValidTimeZone(timeZone?: string | null): timeZone is string {
   }
 }
 
-type ClockParts = {
+type Wall = {
   weekday: string;
   month: string;
   day: string;
   year: string;
-  hour: string;
-  minute: string;
-  dayPeriod: string;
+  dateOnly: boolean;
+  hour24: number | null;
+  minute: number | null;
 };
 
-function clockParts(
-  value: string,
-  timeZone?: string | null,
-  dateOnly = false,
-): ClockParts | null {
-  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+type ClockText = {
+  period: 'AM' | 'PM';
+  /** `7` or `7:30`, with `:00` omitted. */
+  compact: string;
+  /** `7 AM` or `7:30 PM`. */
+  withPeriod: string;
+  /** `7:00 AM` or `7:30 PM`. Minutes always shown. */
+  full: string;
+};
+
+/**
+ * Read a wall clock from `Intl` `format()`, not `formatToParts`.
+ * Hermes can return date parts and then omit `hour` / `dayPeriod` when
+ * `hourCycle: 'h12'` is set. Filling a missing period with "AM" produced
+ * `Sun, Oct 11 · – AM`.
+ * `hour12: false` may also emit `24:00` at midnight; that is 12:00 AM.
+ */
+function parseHourMinute(formatted: string): { hour24: number; minute: number } | null {
+  const text = formatted.replace(/[\u202f\u00a0\u2009]/g, ' ').trim();
+  const withPeriod = /(\d{1,2})(?::(\d{2}))?(?::\d{2})?\s*([ap])\.?\s*m\.?/i.exec(text);
+  const bare = /(\d{1,2}):(\d{2})(?::\d{2})?/.exec(text);
+  const match = withPeriod ?? bare;
+  if (!match) return null;
+  let hour = Number(match[1]);
+  const minute = Number(match[2] ?? '0');
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return null;
+  }
+  const period = withPeriod?.[3]?.toLowerCase();
+  if (!period && hour === 24) hour = 0;
+  if (period === 'a') {
+    if (hour === 12 || hour === 24) hour = 0;
+    if (hour > 12) return null;
+  } else if (period === 'p') {
+    if (hour === 12) hour = 12;
+    else if (hour < 12) hour += 12;
+    else return null;
+  }
+  if (hour < 0 || hour > 23) return null;
+  return { hour24: hour, minute };
+}
+
+function formatPart(
+  date: Date,
+  timeZone: string | undefined,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat('en-US', { ...options, timeZone })
+    .format(date)
+    .replace(/\.$/, '')
+    .trim();
+}
+
+function wallClock(value: string, timeZone?: string | null): Wall | null {
+  const trimmed = value.trim();
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
   const date = dateOnlyMatch
-    ? new Date(Date.UTC(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]), 12))
-    : new Date(value);
+    ? new Date(
+        Date.UTC(
+          Number(dateOnlyMatch[1]),
+          Number(dateOnlyMatch[2]) - 1,
+          Number(dateOnlyMatch[3]),
+          12,
+        ),
+      )
+    : new Date(trimmed);
   if (Number.isNaN(date.getTime())) return null;
-  const zone = !dateOnlyMatch && isValidTimeZone(timeZone) ? timeZone : undefined;
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: dateOnlyMatch ? 'UTC' : zone,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    ...(dateOnly ? {} : { hour: 'numeric', minute: '2-digit', hourCycle: 'h12' as const }),
-  }).formatToParts(date);
-  const read = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? '';
-  const period = read('dayPeriod').toUpperCase();
+  const zone = dateOnlyMatch
+    ? 'UTC'
+    : isValidTimeZone(timeZone)
+      ? timeZone
+      : undefined;
+  const weekday = formatPart(date, zone, { weekday: 'short' });
+  const month = formatPart(date, zone, { month: 'short' });
+  const day = formatPart(date, zone, { day: 'numeric' });
+  const year = formatPart(date, zone, { year: 'numeric' });
+  if (!weekday || !month || !day || !year) return null;
+  if (dateOnlyMatch) {
+    return { weekday, month, day, year, dateOnly: true, hour24: null, minute: null };
+  }
+  const timeText = formatPart(date, zone, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const time = parseHourMinute(timeText);
   return {
-    weekday: read('weekday').replace(/\.$/, ''),
-    month: read('month'),
-    day: read('day'),
-    year: read('year'),
-    hour: read('hour'),
-    minute: read('minute'),
-    dayPeriod: period === 'PM' ? 'PM' : 'AM',
+    weekday,
+    month,
+    day,
+    year,
+    dateOnly: false,
+    hour24: time?.hour24 ?? null,
+    minute: time?.minute ?? null,
   };
 }
 
-function dateLabel(parts: ClockParts): string {
+function dateLabel(parts: Wall): string {
   return `${parts.weekday}, ${parts.month} ${parts.day}`;
 }
 
-function clockLabel(parts: ClockParts, withPeriod: boolean): string {
-  const clock = parts.minute && parts.minute !== '00'
-    ? `${parts.hour}:${parts.minute}`
-    : parts.hour;
-  return withPeriod ? `${clock} ${parts.dayPeriod}` : clock;
-}
-
-function sameDay(a: ClockParts, b: ClockParts): boolean {
+function sameDay(a: Wall, b: Wall): boolean {
   return a.year === b.year && a.month === b.month && a.day === b.day;
 }
 
-/** One line: `Wed, Oct 14 · 7:30–9:30 PM`. */
+function clockText(hour24: number, minute: number): ClockText | null {
+  if (!Number.isInteger(hour24) || !Number.isInteger(minute)) return null;
+  if (hour24 < 0 || hour24 > 23 || minute < 0 || minute > 59) return null;
+  const period: 'AM' | 'PM' = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 || 12;
+  const minutes = String(minute).padStart(2, '0');
+  const compact = minute === 0 ? String(hour12) : `${hour12}:${minutes}`;
+  return {
+    period,
+    compact,
+    withPeriod: minute === 0 ? `${hour12} ${period}` : `${hour12}:${minutes} ${period}`,
+    full: `${hour12}:${minutes} ${period}`,
+  };
+}
+
+function clockFromWall(parts: Wall): ClockText | null {
+  if (parts.dateOnly || parts.hour24 == null || parts.minute == null) return null;
+  return clockText(parts.hour24, parts.minute);
+}
+
+/** Same meridiem stays compact (`7:30–9:30 PM`). A change of meridiem spells both (`9:00 AM – 12:00 PM`). */
+function joinClocks(start: ClockText, end: ClockText): string {
+  if (start.period === end.period) return `${start.compact}–${end.withPeriod}`;
+  return `${start.full} – ${end.full}`;
+}
+
+function withClock(date: string, clock: ClockText | null): string {
+  return clock ? `${date} · ${clock.withPeriod}` : date;
+}
+
+/** One line: `Wed, Oct 14 · 7:30–9:30 PM`. Never a bare dash or an empty time. */
 export function formatStartEnd(
   startsAt?: string | null,
   endsAt?: string | null,
   timeZone?: string | null,
 ): string | null {
-  const start = startsAt ? clockParts(startsAt, timeZone) : null;
+  const start = startsAt ? wallClock(startsAt, timeZone) : null;
   if (!start) return null;
-  const end = endsAt ? clockParts(endsAt, timeZone) : null;
-  if (!end) return `${dateLabel(start)} · ${clockLabel(start, true)}`;
-  if (sameDay(start, end)) {
-    const sharedPeriod = start.dayPeriod === end.dayPeriod;
-    return `${dateLabel(start)} · ${clockLabel(start, !sharedPeriod)}–${clockLabel(end, true)}`;
+  const end = endsAt ? wallClock(endsAt, timeZone) : null;
+  if (start.dateOnly) {
+    if (end && !sameDay(start, end)) return `${dateLabel(start)} – ${dateLabel(end)}`;
+    return dateLabel(start);
   }
-  return `${dateLabel(start)} · ${clockLabel(start, true)} – ${dateLabel(end)} · ${clockLabel(end, true)}`;
+  const startClock = clockFromWall(start);
+  const endClock = end && !end.dateOnly ? clockFromWall(end) : null;
+  if (!end || !endClock) return withClock(dateLabel(start), startClock);
+  if (!startClock) return withClock(dateLabel(end), endClock);
+  if (!sameDay(start, end)) {
+    return `${withClock(dateLabel(start), startClock)} – ${withClock(dateLabel(end), endClock)}`;
+  }
+  return `${dateLabel(start)} · ${joinClocks(startClock, endClock)}`;
 }
 
 function formatDateOnly(value?: string | null, timeZone?: string | null): string | null {
   if (!value) return null;
-  const parts = clockParts(value, timeZone, true);
+  const parts = wallClock(value, timeZone);
   return parts ? dateLabel(parts) : null;
 }
 
-function formatClockOnly(value?: string | null, timeZone?: string | null): string | null {
-  if (!value) return null;
-  const clock = /^(\d{1,2}):(\d{2})/.exec(value.trim());
-  if (clock) {
-    const hours = Number(clock[1]);
-    const minutes = clock[2];
-    if (!Number.isFinite(hours)) return null;
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    const label = minutes === '00' ? String(hour12) : `${hour12}:${minutes}`;
-    return `${label} ${period}`;
+function clockFromValue(value: string, timeZone?: string | null): ClockText | null {
+  const simple = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(value.trim());
+  if (simple) {
+    const hours = Number(simple[1]);
+    const minutes = Number(simple[2]);
+    if (hours > 23) return null;
+    return clockText(hours, minutes);
   }
-  const parts = clockParts(value, timeZone);
-  return parts ? clockLabel(parts, true) : null;
+  const parts = wallClock(value, timeZone);
+  return parts ? clockFromWall(parts) : null;
 }
 
 /**
@@ -239,11 +328,26 @@ export function formatScheduleLines(detail: ScheduleInput): string[] {
   ) {
     const start = formatDateOnly(detail.range_start_date, detail.timezone);
     const end = formatDateOnly(detail.range_end_date, detail.timezone);
-    const dailyStart = formatClockOnly(detail.daily_start_time, detail.timezone);
-    const dailyEnd = formatClockOnly(detail.daily_end_time, detail.timezone);
-    const span = start && end ? `${start} – ${end}` : start ? `From ${start}` : end ? `Until ${end}` : null;
+    const dailyStart = detail.daily_start_time
+      ? clockFromValue(detail.daily_start_time, detail.timezone)
+      : null;
+    const dailyEnd = detail.daily_end_time
+      ? clockFromValue(detail.daily_end_time, detail.timezone)
+      : null;
+    const span =
+      start && end && start !== end
+        ? `${start} – ${end}`
+        : start
+          ? start
+          : end
+            ? end
+            : null;
     const hours =
-      dailyStart && dailyEnd ? `${dailyStart}–${dailyEnd}` : dailyStart ? `From ${dailyStart}` : null;
+      dailyStart && dailyEnd
+        ? joinClocks(dailyStart, dailyEnd)
+        : dailyStart
+          ? dailyStart.withPeriod
+          : null;
     if (span && hours) return [`${span} · ${hours}`];
     if (span) return [span];
   }

@@ -44,6 +44,185 @@ check(
 );
 
 check(
+  'morning into noon keeps both times',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: '2026-10-11T16:00:00Z',
+    raw_schedule_text: 'Sunday, Oct 11·9:00 AM to 12:00 PMEDT',
+  } as never),
+  ['Sun, Oct 11 · 9:00 AM – 12:00 PM'],
+);
+
+check(
+  'am-only range stays compact',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: '2026-10-11T15:00:00Z',
+  } as never),
+  ['Sun, Oct 11 · 9–11 AM'],
+);
+
+check(
+  'pm-only range stays compact',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11T17:00:00Z',
+    ends_at: '2026-10-11T20:00:00Z',
+  } as never),
+  ['Sun, Oct 11 · 1–4 PM'],
+);
+
+check(
+  'crossing noon with minutes spells both clocks',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11T15:30:00Z',
+    ends_at: '2026-10-11T17:30:00Z',
+  } as never),
+  ['Sun, Oct 11 · 11:30 AM – 1:30 PM'],
+);
+
+check(
+  'missing end time has no dash',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: null,
+  } as never),
+  ['Sun, Oct 11 · 9 AM'],
+);
+
+check(
+  'date-only start is all day',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11',
+    ends_at: null,
+  } as never),
+  ['Sun, Oct 11'],
+);
+
+check(
+  'date range without hours has no clock',
+  formatScheduleLines({
+    schedule_type: 'date_range',
+    timezone: zone,
+    range_start_date: '2026-10-11',
+    range_end_date: '2026-10-13',
+    daily_start_time: null,
+    daily_end_time: null,
+  } as never),
+  ['Sun, Oct 11 – Tue, Oct 13'],
+);
+
+check(
+  'multi-day range keeps each clock',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: zone,
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: '2026-10-12T17:00:00Z',
+  } as never),
+  ['Sun, Oct 11 · 9 AM – Mon, Oct 12 · 1 PM'],
+);
+
+check(
+  'vancouver morning stays on pacific time',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: 'America/Vancouver',
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: '2026-10-11T16:00:00Z',
+  } as never),
+  ['Sun, Oct 11 · 6–9 AM'],
+);
+
+check(
+  'halifax crosses noon',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: 'America/Halifax',
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: '2026-10-11T16:00:00Z',
+  } as never),
+  ['Sun, Oct 11 · 10:00 AM – 1:00 PM'],
+);
+
+check(
+  'regina stays on central standard time',
+  formatScheduleLines({
+    schedule_type: 'one_shot',
+    timezone: 'America/Regina',
+    starts_at: '2026-10-11T13:00:00Z',
+    ends_at: '2026-10-11T16:00:00Z',
+  } as never),
+  ['Sun, Oct 11 · 7–10 AM'],
+);
+
+{
+  const proto = Intl.DateTimeFormat.prototype;
+  const original = proto.formatToParts;
+  proto.formatToParts = () => [
+    { type: 'weekday', value: 'Sun' },
+    { type: 'month', value: 'Oct' },
+    { type: 'day', value: '11' },
+    { type: 'dayPeriod', value: '' },
+  ];
+  try {
+    check(
+      'missing formatToParts time does not leave a dangling dash',
+      formatScheduleLines({
+        schedule_type: 'one_shot',
+        timezone: zone,
+        starts_at: '2026-10-11T13:00:00Z',
+        ends_at: '2026-10-11T16:00:00Z',
+      } as never),
+      ['Sun, Oct 11 · 9:00 AM – 12:00 PM'],
+    );
+  } finally {
+    proto.formatToParts = original;
+  }
+}
+
+{
+  const Real = Intl.DateTimeFormat;
+  const Mock = function (
+    locales?: Intl.LocalesArgument,
+    options?: Intl.DateTimeFormatOptions,
+  ) {
+    const asksForTime = Boolean(options?.hour && options?.minute && !options.weekday);
+    if (asksForTime) {
+      return { format: () => '24:00' } as Intl.DateTimeFormat;
+    }
+    return new Real(locales, options);
+  } as unknown as typeof Intl.DateTimeFormat;
+  const previous = Intl.DateTimeFormat;
+  Intl.DateTimeFormat = Mock;
+  try {
+    check(
+      'midnight reported as 24:00 is 12 AM',
+      formatScheduleLines({
+        schedule_type: 'one_shot',
+        timezone: zone,
+        starts_at: '2026-10-11T04:00:00Z',
+        ends_at: null,
+      } as never),
+      ['Sun, Oct 11 · 12 AM'],
+    );
+  } finally {
+    Intl.DateTimeFormat = previous;
+  }
+}
+
+check(
   'about prefers description and drops a repeated summary',
   formatAboutBody({
     title: 'Trivia Night',
