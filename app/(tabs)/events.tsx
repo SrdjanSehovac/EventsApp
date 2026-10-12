@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -62,6 +63,7 @@ export default function EventsScreen() {
   } = useBrowse();
   useEnsureMapViewport();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
   const searchRef = useRef<BrowseSearchBarHandle>(null);
 
   const debouncedQ = useDebouncedValue(filters.q);
@@ -135,10 +137,26 @@ export default function EventsScreen() {
         value={filters.q}
         onChangeText={(q) => patchFilters({ q })}
         onPressFilters={() => setFiltersOpen(true)}
+        onActiveChange={setSearchActive}
         filterCount={activeFilterCount}
       />
-      <View style={[styles.listPane, { backgroundColor: colors.background }]}>
+      <View
+        style={[styles.listPane, { backgroundColor: colors.background }]}
+        onTouchStart={() => {
+          if (!searchActive) return;
+          searchRef.current?.close();
+          Keyboard.dismiss();
+        }}
+      >
         <View style={styles.listMeta}>
+          {searchActive ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss search"
+              onPressIn={() => searchRef.current?.close()}
+              style={styles.dismissMeta}
+            />
+          ) : null}
           <Text
             style={[
               typography.heading,
@@ -195,7 +213,9 @@ export default function EventsScreen() {
             style={styles.list}
             data={items}
             keyExtractor={(item) => item.event_id}
-            renderItem={({ item }) => <EventCard item={item} variant="listing" />}
+            renderItem={({ item }) => (
+              <EventCard item={item} variant="listing" pressDisabled={searchActive} />
+            )}
             ListEmptyComponent={
               <Text
                 style={[
@@ -226,9 +246,12 @@ export default function EventsScreen() {
             windowSize={7}
             removeClippedSubviews={Platform.OS === 'android'}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="never"
             keyboardDismissMode="on-drag"
-            onScrollBeginDrag={() => searchRef.current?.close()}
+            onScrollBeginDrag={() => {
+              searchRef.current?.close();
+              Keyboard.dismiss();
+            }}
             contentContainerStyle={{
               flexGrow: 0,
               paddingBottom: tabBarInset + 12,
@@ -250,10 +273,16 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   listMeta: {
+    position: 'relative',
     paddingHorizontal: 14,
     paddingTop: 12,
     paddingBottom: 8,
     gap: 4,
+  },
+  dismissMeta: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 2,
+    backgroundColor: 'rgba(0,0,0,0.01)',
   },
   showAll: {
     minHeight: 44,

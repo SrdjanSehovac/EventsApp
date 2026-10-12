@@ -71,6 +71,7 @@ export default function MapScreen() {
   const searchRef = useRef<BrowseSearchBarHandle>(null);
   const panDismissed = useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
   const [gestureRegion, setGestureRegion] = useState<Region | null>(null);
   const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
   const pinKeyRef = useRef('');
@@ -183,6 +184,11 @@ export default function MapScreen() {
     Keyboard.dismiss();
   }, []);
 
+  const blocksSelection = useCallback(
+    () => searchRef.current?.blocksMapTap() ?? false,
+    [],
+  );
+
   const onPanDrag = useCallback(() => {
     if (panDismissed.current) return;
     panDismissed.current = true;
@@ -239,13 +245,38 @@ export default function MapScreen() {
           mapType={mapType}
           onRegionChangeComplete={onRegionChangeComplete}
           onPanDrag={onPanDrag}
-          onMarkerPress={(pin) => setSelectedPins([pin])}
-          onClusterPress={setSelectedPins}
+          blocksSelection={blocksSelection}
+          onMarkerPress={(pin) => {
+            if (searchRef.current?.blocksMapTap()) {
+              searchRef.current.close();
+              return;
+            }
+            setSelectedPins([pin]);
+          }}
+          onClusterPress={(next) => {
+            if (searchRef.current?.blocksMapTap()) {
+              searchRef.current.close();
+              return;
+            }
+            setSelectedPins(next);
+          }}
           onMapPress={() => {
+            if (searchRef.current?.blocksMapTap()) {
+              searchRef.current.close();
+              return;
+            }
             setSelectedPins(null);
-            dismissSearch();
           }}
         />
+
+        {searchActive ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss search"
+            onPressIn={dismissSearch}
+            style={styles.dismissLayer}
+          />
+        ) : null}
 
         <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
           <BrowseSearchBar
@@ -253,9 +284,11 @@ export default function MapScreen() {
             value={filters.q}
             onChangeText={(q) => patchFilters({ q })}
             onPressFilters={() => setFiltersOpen(true)}
+            onActiveChange={setSearchActive}
             filterCount={filterCount}
           />
           <View
+            pointerEvents="none"
             style={[
               styles.countChip,
               shadows.soft,
@@ -331,11 +364,19 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
+  dismissLayer: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 20,
+    elevation: 20,
+    backgroundColor: 'rgba(0,0,0,0.01)',
+  },
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 30,
+    elevation: 30,
     paddingHorizontal: 16,
     paddingTop: 8,
     gap: 10,

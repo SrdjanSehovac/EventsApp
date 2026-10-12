@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -32,11 +33,18 @@ type BrowseSearchBarProps = {
   onPressFilters: () => void;
   filterCount?: number;
   placeholder?: string;
+  /** Fired when the field gains or loses focus. */
+  onActiveChange?: (active: boolean) => void;
 };
 
 export type BrowseSearchBarHandle = {
   /** Hide suggestions and dismiss the keyboard. */
   close: () => void;
+  /**
+   * True while the field is focused, and for a short time after it closes,
+   * so the tap that dismisses the keyboard cannot also open a pin.
+   */
+  blocksMapTap: () => boolean;
 };
 
 const EVENT_LIMIT = 5;
@@ -49,6 +57,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
       onPressFilters,
       filterCount = 0,
       placeholder = 'Search cities, neighbourhoods, events…',
+      onActiveChange,
     },
     ref,
   ) {
@@ -65,19 +74,43 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
     const [open, setOpen] = useState(false);
     const openRef = useRef(false);
     const stickRef = useRef(false);
+    const blockMapUntil = useRef(0);
+    const inputRef = useRef<TextInput>(null);
     const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const onActiveChangeRef = useRef(onActiveChange);
+    onActiveChangeRef.current = onActiveChange;
     openRef.current = open;
 
     function close() {
       if (blurTimer.current) clearTimeout(blurTimer.current);
       stickRef.current = false;
+      blockMapUntil.current = Date.now() + 450;
+      inputRef.current?.blur();
+      Keyboard.dismiss();
       if (!openRef.current) return;
       openRef.current = false;
       setOpen(false);
-      Keyboard.dismiss();
     }
 
-    useImperativeHandle(ref, () => ({ close }), []);
+    function blocksMapTap() {
+      return openRef.current || Date.now() < blockMapUntil.current;
+    }
+
+    const apiRef = useRef({ close, blocksMapTap });
+    apiRef.current.close = close;
+    apiRef.current.blocksMapTap = blocksMapTap;
+    useImperativeHandle(
+      ref,
+      () => ({
+        close: () => apiRef.current.close(),
+        blocksMapTap: () => apiRef.current.blocksMapTap(),
+      }),
+      [],
+    );
+
+    useEffect(() => {
+      onActiveChangeRef.current?.(open);
+    }, [open]);
 
     const places = useMemo(
       () =>
@@ -114,11 +147,6 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
       close();
     }
 
-    function chooseFirstPlace() {
-      const first = places.cities[0] ?? places.neighbourhoods[0];
-      if (first) choosePlace(first);
-    }
-
     return (
       <View style={styles.wrap}>
         <View style={styles.row}>
@@ -134,6 +162,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
           >
             <Ionicons name="search" size={18} color={colors.textMuted} />
             <TextInput
+              ref={inputRef}
               value={value}
               onChangeText={(next) => {
                 stickRef.current = false;
@@ -142,6 +171,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
               }}
               onFocus={() => setOpen(true)}
               onBlur={() => {
+                blockMapUntil.current = Date.now() + 450;
                 if (blurTimer.current) clearTimeout(blurTimer.current);
                 blurTimer.current = setTimeout(() => {
                   if (stickRef.current) return;
@@ -154,8 +184,8 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
-              blurOnSubmit={false}
-              onSubmitEditing={chooseFirstPlace}
+              blurOnSubmit
+              onSubmitEditing={() => close()}
               style={[
                 typography.body,
                 styles.input,
@@ -175,6 +205,18 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
             ) : null}
           </View>
 
+          {open ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel search"
+              onPressIn={() => close()}
+              style={styles.cancel}
+            >
+              <Text style={[typography.body, { color: colors.primary, fontWeight: '700' }]}>
+                Cancel
+              </Text>
+            </Pressable>
+          ) : (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open filters"
@@ -215,6 +257,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
               </View>
             ) : null}
           </Pressable>
+          )}
         </View>
 
         {showPanel ? (
@@ -233,6 +276,8 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
             ]}
             onScrollBeginDrag={() => {
               stickRef.current = true;
+              inputRef.current?.blur();
+              Keyboard.dismiss();
             }}
           >
             <PlaceSection
@@ -370,6 +415,13 @@ const styles = StyleSheet.create({
   clear: {
     width: 44,
     height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancel: {
+    minWidth: 72,
+    minHeight: 44,
+    paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -42,6 +42,8 @@ type EventsMapProps = {
   onMarkerPress?: (pin: EventMapPin) => void;
   onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
+  /** When true, a tap only dismisses search and must not open a pin. */
+  blocksSelection?: () => boolean;
 };
 
 function escapeHtml(value: string) {
@@ -319,6 +321,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       onMarkerPress,
       onClusterPress,
       onMapPress,
+      blocksSelection,
     },
     ref,
   ) {
@@ -352,6 +355,15 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       const onMessage = (event: MessageEvent) => {
         const data = event.data;
         if (!data || typeof data !== 'object') return;
+        if (
+          blocksSelection?.() &&
+          (data.type === 'map-pin' ||
+            data.type === 'map-press' ||
+            data.type === 'map-cluster-open')
+        ) {
+          onMapPress?.();
+          return;
+        }
         if (data.type === 'map-pin' && typeof data.eventId === 'string') {
           ignoreMapPressUntilRef.current = Date.now() + 500;
           const pin = pinsById.get(data.eventId);
@@ -378,7 +390,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       };
       window.addEventListener('message', onMessage);
       return () => window.removeEventListener('message', onMessage);
-    }, [onMarkerPress, onClusterPress, onMapPress, onRegionChangeComplete, pinsById]);
+    }, [blocksSelection, onMarkerPress, onClusterPress, onMapPress, onRegionChangeComplete, pinsById]);
 
     // Selection updates without rebuilding the iframe (preserves zoom/clusters).
     useEffect(() => {

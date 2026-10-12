@@ -31,6 +31,8 @@ type EventCardVariant = 'card' | 'listing' | 'preview';
 type EventCardProps = {
   item: EventListItem;
   variant?: EventCardVariant;
+  /** Swallow the card tap. Used while search is open so the tap only dismisses it. */
+  pressDisabled?: boolean;
 };
 
 function isEnded(status: string) {
@@ -63,7 +65,7 @@ function TimingChip({ phase }: { phase: Extract<EventPhase, 'ended' | 'live'> })
   );
 }
 
-export function EventCard({ item, variant = 'card' }: EventCardProps) {
+export function EventCard({ item, variant = 'card', pressDisabled = false }: EventCardProps) {
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const openTickets = useOpenTickets();
   const router = useRouter();
@@ -89,6 +91,7 @@ export function EventCard({ item, variant = 'card' }: EventCardProps) {
   const place = formatEventPlace(item);
 
   function openDetail() {
+    if (pressDisabled) return;
     router.push(eventDetailHref(item.event_id));
   }
 

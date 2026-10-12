@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ type BrowseHeaderProps = {
   filterCount?: number;
   title?: string;
   placeholder?: string;
+  onActiveChange?: (active: boolean) => void;
 };
 
 export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>(
@@ -23,22 +24,45 @@ export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>
       filterCount = 0,
       title = 'Nearby events',
       placeholder = 'Search cities, neighbourhoods, events…',
+      onActiveChange,
     },
     ref,
   ) {
     const { colors, typography, spacing } = useTheme();
+    const searchRef = useRef<BrowseSearchBarHandle>(null);
+    const [active, setActive] = useState(false);
+    useImperativeHandle(
+      ref,
+      () => ({
+        close: () => searchRef.current?.close(),
+        blocksMapTap: () => searchRef.current?.blocksMapTap() ?? false,
+      }),
+      [],
+    );
 
     return (
-      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
+      <SafeAreaView
+        edges={['top']}
+        pointerEvents="box-none"
+        style={[styles.header, { backgroundColor: colors.background }]}
+      >
         <View style={[styles.wrap, { paddingHorizontal: spacing.lg }]}>
-          <Text style={[typography.heading, { color: colors.text, fontSize: 22 }]}>
+          <Text
+            onPress={active ? () => searchRef.current?.close() : undefined}
+            suppressHighlighting
+            style={[typography.heading, { color: colors.text, fontSize: 22 }]}
+          >
             {title}
           </Text>
           <BrowseSearchBar
-            ref={ref}
+            ref={searchRef}
             value={value}
             onChangeText={onChangeText}
             onPressFilters={onPressFilters}
+            onActiveChange={(next) => {
+              setActive(next);
+              onActiveChange?.(next);
+            }}
             filterCount={filterCount}
             placeholder={placeholder}
           />
@@ -49,6 +73,10 @@ export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>
 );
 
 const styles = StyleSheet.create({
+  header: {
+    zIndex: 30,
+    elevation: 30,
+  },
   wrap: {
     paddingTop: 6,
     paddingBottom: 12,

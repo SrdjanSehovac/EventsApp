@@ -46,6 +46,8 @@ type EventsMapProps = {
   onMarkerPress?: (pin: EventMapPin) => void;
   onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
+  /** When true, a tap only dismisses search and must not open a pin. */
+  blocksSelection?: () => boolean;
 };
 
 type PinMarkerProps = {
@@ -150,6 +152,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       onMarkerPress,
       onClusterPress,
       onMapPress,
+      blocksSelection,
     },
     ref,
   ) {
@@ -208,6 +211,10 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
                 pinOutline={colors.pinOutline}
                 onPress={(next) => {
                   ignoreMapPressUntilRef.current = Date.now() + 400;
+                  if (blocksSelection?.()) {
+                    onMapPress?.();
+                    return;
+                  }
                   if (next.count > 1) {
                     // Spread-out clusters zoom in (Realtor.ca-style);
                     // coincident pins open the multi-event sheet.
