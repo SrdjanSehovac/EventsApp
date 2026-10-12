@@ -39,6 +39,38 @@ check(
 );
 
 check(
+  'release ignores a Metro LAN host',
+  resolveApiBaseUrl({
+    dev: false,
+    hostUri: '192.168.1.20:8081',
+    platform: 'ios',
+  }),
+  { url: '', misconfigured: true },
+);
+
+check(
+  'release rejects localhost',
+  resolveApiBaseUrl({ dev: false, envUrl: 'http://localhost:8000' }),
+  { url: '', misconfigured: true },
+);
+
+check(
+  'release rejects the android emulator host',
+  resolveApiBaseUrl({
+    dev: false,
+    envUrl: 'http://10.0.2.2:8000',
+    platform: 'android',
+  }),
+  { url: '', misconfigured: true },
+);
+
+check(
+  'release rejects a public http URL',
+  resolveApiBaseUrl({ dev: false, envUrl: 'http://api.example.com' }),
+  { url: '', misconfigured: true },
+);
+
+check(
   'release rejects a LAN URL',
   resolveApiBaseUrl({ dev: false, envUrl: 'http://192.168.1.10:8000' }),
   { url: '', misconfigured: true },

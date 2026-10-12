@@ -2,15 +2,26 @@
   "expo": {
     "name": "events_app",
     "slug": "events_app",
+    "owner": "srdjansehovac",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "eventsapp",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/95d0d250-2b53-494a-9710-1f75bb6f1204",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Show nearby events on the map and in the list."
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Show nearby events on the map and in the list.",
+        "NSPhotoLibraryUsageDescription": "Attach photos to events you post as a verified business."
       },
       "bundleIdentifier": "com.ripkeed.events-app",
       "config": {
@@ -35,6 +46,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "extra": {
+      "eas": {
+        "projectId": "95d0d250-2b53-494a-9710-1f75bb6f1204"
+      }
+    },
     "plugins": [
       "expo-router",
       [
@@ -53,7 +69,16 @@
           "microphonePermission": false
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./assets/icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-font"
     ]
   }
 }

@@ -19,11 +19,28 @@
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://51-161-102-13.sslip.io"
+      }
     },
-    "production": {}
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "default"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://51-161-102-13.sslip.io"
+      }
+    }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": ""
+      }
+    }
   }
 }
