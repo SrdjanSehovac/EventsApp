@@ -48,6 +48,8 @@ import { parseImageFallback } from '../utils/imageFallback';
 import { EventMapSnippet } from './EventMapSnippet';
 import { FavouriteButton } from './FavouriteButton';
 import { ImageFallbackTile } from './ImageFallbackTile';
+import { PhotoViewer } from './PhotoViewer';
+import { largestImageUrl } from '../utils/imageUrl';
 
 type EventDetailScreenProps = {
   eventId: string;
@@ -186,9 +188,11 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const query = useEvent(eventId);
   const detail = query.data;
   const [heroFailed, setHeroFailed] = useState(false);
+  const [photoOpen, setPhotoOpen] = useState(false);
 
   useEffect(() => {
     setHeroFailed(false);
+    setPhotoOpen(false);
   }, [eventId]);
   const [heroIndex, setHeroIndex] = useState(0);
   const [failedThumbs, setFailedThumbs] = useState<Record<number, boolean>>({});
@@ -262,13 +266,20 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
       >
         <View style={showPhoto || imageTile ? styles.hero : styles.heroCompact}>
           {showPhoto ? (
-            <Image
-              source={{ uri: heroUrl!, cache: 'force-cache' }}
-              style={styles.heroImage}
-              resizeMode="cover"
-              resizeMethod="resize"
-              onError={() => setHeroFailed(true)}
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View full photo"
+              onPress={() => setPhotoOpen(true)}
+              style={StyleSheet.absoluteFill}
+            >
+              <Image
+                source={{ uri: heroUrl!, cache: 'force-cache' }}
+                style={styles.heroImage}
+                resizeMode="cover"
+                resizeMethod="resize"
+                onError={() => setHeroFailed(true)}
+              />
+            </Pressable>
           ) : imageTile ? (
             <ImageFallbackTile tile={imageTile} />
           ) : (
@@ -302,6 +313,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             </View>
           )}
           <View
+            pointerEvents="box-none"
             style={[
               styles.heroScrim,
               { paddingTop: insets.top + 8 },
@@ -782,6 +794,13 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             </Text>
           </Pressable>
         </SafeAreaView>
+      ) : null}
+      {showPhoto && heroUrl ? (
+        <PhotoViewer
+          visible={photoOpen}
+          uri={largestImageUrl(heroUrl, photos)}
+          onClose={() => setPhotoOpen(false)}
+        />
       ) : null}
     </View>
   );
