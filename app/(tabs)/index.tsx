@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import type { Region } from 'react-native-maps';
 import { useBrowse, useEnsureMapViewport } from '../../src/browse';
 import {
   BrowseSearchBar,
+  type BrowseSearchBarHandle,
   EventsMap,
   FilterSheet,
   MapEventSheet,
@@ -66,6 +68,8 @@ export default function MapScreen() {
   useEnsureMapViewport();
   const geoQuery = useUserGeo();
   const mapRef = useRef<EventsMapHandle>(null);
+  const searchRef = useRef<BrowseSearchBarHandle>(null);
+  const panDismissed = useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [gestureRegion, setGestureRegion] = useState<Region | null>(null);
   const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
@@ -170,8 +174,20 @@ export default function MapScreen() {
   const filterCount = countActiveFilters(filters, { excludeQuery: true });
 
   const onRegionChangeComplete = useCallback((region: Region) => {
+    panDismissed.current = false;
     setGestureRegion(region);
   }, []);
+
+  const dismissSearch = useCallback(() => {
+    searchRef.current?.close();
+    Keyboard.dismiss();
+  }, []);
+
+  const onPanDrag = useCallback(() => {
+    if (panDismissed.current) return;
+    panDismissed.current = true;
+    dismissSearch();
+  }, [dismissSearch]);
 
   const onRecenter = useCallback(() => {
     if (!resolvedCenter) return;
@@ -222,13 +238,18 @@ export default function MapScreen() {
           mapRegion={viewport}
           mapType={mapType}
           onRegionChangeComplete={onRegionChangeComplete}
+          onPanDrag={onPanDrag}
           onMarkerPress={(pin) => setSelectedPins([pin])}
           onClusterPress={setSelectedPins}
-          onMapPress={() => setSelectedPins(null)}
+          onMapPress={() => {
+            setSelectedPins(null);
+            dismissSearch();
+          }}
         />
 
         <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
           <BrowseSearchBar
+            ref={searchRef}
             value={filters.q}
             onChangeText={(q) => patchFilters({ q })}
             onPressFilters={() => setFiltersOpen(true)}

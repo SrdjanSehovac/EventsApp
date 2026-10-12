@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import { regionForCurrentCity, useBrowse, useEnsureMapViewport } from '../../src
 import { findProductCity } from '../../src/config/cities';
 import {
   BrowseHeader,
+  type BrowseSearchBarHandle,
   EventCard,
   FilterSheet,
   SelectField,
@@ -61,6 +62,7 @@ export default function EventsScreen() {
   } = useBrowse();
   useEnsureMapViewport();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const searchRef = useRef<BrowseSearchBarHandle>(null);
 
   const debouncedQ = useDebouncedValue(filters.q);
   const geoQuery = useUserGeo();
@@ -129,6 +131,7 @@ export default function EventsScreen() {
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <BrowseHeader
+        ref={searchRef}
         value={filters.q}
         onChangeText={(q) => patchFilters({ q })}
         onPressFilters={() => setFiltersOpen(true)}
@@ -225,6 +228,7 @@ export default function EventsScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            onScrollBeginDrag={() => searchRef.current?.close()}
             contentContainerStyle={{
               flexGrow: 0,
               paddingBottom: tabBarInset + 12,

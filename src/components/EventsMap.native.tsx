@@ -41,6 +41,8 @@ type EventsMapProps = {
   mapRegion?: Region | null;
   mapType?: MapBaseType;
   onRegionChangeComplete?: (region: Region) => void;
+  /** User drag, so the screen can dismiss the keyboard. */
+  onPanDrag?: () => void;
   onMarkerPress?: (pin: EventMapPin) => void;
   onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
@@ -144,6 +146,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       mapRegion,
       mapType = 'standard',
       onRegionChangeComplete,
+      onPanDrag,
       onMarkerPress,
       onClusterPress,
       onMapPress,
@@ -189,6 +192,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           toolbarEnabled={false}
           mapPadding={{ top: 8, right: 8, bottom: 8, left: 8 }}
           onRegionChangeComplete={onRegionChangeComplete}
+          onPanDrag={onPanDrag ? () => onPanDrag() : undefined}
           onPress={() => {
             if (Date.now() < ignoreMapPressUntilRef.current) return;
             onMapPress?.();

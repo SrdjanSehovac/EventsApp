@@ -27,6 +27,23 @@ const MAX_RADIUS_KM = 100;
 const CENTER_DIRTY_DEG = 0.02;
 const RADIUS_DIRTY_KM = 2.5;
 
+/**
+ * Camera for a neighbourhood. `zoom` is a web-mercator level:
+ * 14 is a few blocks, 12 is a former borough.
+ */
+export function regionForZoom(lat: number, lng: number, zoom: number): Region {
+  const latitudeDelta = 360 / 2 ** zoom;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  const longitudeDelta =
+    cosLat > 0.01 ? latitudeDelta / cosLat : latitudeDelta;
+  return {
+    latitude: lat,
+    longitude: lng,
+    latitudeDelta,
+    longitudeDelta,
+  };
+}
+
 export function regionForRadiusKm(
   center: UserGeo,
   radiusKm: number,

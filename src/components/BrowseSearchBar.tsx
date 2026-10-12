@@ -1,7 +1,30 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
+import { useBrowse } from '../browse';
+import { findProductCity, productCityQueryValue } from '../config/cities';
+import { useCities } from '../hooks';
 import { useTheme } from '../theme';
+import { eventDetailHref } from '../utils/eventDetail';
+import { regionForRadiusKm, regionForZoom } from '../utils/mapRegion';
+import { pinMatchesQuery } from '../utils/areaCount';
+import { searchPlaces, type PlaceMatch } from '../utils/placeSearch';
 
 type BrowseSearchBarProps = {
   value: string;
@@ -11,96 +34,322 @@ type BrowseSearchBarProps = {
   placeholder?: string;
 };
 
-export function BrowseSearchBar({
-  value,
-  onChangeText,
-  onPressFilters,
-  filterCount = 0,
-  placeholder = 'Search events, neighbourhoods…',
-}: BrowseSearchBarProps) {
-  const { colors, typography, spacing, radius, shadows } = useTheme();
+export type BrowseSearchBarHandle = {
+  /** Hide suggestions and dismiss the keyboard. */
+  close: () => void;
+};
 
-  return (
-    <View style={styles.row}>
-      <View
-        style={[
-          styles.search,
-          shadows.soft,
-          {
-            backgroundColor: colors.surface,
-            borderRadius: radius.full,
-          },
-        ]}
-      >
-        <Ionicons name="search" size={18} color={colors.textMuted} />
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          style={[
-            typography.body,
-            styles.input,
-            { color: colors.text, marginLeft: spacing.sm },
-          ]}
-        />
-        {value ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Clear search"
-            onPress={() => onChangeText('')}
-            hitSlop={8}
-          >
-            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
+const EVENT_LIMIT = 5;
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Open filters"
-        onPress={onPressFilters}
-        style={[
-          styles.filter,
-          shadows.soft,
-          {
-            backgroundColor: filterCount > 0 ? colors.primary : colors.surface,
-            borderRadius: radius.full,
-          },
-        ]}
-      >
-        <Ionicons
-          name="options-outline"
-          size={20}
-          color={filterCount > 0 ? colors.onPrimary : colors.text}
-        />
-        {filterCount > 0 ? (
+export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBarProps>(
+  function BrowseSearchBar(
+    {
+      value,
+      onChangeText,
+      onPressFilters,
+      filterCount = 0,
+      placeholder = 'Search cities, neighbourhoods, events…',
+    },
+    ref,
+  ) {
+    const { colors, typography, spacing, radius, shadows } = useTheme();
+    const router = useRouter();
+    const {
+      filters,
+      patchFilters,
+      setAppliedCitySlug,
+      commitViewport,
+      loadedPins,
+    } = useBrowse();
+    const citiesQuery = useCities();
+    const [open, setOpen] = useState(false);
+    const openRef = useRef(false);
+    const stickRef = useRef(false);
+    const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    openRef.current = open;
+
+    function close() {
+      if (blurTimer.current) clearTimeout(blurTimer.current);
+      stickRef.current = false;
+      if (!openRef.current) return;
+      openRef.current = false;
+      setOpen(false);
+      Keyboard.dismiss();
+    }
+
+    useImperativeHandle(ref, () => ({ close }), []);
+
+    const places = useMemo(
+      () =>
+        searchPlaces(value, {
+          citySlug: findProductCity(filters.city)?.slug ?? null,
+        }),
+      [value, filters.city],
+    );
+    const events = useMemo(() => {
+      const query = value.trim();
+      if (!query) return [];
+      return loadedPins.filter((pin) => pinMatchesQuery(pin, query)).slice(0, EVENT_LIMIT);
+    }, [loadedPins, value]);
+
+    const showPanel = open && value.trim().length > 0;
+    const hasPlaces = places.cities.length > 0 || places.neighbourhoods.length > 0;
+
+    function choosePlace(place: PlaceMatch) {
+      const city = findProductCity(place.citySlug);
+      if (!city) return;
+      // Mark the city applied before the filter update so a neighbourhood
+      // zoom is not replaced by the city-wide camera.
+      setAppliedCitySlug(city.slug);
+      patchFilters({
+        city: productCityQueryValue(city, citiesQuery.data ?? []),
+        neighbourhood: null,
+        q: '',
+      });
+      const region =
+        place.kind === 'neighbourhood' && place.zoom != null
+          ? regionForZoom(place.lat, place.lng, place.zoom)
+          : regionForRadiusKm({ lat: city.lat, lng: city.lng }, city.radiusKm);
+      commitViewport(region, 'program');
+      close();
+    }
+
+    function chooseFirstPlace() {
+      const first = places.cities[0] ?? places.neighbourhoods[0];
+      if (first) choosePlace(first);
+    }
+
+    return (
+      <View style={styles.wrap}>
+        <View style={styles.row}>
           <View
             style={[
-              styles.badge,
-              { backgroundColor: colors.onPrimary, borderColor: colors.primary },
+              styles.search,
+              shadows.soft,
+              {
+                backgroundColor: colors.surface,
+                borderRadius: radius.full,
+              },
             ]}
           >
-            <Text
-              style={{
-                color: colors.primary,
-                fontSize: 10,
-                fontWeight: '800',
+            <Ionicons name="search" size={18} color={colors.textMuted} />
+            <TextInput
+              value={value}
+              onChangeText={(next) => {
+                stickRef.current = false;
+                setOpen(true);
+                onChangeText(next);
               }}
-            >
-              {filterCount}
+              onFocus={() => setOpen(true)}
+              onBlur={() => {
+                if (blurTimer.current) clearTimeout(blurTimer.current);
+                blurTimer.current = setTimeout(() => {
+                  if (stickRef.current) return;
+                  openRef.current = false;
+                  setOpen(false);
+                }, 180);
+              }}
+              placeholder={placeholder}
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              blurOnSubmit={false}
+              onSubmitEditing={chooseFirstPlace}
+              style={[
+                typography.body,
+                styles.input,
+                { color: colors.text, marginLeft: spacing.sm },
+              ]}
+            />
+            {value ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                onPress={() => onChangeText('')}
+                hitSlop={8}
+                style={styles.clear}
+              >
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open filters"
+            onPress={() => {
+              close();
+              onPressFilters();
+            }}
+            style={[
+              styles.filter,
+              shadows.soft,
+              {
+                backgroundColor: filterCount > 0 ? colors.primary : colors.surface,
+                borderRadius: radius.full,
+              },
+            ]}
+          >
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={filterCount > 0 ? colors.onPrimary : colors.text}
+            />
+            {filterCount > 0 ? (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: colors.onPrimary, borderColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontSize: 10,
+                    fontWeight: '800',
+                  }}
+                >
+                  {filterCount}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
+
+        {showPanel ? (
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled
+            style={[
+              styles.panel,
+              shadows.card,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                borderRadius: radius.lg,
+              },
+            ]}
+            onScrollBeginDrag={() => {
+              stickRef.current = true;
+            }}
+          >
+            <PlaceSection
+              title="Cities"
+              places={places.cities}
+              icon="business-outline"
+              onPress={choosePlace}
+            />
+            <PlaceSection
+              title="Neighbourhoods"
+              places={places.neighbourhoods}
+              icon="location-outline"
+              onPress={choosePlace}
+            />
+            {!hasPlaces ? (
+              <Text
+                style={[
+                  typography.body,
+                  styles.empty,
+                  { color: colors.textMuted },
+                ]}
+              >
+                No matching cities or neighbourhoods
+              </Text>
+            ) : null}
+            {events.length > 0 ? (
+              <View>
+                <Text style={[styles.section, { color: colors.primary }]}>Events</Text>
+                {events.map((pin) => {
+                  const place = [pin.neighbourhood, pin.city].filter(Boolean).join(', ');
+                  return (
+                    <Pressable
+                      key={pin.event_id}
+                      accessibilityRole="button"
+                      accessibilityLabel={place ? `${pin.title}, ${place}` : pin.title}
+                      onPress={() => {
+                        close();
+                        router.push(eventDetailHref(pin.event_id));
+                      }}
+                      style={({ pressed }) => [
+                        styles.rowItem,
+                        pressed ? { backgroundColor: colors.primaryMuted } : null,
+                      ]}
+                    >
+                      <View style={[styles.icon, { backgroundColor: colors.primaryMuted }]}>
+                        <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                      </View>
+                      <View style={styles.copy}>
+                        <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
+                          {pin.title}
+                        </Text>
+                        {place ? (
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                            {place}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+          </ScrollView>
+        ) : null}
+      </View>
+    );
+  },
+);
+
+function PlaceSection({
+  title,
+  places,
+  icon,
+  onPress,
+}: {
+  title: string;
+  places: PlaceMatch[];
+  icon: 'business-outline' | 'location-outline';
+  onPress: (place: PlaceMatch) => void;
+}) {
+  const { colors, typography } = useTheme();
+  if (places.length === 0) return null;
+  return (
+    <View>
+      <Text style={[styles.section, { color: colors.primary }]}>{title}</Text>
+      {places.map((place) => (
+        <Pressable
+          key={place.key}
+          accessibilityRole="button"
+          accessibilityLabel={`${place.title}, ${place.subtitle}`}
+          onPress={() => onPress(place)}
+          style={({ pressed }) => [
+            styles.rowItem,
+            pressed ? { backgroundColor: colors.primaryMuted } : null,
+          ]}
+        >
+          <View style={[styles.icon, { backgroundColor: colors.primaryMuted }]}>
+            <Ionicons name={icon} size={16} color={colors.primary} />
+          </View>
+          <View style={styles.copy}>
+            <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
+              {place.title}
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+              {place.subtitle}
             </Text>
           </View>
-        ) : null}
-      </Pressable>
+        </Pressable>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    zIndex: 2,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -111,11 +360,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 48,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 4,
   },
   input: {
     flex: 1,
     paddingVertical: 12,
+  },
+  clear: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filter: {
     width: 48,
@@ -134,5 +390,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
+  },
+  panel: {
+    marginTop: 8,
+    maxHeight: 280,
+    borderWidth: 1,
+  },
+  section: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  rowItem: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  icon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copy: {
+    flex: 1,
+  },
+  empty: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
 });

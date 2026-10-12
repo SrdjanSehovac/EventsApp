@@ -37,6 +37,8 @@ type EventsMapProps = {
   mapRegion?: Region | null;
   mapType?: MapBaseType;
   onRegionChangeComplete?: (region: Region) => void;
+  /** User drag, so the screen can dismiss the keyboard. */
+  onPanDrag?: () => void;
   onMarkerPress?: (pin: EventMapPin) => void;
   onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;

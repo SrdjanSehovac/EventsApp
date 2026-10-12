@@ -1,8 +1,9 @@
+import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
-import { BrowseSearchBar } from './BrowseSearchBar';
+import { BrowseSearchBar, type BrowseSearchBarHandle } from './BrowseSearchBar';
 
 type BrowseHeaderProps = {
   value: string;
@@ -13,33 +14,39 @@ type BrowseHeaderProps = {
   placeholder?: string;
 };
 
-export function BrowseHeader({
-  value,
-  onChangeText,
-  onPressFilters,
-  filterCount = 0,
-  title = 'Nearby events',
-  placeholder = 'Search events, neighbourhoods…',
-}: BrowseHeaderProps) {
-  const { colors, typography, spacing } = useTheme();
+export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>(
+  function BrowseHeader(
+    {
+      value,
+      onChangeText,
+      onPressFilters,
+      filterCount = 0,
+      title = 'Nearby events',
+      placeholder = 'Search cities, neighbourhoods, events…',
+    },
+    ref,
+  ) {
+    const { colors, typography, spacing } = useTheme();
 
-  return (
-    <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
-      <View style={[styles.wrap, { paddingHorizontal: spacing.lg }]}>
-        <Text style={[typography.heading, { color: colors.text, fontSize: 22 }]}>
-          {title}
-        </Text>
-        <BrowseSearchBar
-          value={value}
-          onChangeText={onChangeText}
-          onPressFilters={onPressFilters}
-          filterCount={filterCount}
-          placeholder={placeholder}
-        />
-      </View>
-    </SafeAreaView>
-  );
-}
+    return (
+      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.background }}>
+        <View style={[styles.wrap, { paddingHorizontal: spacing.lg }]}>
+          <Text style={[typography.heading, { color: colors.text, fontSize: 22 }]}>
+            {title}
+          </Text>
+          <BrowseSearchBar
+            ref={ref}
+            value={value}
+            onChangeText={onChangeText}
+            onPressFilters={onPressFilters}
+            filterCount={filterCount}
+            placeholder={placeholder}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   wrap: {
