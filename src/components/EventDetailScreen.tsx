@@ -77,6 +77,47 @@ function Chip({
   );
 }
 
+function AboutCopy({ text }: { text: string }) {
+  const { colors, typography, spacing } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const [lines, setLines] = useState<number | null>(null);
+
+  useEffect(() => {
+    setExpanded(false);
+    setLines(null);
+  }, [text]);
+
+  const collapsible = lines != null && lines > 8;
+
+  return (
+    <View>
+      <Text
+        style={[typography.body, { color: colors.text }]}
+        numberOfLines={collapsible && !expanded ? 8 : undefined}
+        onTextLayout={(event) => {
+          if (lines != null) return;
+          setLines(event.nativeEvent.lines.length);
+        }}
+      >
+        {text}
+      </Text>
+      {collapsible ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Show less' : 'Read more'}
+          onPress={() => setExpanded((value) => !value)}
+          hitSlop={8}
+          style={{ marginTop: spacing.sm, minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
+        >
+          <Text style={[typography.caption, { color: colors.primary, fontWeight: '800' }]}>
+            {expanded ? 'Show less' : 'Read more'}
+          </Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
 function HostedBy({ label, url }: { label: string; url: string | null }) {
   const { colors, typography, spacing } = useTheme();
   const textStyle = [
@@ -248,7 +289,6 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               />
               {detail?.title ? (
                 <Text
-                  numberOfLines={3}
                   style={[
                     typography.heading,
                     styles.heroTitle,
@@ -527,9 +567,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
 
             {about ? (
               <Section icon="document-text-outline" title="About">
-                <Text style={[typography.body, { color: colors.text }]}>
-                  {about}
-                </Text>
+                <AboutCopy text={about} />
               </Section>
             ) : null}
 

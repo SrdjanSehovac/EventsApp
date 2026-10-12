@@ -408,7 +408,7 @@ function stripLeadingTitle(body: string, title?: string | null): string {
 
 function dedupeParagraphs(body: string): string {
   const blocks = body
-    .split(/\n+/)
+    .split(/\n{2,}/)
     .map((block) => block.trim())
     .filter(Boolean);
   const kept: string[] = [];
@@ -451,6 +451,68 @@ function collapseExactRepeat(body: string): string {
   return body;
 }
 
+/** Put a missing space after sentence punctuation. Leave decimals and URLs alone. */
+function spaceAfterSentence(text: string): string {
+  const url = /https?:\/\/[^\s]+/gi;
+  let out = '';
+  let last = 0;
+  for (const match of text.matchAll(url)) {
+    const start = match.index ?? 0;
+    out += spaceAfterSentenceChunk(text.slice(last, start));
+    out += match[0];
+    last = start + match[0].length;
+  }
+  return out + spaceAfterSentenceChunk(text.slice(last));
+}
+
+function spaceAfterSentenceChunk(text: string): string {
+  return text.replace(/([a-z]{2,})([.!?])([A-Z])/g, '$1$2 $3');
+}
+
+function dotInsideUrl(text: string, index: number): boolean {
+  const start = text.lastIndexOf(' ', index) + 1;
+  const endSpace = text.indexOf(' ', index);
+  const end = endSpace === -1 ? text.length : endSpace;
+  return /https?:\/\//i.test(text.slice(start, end));
+}
+
+function lastSentenceEnd(text: string): number | null {
+  let last = -1;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch !== '.' && ch !== '!' && ch !== '?') continue;
+    const prev = text[i - 1] ?? '';
+    const next = text[i + 1] ?? '';
+    if (ch === '.' && /\d/.test(prev) && /\d/.test(next)) continue;
+    if (dotInsideUrl(text, i)) continue;
+    if (next === '' || /\s/.test(next) || /["')\]]/.test(next)) last = i;
+  }
+  return last === -1 ? null : last;
+}
+
+/**
+ * A long blurb that stops mid-word is cut back to the last full sentence.
+ * Short copy and text that already ends with punctuation stay as written.
+ */
+function trimCutOffAbout(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length < 250) return trimmed;
+  if (/[.!?…]["')\]]*$/.test(trimmed)) return trimmed;
+  if (!/[A-Za-z]$/.test(trimmed)) return trimmed;
+  const end = lastSentenceEnd(trimmed);
+  if (end == null) return trimmed;
+  return trimmed.slice(0, end + 1).trim();
+}
+
+function prepareAbout(raw: string): string {
+  const lines = raw
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => sanitizePublicText(line) ?? '');
+  return spaceAfterSentence(lines.join('\n').replace(/\n{3,}/g, '\n\n')).trim();
+}
+
 /** One about body. Description wins; a repeated title or summary is removed. */
 export function formatAboutBody(input: {
   title?: string | null;
@@ -460,12 +522,10 @@ export function formatAboutBody(input: {
 }): string | null {
   const raw = input.description || input.summary || input.bio;
   if (!raw?.trim()) return null;
-  const blocks = raw
-    .split(/\n+/)
-    .map((block) => sanitizePublicText(block))
-    .filter((block): block is string => Boolean(block));
-  const body = collapseExactRepeat(
-    stripLeadingTitle(dedupeParagraphs(blocks.join('\n\n')), input.title),
+  const body = trimCutOffAbout(
+    collapseExactRepeat(
+      stripLeadingTitle(dedupeParagraphs(prepareAbout(raw)), input.title),
+    ),
   );
   return body.trim() || null;
 }

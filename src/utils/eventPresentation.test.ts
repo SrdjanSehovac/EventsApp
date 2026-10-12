@@ -257,6 +257,47 @@ check(
 );
 
 check(
+  'about adds a space after sentence punctuation',
+  formatAboutBody({
+    description: 'Jamie and Karen are inductees.Recognized for their leadership.',
+  }),
+  'Jamie and Karen are inductees. Recognized for their leadership.',
+);
+
+check(
+  'about leaves decimals and urls alone',
+  formatAboutBody({
+    description: 'Tickets are $81.73 at https://tickets.example.com/gala.Next.',
+  }),
+  'Tickets are $81.73 at https://tickets.example.com/gala.Next.',
+);
+
+check(
+  'about keeps a line break and collapses extra blank lines',
+  formatAboutBody({
+    description: 'First paragraph stays.\nSecond line stays.\n\n\n\n\nNext paragraph.',
+  }),
+  'First paragraph stays.\nSecond line stays.\n\nNext paragraph.',
+);
+
+const cutoffSentence =
+  'Junior Achievement is proud to announce the Hall of Fame inductees for their work.';
+const cutoffBody = `${cutoffSentence} ${cutoffSentence} ${cutoffSentence} helped shape So`;
+check(
+  'about trims a long mid-word cutoff to the last sentence',
+  cutoffBody.length >= 250 &&
+    formatAboutBody({ description: cutoffBody }) ===
+      `${cutoffSentence} ${cutoffSentence} ${cutoffSentence}`.trim(),
+  true,
+);
+
+check(
+  'a short unfinished line is not trimmed',
+  formatAboutBody({ description: 'Helped shape So' }),
+  'Helped shape So',
+);
+
+check(
   'canada life place keeps the venue and one address',
   formatPlaceLines({
     venue: { name: 'Canada Life Place', city: 'London' },
