@@ -10,11 +10,14 @@ import {
 } from 'react';
 
 import {
+  deleteAccountRequest,
   fetchCurrentUser,
   signInRequest,
   signOutRequest,
   signUpRequest,
 } from '../api/auth';
+import { setLocalBusiness } from '../business/storage';
+import { setLocalSubmissions } from '../submissions/storage';
 import { ApiError } from '../api/client';
 import { setAuthToken, subscribeUnauthorized } from '../api/session';
 import type { AuthUser, SignInInput, SignUpInput } from '../types/auth';
@@ -36,6 +39,7 @@ type AuthContextValue = {
   signIn: (input: SignInInput) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -182,6 +186,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySignedOut();
   }, [applySignedOut]);
 
+  const deleteAccount = useCallback(async () => {
+    await deleteAccountRequest();
+    const userId = user?.user_id;
+    if (userId) {
+      await Promise.all([
+        setLocalSubmissions(userId, []),
+        setLocalBusiness(userId, null),
+      ]);
+    }
+    await clearStoredSession();
+    applySignedOut();
+  }, [applySignedOut, user?.user_id]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
@@ -191,8 +208,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      deleteAccount,
     }),
-    [status, user, token, signIn, signUp, signOut],
+    [status, user, token, signIn, signUp, signOut, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth';
+import { friendlyPublicError } from '../utils/publicError';
 import { useIsFavourited, useToggleFavourite } from '../hooks/favourites';
 import { useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
@@ -14,15 +15,10 @@ type FavouriteButtonProps = {
 };
 
 function describeFavouriteError(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) return 'Sign in to save favourites.';
-    if (error.status === 404) {
-      return 'Favourites are not available on this EventServer yet (missing /v1/me/favourites).';
-    }
-    return error.message;
+  if (error instanceof ApiError && error.status === 401) {
+    return 'Sign in to save favourites.';
   }
-  if (error instanceof Error) return error.message;
-  return 'Could not update favourite.';
+  return friendlyPublicError(error, "Couldn't update saved events. Please try again.");
 }
 
 export function FavouriteButton({

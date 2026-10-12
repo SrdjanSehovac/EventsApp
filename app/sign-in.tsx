@@ -37,7 +37,7 @@ export default function SignInScreen() {
   return (
     <AuthScreen
       title="Sign in"
-      subtitle="Use the email and password on your EventServer account."
+      subtitle="Use the email and password for your account."
     >
       <AuthField
         label="EMAIL"

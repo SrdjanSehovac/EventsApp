@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 
 import {
   CityExplorer,
@@ -33,6 +33,13 @@ function formatPct(share: number | null): string | undefined {
 }
 
 export default function AdminScreen() {
+  if (!__DEV__) {
+    return <Redirect href="/(tabs)/profile" />;
+  }
+  return <AdminTools />;
+}
+
+function AdminTools() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const { isPhone } = useResponsive();
   const router = useRouter();

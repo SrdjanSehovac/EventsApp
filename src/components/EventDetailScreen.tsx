@@ -41,6 +41,7 @@ import {
   visibleLabels,
 } from '../utils/outboundLinks';
 import { eventPhase } from '../utils/eventLive';
+import { friendlyPublicError } from '../utils/publicError';
 import { parseImageFallback } from '../utils/imageFallback';
 import { EventMapSnippet } from './EventMapSnippet';
 import { FavouriteButton } from './FavouriteButton';
@@ -292,9 +293,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               { color: colors.danger, padding: spacing.lg },
             ]}
           >
-            {query.error instanceof Error
-              ? query.error.message
-              : 'Could not load this event.'}
+            {friendlyPublicError(query.error, "Couldn't load this event. Please try again.")}
           </Text>
         ) : detail ? (
           <View style={[styles.body, { paddingHorizontal: spacing.lg }]}>

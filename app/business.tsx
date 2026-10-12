@@ -9,17 +9,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthField, AuthScreen, DigitalProofNote } from '../src/components';
 import { useAuth, useMyBusiness, useResendBusinessVerification, useVerifyBusinessEmail } from '../src/hooks';
 import { useTheme } from '../src/theme';
 import { BUSINESS_KIND_LABELS } from '../src/types/business';
+import { friendlyPublicError } from '../src/utils/publicError';
 import type { BusinessProfile } from '../src/types/business';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not update your application.';
+  return friendlyPublicError(error, "Couldn't update your application. Please try again.");
 }
 
 function StatusBadge({
@@ -234,8 +232,7 @@ export default function BusinessStatusScreen() {
         </Text>
         {profile.source === 'local' ? (
           <Text style={[typography.caption, { color: colors.warning, marginTop: 8 }]}>
-            Saved on this device — EventServer can pick it up once /v1/me/business
-            ships.
+            Saved on this device. It will sync when the service can accept it.
           </Text>
         ) : null}
       </View>

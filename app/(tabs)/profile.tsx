@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -9,6 +9,7 @@ import { MySubmissions } from '../../src/components/MySubmissions';
 import { useAuth, useCalendarAutoSave, useFavourites, useMyBusiness, useMySubmissions } from '../../src/hooks';
 import { Screen } from '../../src/layout';
 import { useTheme } from '../../src/theme';
+import { friendlyPublicError } from '../../src/utils/publicError';
 
 function shouldShowFavouritesError(error: unknown) {
   if (!error) return false;
@@ -26,7 +27,7 @@ function shouldShowFavouritesError(error: unknown) {
 
 export default function ProfileScreen() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
-  const { user, isSignedIn, status, signOut } = useAuth();
+  const { user, isSignedIn, status, signOut, deleteAccount } = useAuth();
   const router = useRouter();
   const favouritesQuery = useFavourites(isSignedIn);
   const calendarAutoSave = useCalendarAutoSave();
@@ -61,9 +62,10 @@ export default function ProfileScreen() {
               { color: colors.danger, marginBottom: spacing.md },
             ]}
           >
-            {favouritesQuery.error instanceof Error
-              ? favouritesQuery.error.message
-              : 'Could not load saved events.'}
+            {friendlyPublicError(
+              favouritesQuery.error,
+              "Couldn't load saved events. Please try again.",
+            )}
           </Text>
         ) : null}
 
@@ -203,24 +205,65 @@ export default function ProfileScreen() {
         </View>
 
         {isSignedIn ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Sign out"
-            onPress={() => void signOut()}
-            style={[
-              styles.secondaryBtn,
-              {
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                borderRadius: radius.full,
-                marginBottom: spacing.lg,
-              },
-            ]}
-          >
-            <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
-              Sign out
-            </Text>
-          </Pressable>
+          <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+              onPress={() => void signOut()}
+              style={[
+                styles.secondaryBtn,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.full,
+                },
+              ]}
+            >
+              <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
+                Sign out
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Delete account"
+              onPress={() => {
+                Alert.alert(
+                  'Delete account?',
+                  'This permanently deletes your account and the saved events stored with it. This can’t be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete account',
+                      style: 'destructive',
+                      onPress: () => {
+                        void deleteAccount().catch((error: unknown) => {
+                          Alert.alert(
+                            'Couldn’t delete account',
+                            friendlyPublicError(
+                              error,
+                              'Account deletion isn’t available right now. Please try again later.',
+                            ),
+                          );
+                        });
+                      },
+                    },
+                  ],
+                );
+              }}
+              style={[
+                styles.secondaryBtn,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  borderRadius: radius.full,
+                },
+              ]}
+            >
+              <Text style={[typography.body, { color: colors.danger, fontWeight: '700' }]}>
+                Delete account
+              </Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
             <Pressable
@@ -273,30 +316,32 @@ export default function ProfileScreen() {
           onSignIn={() => router.push('/sign-in')}
         />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Admin tools"
-          onPress={() => router.push('/admin')}
-          style={[
-            styles.linkRow,
-            {
-              marginTop: spacing.lg,
-              backgroundColor: colors.surface,
-              borderRadius: radius.lg,
-            },
-          ]}
-        >
-          <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
-          <View style={{ flex: 1, marginLeft: spacing.sm }}>
-            <Text style={[typography.body, { color: colors.textSecondary, fontWeight: '600' }]}>
-              Admin tools
-            </Text>
-            <Text style={[typography.caption, { color: colors.textMuted }]}>
-              Pipeline health and catalog insights
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Pressable>
+        {__DEV__ ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Admin tools"
+            onPress={() => router.push('/admin')}
+            style={[
+              styles.linkRow,
+              {
+                marginTop: spacing.lg,
+                backgroundColor: colors.surface,
+                borderRadius: radius.lg,
+              },
+            ]}
+          >
+            <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <Text style={[typography.body, { color: colors.textSecondary, fontWeight: '600' }]}>
+                Admin tools
+              </Text>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>
+                Pipeline health and catalog insights
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   );

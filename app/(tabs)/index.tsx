@@ -35,6 +35,7 @@ import {
   INITIAL_RADIUS_KM,
   regionForRadiusKm,
 } from '../../src/utils/mapRegion';
+import { friendlyPublicError } from '../../src/utils/publicError';
 import {
   MAP_FETCH_OVERSCAN,
   VIEWPORT_COMMIT_MS,
@@ -200,9 +201,10 @@ export default function MapScreen() {
 
   const countReady = areaTotal > 0 || Boolean(areaQuery.data || mapQuery.data);
   const statusLabel = error
-    ? error instanceof Error
-      ? error.message
-      : 'Failed to load map events'
+    ? friendlyPublicError(
+        error,
+        "Can't load the map right now. Check your connection and try again.",
+      )
     : countReady
       ? `${areaTotal.toLocaleString()} event${areaTotal === 1 ? '' : 's'} in view`
       : 'Updating map…';

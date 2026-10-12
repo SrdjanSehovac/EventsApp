@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthField, AuthScreen, DigitalProofNote, SelectField } from '../src/components';
 import { PRODUCT_CITIES, buildCityOptions } from '../src/config/cities';
 import { domainsAlign, looksLikeEmail, looksLikeWebsite, normalizeWebsite } from '../src/business/proof';
@@ -20,11 +19,10 @@ import {
   type BusinessKind,
   type BusinessProfile,
 } from '../src/types/business';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not submit the application.';
+  return friendlyPublicError(error, "Couldn't submit the application. Please try again.");
 }
 
 type ApplyFormProps = {

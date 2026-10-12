@@ -1,20 +1,13 @@
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthScreen, EventCard } from '../src/components';
 import { useAuth, useFavourites } from '../src/hooks';
 import { useTheme } from '../src/theme';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Favourites are not available yet (EventServer needs GET /v1/me/favourites).';
-    }
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Could not load favourites.';
+  return friendlyPublicError(error, "Couldn't load saved events. Please try again.");
 }
 
 export default function FavouritesScreen() {

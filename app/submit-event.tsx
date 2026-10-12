@@ -8,12 +8,12 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthField, AuthScreen, EventMediaFields, SelectField } from '../src/components';
 import { PRODUCT_CITIES, buildCityOptions } from '../src/config/cities';
 import { useAuth, useCategories, useMyBusiness } from '../src/hooks';
 import { useSubmitEvent } from '../src/hooks/submissions';
 import { colorForCategory, useTheme } from '../src/theme';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 const FALLBACK_CATEGORIES = [
   { slug: 'music', name: 'Music' },
@@ -25,9 +25,7 @@ const FALLBACK_CATEGORIES = [
 ];
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not submit event.';
+  return friendlyPublicError(error, "Couldn't submit that event. Please try again.");
 }
 
 function toIsoStart(dateRaw: string, timeRaw: string): string | null {
@@ -188,7 +186,7 @@ export default function SubmitEventScreen() {
       subtitle={
         verifiedBusiness
           ? `Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`
-          : 'Share a night out, market, or show. We’ll keep it on Saved while EventServer reviews it.'
+          : 'Share a night out, market, or show. We’ll keep it on Saved while it’s reviewed.'
       }
     >
       <AuthField

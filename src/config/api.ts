@@ -1,29 +1,19 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { resolveApiBaseUrl } from './apiBase';
+
 /**
- * Resolve the API host for Expo Go / simulators.
- * Override anytime with EXPO_PUBLIC_API_URL (e.g. http://192.168.1.10:8000).
+ * Development may use EXPO_PUBLIC_API_URL or the Metro host.
+ * A release build only uses a public https EXPO_PUBLIC_API_URL.
  */
-function resolveDevHost(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, '');
+const resolvedApi = resolveApiBaseUrl({
+  envUrl: process.env.EXPO_PUBLIC_API_URL,
+  dev: typeof __DEV__ === 'undefined' ? true : __DEV__,
+  hostUri: Constants.expoConfig?.hostUri,
+  platform: Platform.OS,
+});
 
-  const hostUri = Constants.expoConfig?.hostUri;
-
-  if (hostUri) {
-    const host = hostUri.split(':')[0];
-    if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      return `http://${host}:8000`;
-    }
-  }
-
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8000';
-  }
-
-  return 'http://localhost:8000';
-}
-
-export const API_BASE_URL = resolveDevHost();
-export const API_V1_URL = `${API_BASE_URL}/v1`;
+export const API_BASE_URL = resolvedApi.url;
+export const API_MISCONFIGURED = resolvedApi.misconfigured;
+export const API_V1_URL = API_BASE_URL ? `${API_BASE_URL}/v1` : '';

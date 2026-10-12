@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Show nearby events on the map and in your feed."
+        "NSLocationWhenInUseUsageDescription": "Show nearby events on the map and in the list."
       },
       "bundleIdentifier": "com.ripkeed.events-app",
       "config": {
@@ -40,7 +40,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Show nearby events on the map and in your feed."
+          "locationWhenInUsePermission": "Show nearby events on the map and in the list."
         }
       ],
       "react-native-maps",

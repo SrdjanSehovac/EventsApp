@@ -34,6 +34,7 @@ import {
 } from '../../src/utils/areaQuery';
 import { pinToListItem } from '../../src/utils/eventDetail';
 import { withEndedLast } from '../../src/utils/eventLive';
+import { friendlyPublicError } from '../../src/utils/publicError';
 import { DEFAULT_LIST_SORT, orderBySoonest } from '../../src/utils/listSort';
 import { boundsFromRegion, pinInsideBounds } from '../../src/utils/mapViewport';
 
@@ -181,7 +182,10 @@ export default function EventsScreen() {
           </View>
         ) : error ? (
           <Text style={[typography.body, { color: colors.danger, padding: spacing.md }]}>
-            {error instanceof Error ? error.message : 'Failed to load events'}
+            {friendlyPublicError(
+              error,
+              "Can't load events right now. Check your connection and try again.",
+            )}
           </Text>
         ) : (
           <FlatList

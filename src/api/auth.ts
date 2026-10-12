@@ -11,8 +11,9 @@ import type {
  * EventServer auth contract (expected under `/v1`):
  *   POST /auth/signup  { email, password, display_name }
  *   POST /auth/login   { email, password }
- *   GET  /auth/me
- *   POST /auth/logout
+ *   GET    /auth/me
+ *   DELETE /auth/me   permanent account deletion
+ *   POST   /auth/logout
  *
  * TODO: If EventServer ships OAuth2PasswordRequestForm instead of JSON login,
  * switch `/auth/login` to `application/x-www-form-urlencoded` with
@@ -106,6 +107,13 @@ export async function fetchCurrentUser(signal?: AbortSignal) {
     signal,
   });
   return normalizeUser(payload);
+}
+
+export async function deleteAccountRequest() {
+  await apiRequest<void>({
+    path: '/auth/me',
+    method: 'DELETE',
+  });
 }
 
 export async function signOutRequest() {
