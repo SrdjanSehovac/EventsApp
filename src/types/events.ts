@@ -150,6 +150,8 @@ export type EventDetail = {
   series_name?: string | null;
   /** Organizer display name, when the server has one. */
   organizer_name?: string | null;
+  /** Organizer site. Opened in the in-app browser only when the link policy allows it. */
+  organizer_url?: string | null;
   performers?: unknown[];
   enrichment_confidence?: number | string | null;
   enriched_at?: string | null;

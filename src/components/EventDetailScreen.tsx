@@ -13,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { openInAppBrowser } from '../checkout/openInAppBrowser';
 import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
 import { useEvent } from '../hooks';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
@@ -24,6 +25,7 @@ import {
   formatAboutBody,
   formatActionLabel,
   hostedByLine,
+  organizerPageUrl,
   formatDetailPrice,
   formatOccurrenceLine,
   formatPlaceLines,
@@ -72,6 +74,34 @@ function Chip({
         {label}
       </Text>
     </View>
+  );
+}
+
+function HostedBy({ label, url }: { label: string; url: string | null }) {
+  const { colors, typography, spacing } = useTheme();
+  const textStyle = [
+    typography.caption,
+    {
+      color: url ? colors.primary : colors.textSecondary,
+      fontWeight: url ? ('700' as const) : ('400' as const),
+      marginTop: spacing.xs,
+    },
+  ];
+  if (!url) {
+    return <Text style={textStyle}>{label}</Text>;
+  }
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      hitSlop={8}
+      onPress={() => {
+        void openInAppBrowser(url, colors.primary);
+      }}
+      style={styles.hostedByLink}
+    >
+      <Text style={textStyle}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -159,6 +189,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const about = detail ? formatAboutBody(detail) : null;
   const seriesName = sanitizePublicText(detail?.series_name);
   const hostedBy = hostedByLine(detail?.organizer_name);
+  const organizerUrl = hostedBy ? organizerPageUrl(detail?.organizer_url) : null;
   const phase = detail ? eventPhase(detail) : 'unscheduled';
   const ended = phase === 'ended';
   const live = phase === 'live';
@@ -227,16 +258,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                   {detail.title}
                 </Text>
               ) : null}
-              {hostedBy ? (
-                <Text
-                  style={[
-                    typography.caption,
-                    { color: colors.textSecondary, marginTop: spacing.xs },
-                  ]}
-                >
-                  {hostedBy}
-                </Text>
-              ) : null}
+              {hostedBy ? <HostedBy label={hostedBy} url={organizerUrl} /> : null}
             </View>
           )}
           <View
@@ -339,14 +361,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
               </Text>
             ) : null}
             {(showPhoto || imageTile) && hostedBy ? (
-              <Text
-                style={[
-                  typography.caption,
-                  { color: colors.textSecondary, marginTop: spacing.xs },
-                ]}
-              >
-                {hostedBy}
-              </Text>
+              <HostedBy label={hostedBy} url={organizerUrl} />
             ) : null}
             {seriesName && !isBlockedSourceLabel(seriesName) ? (
               <Text
@@ -813,6 +828,11 @@ const styles = StyleSheet.create({
   },
   thumbImage: {
     ...StyleSheet.absoluteFill,
+  },
+  hostedByLink: {
+    alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
   },
   whenRow: {
     flexDirection: 'row',

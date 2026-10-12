@@ -17,6 +17,7 @@ export {
   formatAboutBody,
   formatActionLabel,
   hostedByLine,
+  organizerPageUrl,
   formatDetailPrice,
   formatOccurrenceLine,
   formatPlaceLines,

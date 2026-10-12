@@ -3,6 +3,7 @@ import {
   formatAboutBody,
   formatActionLabel,
   hostedByLine,
+  organizerPageUrl,
   formatDetailPrice,
   formatPlaceLines,
   formatScheduleLines,
@@ -342,6 +343,23 @@ check('hosted by uses the organizer name', hostedByLine('BFitness'), 'Hosted by 
 check('missing organizer is hidden', hostedByLine(null), null);
 check('blank organizer is hidden', hostedByLine('   '), null);
 check('blocked organizer name is hidden', hostedByLine('AllEvents'), null);
+check(
+  'organizer site can be opened',
+  organizerPageUrl('https://bfitness.example/events'),
+  'https://bfitness.example/events',
+);
+check('missing organizer url stays plain text', organizerPageUrl(null), null);
+check('blank organizer url stays plain text', organizerPageUrl('   '), null);
+check(
+  'allevents organizer url stays plain text',
+  organizerPageUrl('https://allevents.in/org/123'),
+  null,
+);
+check(
+  'allevents subdomain stays plain text',
+  organizerPageUrl('https://events.allevents.in/e/1'),
+  null,
+);
 
 check(
   'ticket button carries the price',

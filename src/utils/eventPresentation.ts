@@ -1,5 +1,9 @@
 import type { EventDetail } from '../types/events';
-import { isBlockedSourceLabel, sanitizePublicText } from './outboundLinks';
+import {
+  allowedOutboundUrl,
+  isBlockedSourceLabel,
+  sanitizePublicText,
+} from './outboundLinks';
 
 type ScheduleInput = Pick<
   EventDetail,
@@ -121,6 +125,14 @@ export function hostedByLine(name?: string | null): string | null {
   const clean = sanitizePublicText(name);
   if (!clean || isBlockedSourceLabel(clean)) return null;
   return `Hosted by ${clean}`;
+}
+
+/**
+ * Organizer page for the in-app browser. Same rules as other outbound links:
+ * http(s) only, and competitor hosts such as allevents.in stay plain text.
+ */
+export function organizerPageUrl(url?: string | null): string | null {
+  return allowedOutboundUrl(url);
 }
 
 export function formatActionLabel(label: string, price?: string | null): string {
