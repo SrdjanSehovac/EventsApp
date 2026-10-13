@@ -55,6 +55,7 @@
       }
     },
     "plugins": [
+      "./plugins/withoutPushEntitlement",
       "expo-router",
       [
         "expo-location",
