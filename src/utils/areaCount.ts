@@ -119,5 +119,6 @@ export function countEventsInView(args: {
     (value): value is number => typeof value === 'number' && value >= 0,
   );
   const serverTotal = serverCandidates.length ? Math.max(...serverCandidates) : 0;
-  return Math.max(serverTotal, loaded);
+  // List opened before the map: no pins yet, so at least count the rows in view.
+  return Math.max(serverTotal, loaded, selection.items.length);
 }

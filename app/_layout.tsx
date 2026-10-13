@@ -1,5 +1,5 @@
 import { Stack, useRouter } from 'expo-router';
-import { Platform } from 'react-native';
+import { Appearance, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
@@ -16,7 +16,13 @@ import { eventDetailHref } from '../src/utils/eventDetail';
 import { ThemeProvider, useTheme } from '../src/theme';
 
 function RootNavigator() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, mode, resolvedScheme } = useTheme();
+  // Native pickers, alerts and the keyboard follow the app's choice; Match
+  // iPhone hands control back to iOS.
+  useEffect(() => {
+    if (Platform.OS === 'web' || typeof Appearance.setColorScheme !== 'function') return;
+    Appearance.setColorScheme(mode === 'system' ? 'unspecified' : resolvedScheme);
+  }, [mode, resolvedScheme]);
   // Request location once at launch; screens share the cached result.
   useUserGeo();
 

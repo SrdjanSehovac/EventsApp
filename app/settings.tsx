@@ -33,16 +33,26 @@ import {
 } from '../src/reminders';
 import { leadOptionLabel } from '../src/utils/savedPlan';
 import { useReminderState } from '../src/reminders/useReminders';
-import { useTheme } from '../src/theme';
+import { THEME_MODES, useTheme, type ThemeMode } from '../src/theme';
 import { openExternalUrl } from '../src/utils/eventDetail';
 import { friendlyPublicError } from '../src/utils/publicError';
+
+const APPEARANCE_LABELS: Record<
+  ThemeMode,
+  { title: string; hint: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  auto: { title: 'Auto', hint: 'Light from sunrise to sunset, dark at night', icon: 'partly-sunny-outline' },
+  light: { title: 'Light', hint: 'Always light', icon: 'sunny-outline' },
+  dark: { title: 'Dark', hint: 'Always dark', icon: 'moon-outline' },
+  system: { title: 'Match iPhone', hint: 'Follow the iPhone Light/Dark setting', icon: 'phone-portrait-outline' },
+};
 
 // Placeholders until the public pages exist.
 const PRIVACY_URL = 'https://51-161-102-13.sslip.io/privacy';
 const HELP_URL = 'mailto:support@ripkeed.com?subject=EventsApp%20help';
 
 export default function SettingsScreen() {
-  const { colors, typography, spacing, radius, shadows } = useTheme();
+  const { colors, typography, spacing, radius, shadows, mode, setMode } = useTheme();
   const router = useRouter();
   const { user, isSignedIn, status, signOut, deleteAccount } = useAuth();
   const favourites = useFavourites(isSignedIn);
@@ -178,6 +188,40 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         ) : null}
+
+        {sectionTitle('Appearance')}
+        <View style={card}>
+          {THEME_MODES.map((option, i) => {
+            const on = mode === option;
+            return (
+              <View key={option}>
+                {i > 0 ? <View style={[styles.divider, { backgroundColor: colors.hairline }]} /> : null}
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={APPEARANCE_LABELS[option].title}
+                  onPress={() => setMode(option)}
+                  style={styles.row}
+                >
+                  <Ionicons name={APPEARANCE_LABELS[option].icon} size={20} color={colors.primary} />
+                  <View style={{ flex: 1, marginLeft: spacing.md }}>
+                    <Text style={[typography.body, { color: colors.text, fontWeight: '600' }]}>
+                      {APPEARANCE_LABELS[option].title}
+                    </Text>
+                    <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                      {APPEARANCE_LABELS[option].hint}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={on ? 'radio-button-on' : 'radio-button-off'}
+                    size={22}
+                    color={on ? colors.primary : colors.textMuted}
+                  />
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
 
         {sectionTitle('Reminders & calendar')}
         <View style={card}>

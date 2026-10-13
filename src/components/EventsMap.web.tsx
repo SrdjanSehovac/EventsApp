@@ -22,6 +22,7 @@ import { useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import { isEventLive } from '../utils/eventLive';
+import { webTileFilter, webTileUrl } from '../utils/mapStyle';
 import { formatPinBadge } from '../utils/eventFormat';
 
 export type EventsMapHandle = {
@@ -66,7 +67,15 @@ function buildLeafletHtml(
   region: Region,
   selectedEventId: string | null | undefined,
   mapType: MapBaseType,
-  chrome: { background: string; primary: string; pin: string },
+  chrome: {
+    background: string;
+    primary: string;
+    pin: string;
+    pinText: string;
+    pinStroke: string;
+    pinOutline: string;
+    mapStyle: 'light' | 'dark';
+  },
 ): string {
   const nowMs = Date.now();
   // Pass every pin individually — leaflet.markercluster handles zoom splits.
@@ -104,6 +113,7 @@ function buildLeafletHtml(
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; background: ${chrome.background}; }
+    .theme-tiles { filter: ${webTileFilter(chrome.mapStyle)}; }
     .evt-wrap {
       position: relative;
       display: flex;
@@ -117,17 +127,18 @@ function buildLeafletHtml(
       height: 18px;
       border-radius: 9px;
       background: var(--c, ${chrome.pin});
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(17,24,39,.22);
+      border: 2.5px solid ${chrome.pinStroke};
+      box-shadow: 0 0 0 1.5px ${chrome.pinOutline}, 0 3px 6px rgba(0,0,0,.45);
     }
     .evt-badge {
-      background: var(--c, ${chrome.primary});
-      color: #fff;
-      font: 800 11px/1.2 system-ui, sans-serif;
-      padding: 4px 8px;
+      background: var(--c, ${chrome.pin});
+      color: ${chrome.pinText};
+      font: 900 12px/1.2 system-ui, sans-serif;
+      letter-spacing: .2px;
+      padding: 4px 9px;
       border-radius: 999px;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(17,24,39,.22);
+      border: 2.5px solid ${chrome.pinStroke};
+      box-shadow: 0 0 0 1.5px ${chrome.pinOutline}, 0 3px 6px rgba(0,0,0,.45);
       white-space: nowrap;
       min-width: 44px;
       min-height: 28px;
@@ -146,16 +157,25 @@ function buildLeafletHtml(
       filter: saturate(1.25) brightness(1.08) contrast(1.05);
       box-shadow:
         0 0 0 2px #ffffff,
-        0 0 0 5px var(--c, ${chrome.primary}),
+        0 0 0 5px var(--c, ${chrome.pin}),
         0 4px 12px rgba(17,24,39,.36);
     }
     .evt-caret {
       width: 0; height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 7px solid var(--c, ${chrome.primary});
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid ${chrome.pinStroke};
       margin-top: -1px;
-      filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
+      position: relative;
+      filter: drop-shadow(0 0 1px ${chrome.pinOutline}) drop-shadow(0 2px 2px rgba(0,0,0,.45));
+    }
+    .evt-caret::after {
+      content: '';
+      position: absolute;
+      left: -4.5px; top: -10px;
+      border-left: 4.5px solid transparent;
+      border-right: 4.5px solid transparent;
+      border-top: 6px solid var(--c, ${chrome.pin});
       transition: filter 140ms ease-out;
     }
     .evt-wrap.selected .evt-caret {
@@ -163,11 +183,11 @@ function buildLeafletHtml(
     }
     .evt-cluster {
       background: ${clusterColor};
-      color: #fff;
-      font: 800 13px/1 system-ui, sans-serif;
-      border: 3px solid #fff;
+      color: ${chrome.pinText};
+      font: 900 13px/1 system-ui, sans-serif;
+      border: 3px solid ${chrome.pinStroke};
       border-radius: 999px;
-      box-shadow: 0 2px 8px rgba(17,24,39,.28);
+      box-shadow: 0 0 0 1.5px ${chrome.pinOutline}, 0 3px 8px rgba(0,0,0,.45);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -180,9 +200,9 @@ function buildLeafletHtml(
       width: 0; height: 0;
       border-left: 7px solid transparent;
       border-right: 7px solid transparent;
-      border-top: 8px solid ${clusterColor};
+      border-top: 9px solid ${chrome.pinStroke};
       margin-top: -2px;
-      filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
+      filter: drop-shadow(0 0 1px ${chrome.pinOutline}) drop-shadow(0 2px 2px rgba(0,0,0,.45));
     }
     .leaflet-div-icon, .leaflet-marker-icon {
       background: transparent;
@@ -196,8 +216,9 @@ function buildLeafletHtml(
   <script>
     const pins = ${JSON.stringify(markers)};
     const map = L.map('map', { zoomControl: true, maxZoom: 19 }).setView([${centerLat}, ${centerLng}], ${zoom});
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    const osm = L.tileLayer('${webTileUrl(chrome.mapStyle)}', {
       maxZoom: 19,
+      className: 'theme-tiles',
       attribution: '&copy; OpenStreetMap, HOT'
     });
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -406,11 +427,15 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           background: colors.background,
           primary: colors.primary,
           pin: colors.pin,
+          pinText: colors.pinText,
+          pinStroke: colors.pinStroke,
+          pinOutline: colors.pinOutline,
+          mapStyle: colors.mapStyle,
         }),
       // Rebuild on pin set / basemap / chrome — clustering lives inside Leaflet
       // and recomputes on every zoom/pan without a React rebuild.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [pins, mapType, colors.background, colors.primary, colors.pin],
+      [pins, mapType, colors.background, colors.primary, colors.pin, colors.mapStyle],
     );
 
     return (

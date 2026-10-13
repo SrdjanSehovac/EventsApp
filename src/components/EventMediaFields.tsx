@@ -103,7 +103,7 @@ export function EventMediaFields({
       <View style={[styles.photoRow, { gap: spacing.sm, marginBottom: spacing.md }]}>
         {photoUrls.map((uri) => (
           <View key={uri} style={styles.thumbWrap}>
-            <Image source={{ uri }} style={[styles.thumb, { borderRadius: radius.sm }]} />
+            <Image source={{ uri }} style={[styles.thumb, { borderRadius: radius.sm, backgroundColor: colors.surfaceElevated }]} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Remove photo"
@@ -201,7 +201,6 @@ const styles = StyleSheet.create({
   thumb: {
     width: 72,
     height: 72,
-    backgroundColor: '#EEE',
   },
   remove: {
     position: 'absolute',

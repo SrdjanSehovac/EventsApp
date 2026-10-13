@@ -26,6 +26,7 @@ import {
   type PinCluster,
 } from '../utils/clusterPins';
 import { formatPinBadge } from '../utils/eventFormat';
+import { mapStyleFor } from '../utils/mapStyle';
 import type { MapBaseType } from '../browse';
 
 export type EventsMapHandle = {
@@ -53,6 +54,7 @@ type EventsMapProps = {
 type PinMarkerProps = {
   cluster: PinCluster;
   fill: string;
+  textColor: string;
   pinStroke: string;
   pinOutline: string;
   onPress: (cluster: PinCluster) => void;
@@ -61,6 +63,7 @@ type PinMarkerProps = {
 const PinMarker = memo(function PinMarker({
   cluster,
   fill,
+  textColor,
   pinStroke,
   pinOutline,
   onPress,
@@ -97,42 +100,47 @@ const PinMarker = memo(function PinMarker({
       onPress={() => onPress(cluster)}
     >
       <View collapsable={false} style={styles.markerHit} pointerEvents="none">
-        {showDot ? (
-          <View
-            style={[
-              styles.dot,
-              {
-                backgroundColor: fill,
-                borderColor: pinStroke,
-                shadowColor: pinOutline,
-              },
-            ]}
-          />
-        ) : (
-          <View
-            style={[
-              cluster.count > 1 ? styles.cluster : styles.badge,
-              cluster.count > 1
-                ? { width: badgeWidth, height: badgeWidth, borderRadius: badgeWidth / 2 }
-                : { width: badgeWidth },
-              {
-                backgroundColor: fill,
-                borderColor: pinStroke,
-                shadowColor: pinOutline,
-              },
-            ]}
-          >
-            <Text
+        {/* Outer halo ring, white inner ring, solid fill, then a two-layer
+            pointer tip so the tip reads on both pale and green tiles. */}
+        <View
+          style={[
+            styles.halo,
+            {
+              borderColor: pinOutline,
+              shadowColor: pinOutline,
+              borderRadius: showDot ? 13 : cluster.count > 1 ? badgeWidth / 2 + 3 : 999,
+            },
+          ]}
+        >
+          {showDot ? (
+            <View style={[styles.dot, { backgroundColor: fill, borderColor: pinStroke }]} />
+          ) : (
+            <View
               style={[
-                styles.badgeText,
-                cluster.count > 1 && styles.clusterText,
+                cluster.count > 1 ? styles.cluster : styles.badge,
+                cluster.count > 1
+                  ? { width: badgeWidth, height: badgeWidth, borderRadius: badgeWidth / 2 }
+                  : { width: badgeWidth },
+                { backgroundColor: fill, borderColor: pinStroke },
               ]}
             >
-              {label}
-            </Text>
-          </View>
-        )}
-        <View style={[styles.caret, { borderTopColor: fill }]} />
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: textColor },
+                  cluster.count > 1 && styles.clusterText,
+                ]}
+              >
+                {label}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.tipWrap}>
+          <View style={[styles.tipOuter, { borderTopColor: pinOutline }]} />
+          <View style={[styles.tipRing, { borderTopColor: pinStroke }]} />
+          <View style={[styles.tipFill, { borderTopColor: fill }]} />
+        </View>
       </View>
     </Marker>
   );
@@ -185,6 +193,10 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           style={styles.map}
           initialRegion={initialRegion}
           mapType={mapType === 'satellite' ? 'satellite' : 'standard'}
+          // Apple Maps: light or dark base to match the app theme.
+          userInterfaceStyle={colors.mapStyle}
+          // Google Maps (Android): muted parks so pins stand out.
+          customMapStyle={mapStyleFor(colors.mapStyle)}
           showsUserLocation={Boolean(userGeo)}
           showsMyLocationButton={false}
           showsCompass={false}
@@ -207,6 +219,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
                 key={cluster.id}
                 cluster={cluster}
                 fill={colors.pin}
+                textColor={colors.pinText}
                 pinStroke={colors.pinStroke}
                 pinOutline={colors.pinOutline}
                 onPress={(next) => {
@@ -271,29 +284,28 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     overflow: 'visible',
   },
+  halo: {
+    borderWidth: 1.5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 3,
+    elevation: 5,
+  },
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    borderWidth: 2,
+    borderWidth: 2.5,
     minWidth: 44,
     minHeight: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
-    elevation: 3,
   },
   dot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
-    elevation: 3,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2.5,
   },
   cluster: {
     minWidth: 44,
@@ -303,26 +315,51 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
-    elevation: 3,
   },
   badgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
   clusterText: {
     fontSize: 14,
   },
-  caret: {
+  tipWrap: {
+    width: 20,
+    height: 12,
+    marginTop: -2,
+    alignItems: 'center',
+  },
+  tipOuter: {
+    position: 'absolute',
+    top: 0,
     width: 0,
     height: 0,
-    marginTop: -1,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  tipRing: {
+    position: 'absolute',
+    top: 0,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  tipFill: {
+    position: 'absolute',
+    top: 0,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6.5,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },
