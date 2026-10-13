@@ -1,7 +1,7 @@
 import { PRODUCT_CITIES } from '../config/cities';
 import { NEIGHBOURHOODS } from '../config/neighbourhoods';
 import { regionForZoom } from './mapRegion';
-import { searchPlaces } from './placeSearch';
+import { searchPlaces, topPlace } from './placeSearch';
 
 function check(name: string, actual: unknown, expected: unknown) {
   const actualJson = JSON.stringify(actual);
@@ -138,3 +138,10 @@ for (const name of ['Downtown', 'Old East Village', 'Wortley Village', 'Masonvil
 const tight = regionForZoom(43.65, -79.38, 14);
 const wide = regionForZoom(43.65, -79.38, 12);
 check('a closer zoom is a smaller region', tight.latitudeDelta < wide.latitudeDelta, true);
+
+// Return picks the top location match.
+check('Return on "toronto" picks the city', topPlace(searchPlaces('toronto'))?.key, 'city:toronto');
+check('Return on "lond" picks London', topPlace(searchPlaces('lond'))?.title, 'London');
+check('Return on "yorkville" picks the neighbourhood', topPlace(searchPlaces('yorkville'))?.title, 'Yorkville');
+check('Return on gibberish picks nothing', topPlace(searchPlaces('zzqqxx')), null);
+check('cached lookups return the same result', searchPlaces('ottawa') === searchPlaces('Ottawa'), true);

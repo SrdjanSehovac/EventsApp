@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,13 +10,19 @@ import {
   View,
 } from 'react-native';
 
-import { regionForCurrentCity, useBrowse, useEnsureMapViewport } from '../../src/browse';
+import {
+  regionForCurrentCity,
+  useBrowse,
+  useEnsureMapViewport,
+  usePlaceActions,
+} from '../../src/browse';
 import { findProductCity } from '../../src/config/cities';
 import {
   BrowseHeader,
   type BrowseSearchBarHandle,
   EventCard,
   FilterSheet,
+  LocationChip,
   SelectField,
   countActiveFilters,
 } from '../../src/components';
@@ -27,7 +33,7 @@ import {
 } from '../../src/hooks';
 import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
-import type { PublicSortField } from '../../src/types/events';
+import type { EventListItem, PublicSortField } from '../../src/types/events';
 import {
   buildAreaListParams,
   countEventsInView,
@@ -60,7 +66,16 @@ export default function EventsScreen() {
     commitViewport,
     loadedPins,
     mapBoxTotal,
+    place,
+    setPlace,
+    placeEpoch,
   } = useBrowse();
+  const { goNearMe } = usePlaceActions();
+  const listRef = useRef<FlatList<EventListItem>>(null);
+  // A new place starts the list from the top.
+  useEffect(() => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [placeEpoch]);
   useEnsureMapViewport();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
@@ -119,10 +134,17 @@ export default function EventsScreen() {
     }
     return withEndedLast(ordered);
   }, [area.honoured, area.items, visiblePins, viewport, sort]);
-  const isLoading = !viewport || !geoQuery.isFetched || eventsQuery.isLoading;
+  const isLoading =
+    !viewport ||
+    !geoQuery.isFetched ||
+    eventsQuery.isLoading ||
+    (eventsQuery.isFetching && !eventsQuery.isFetchingNextPage && !eventsQuery.data);
 
   function showAllInArea() {
     patchFilters({ neighbourhood: null });
+    if (place?.kind === 'neighbourhood' && focusedCity) {
+      setPlace({ kind: 'city', label: focusedCity.name, citySlug: focusedCity.slug });
+    }
     commitViewport(
       regionForCurrentCity(filters.city, geoQuery.data),
       'program',
@@ -167,6 +189,11 @@ export default function EventsScreen() {
               ? `${total.toLocaleString()} event${total === 1 ? '' : 's'} in this map area`
               : 'Events in this map area'}
           </Text>
+          {place ? (
+            <View style={styles.placeRow}>
+              <LocationChip label={place.label} onClear={goNearMe} />
+            </View>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
@@ -210,6 +237,7 @@ export default function EventsScreen() {
           </Text>
         ) : (
           <FlatList
+            ref={listRef}
             style={styles.list}
             data={items}
             keyExtractor={(item) => item.event_id}
@@ -283,6 +311,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     zIndex: 2,
     backgroundColor: 'rgba(0,0,0,0.01)',
+  },
+  placeRow: {
+    flexDirection: 'row',
+    paddingTop: 4,
   },
   showAll: {
     minHeight: 44,

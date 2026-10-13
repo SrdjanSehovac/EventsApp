@@ -11,12 +11,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { Region } from 'react-native-maps';
 
-import { useBrowse, useEnsureMapViewport } from '../../src/browse';
+import { useBrowse, useEnsureMapViewport, usePlaceActions } from '../../src/browse';
 import {
   BrowseSearchBar,
   type BrowseSearchBarHandle,
   EventsMap,
   FilterSheet,
+  LocationChip,
   MapEventSheet,
   countActiveFilters,
   filtersToMapParams,
@@ -34,8 +35,6 @@ import {
 } from '../../src/utils/areaQuery';
 import {
   DEFAULT_MAP_GEO,
-  INITIAL_RADIUS_KM,
-  regionForRadiusKm,
 } from '../../src/utils/mapRegion';
 import { friendlyPublicError } from '../../src/utils/publicError';
 import {
@@ -46,6 +45,8 @@ import {
   mergeViewportPins,
   viewportMeaningfullyChanged,
 } from '../../src/utils/mapViewport';
+
+const PROGRAM_MOVE_MS = 650;
 
 export default function MapScreen() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
@@ -59,12 +60,14 @@ export default function MapScreen() {
     viewport,
     viewportReason,
     commitViewport,
-    setAppliedCitySlug,
     loadedPins,
     setLoadedPins,
     mapBoxTotal,
     setMapBoxTotal,
+    place,
+    placeEpoch,
   } = useBrowse();
+  const { goNearMe } = usePlaceActions();
   useEnsureMapViewport();
   const geoQuery = useUserGeo();
   const mapRef = useRef<EventsMapHandle>(null);
@@ -77,6 +80,9 @@ export default function MapScreen() {
   const pinKeyRef = useRef('');
   const loadedRef = useRef<EventMapPin[]>([]);
   const skipFirstAnimate = useRef(true);
+  const epochRef = useRef(placeEpoch);
+  /** Camera moves we started ourselves end before this time; ignore their region callbacks. */
+  const programMoveUntil = useRef(0);
 
   const resolvedCenter = useMemo<UserGeo | null>(() => {
     if (!geoQuery.isFetched) return null;
@@ -98,13 +104,21 @@ export default function MapScreen() {
       return;
     }
     if (viewportReason === 'gesture') return;
-    mapRef.current?.animateToRegion(viewport);
+    // A jump must not be followed by a second "gesture" fetch when the
+    // animation settles, or by an older pan that was still debouncing.
+    programMoveUntil.current = Date.now() + PROGRAM_MOVE_MS + 400;
+    setGestureRegion(null);
+    mapRef.current?.animateToRegion(viewport, PROGRAM_MOVE_MS);
   }, [viewport, viewportReason]);
 
   const mapParams = useMemo(() => filtersToMapParams(filters), [filters]);
   const mapQuery = useMapViewport(mapParams, viewport, Boolean(viewport));
 
   useEffect(() => {
+    if (epochRef.current !== placeEpoch) {
+      epochRef.current = placeEpoch;
+      loadedRef.current = [];
+    }
     if (!viewport || !mapQuery.data) return;
     const key = JSON.stringify(mapParams);
     // New filters are still in flight: keep every marker until the new
@@ -138,6 +152,7 @@ export default function MapScreen() {
     mapParams,
     setLoadedPins,
     setMapBoxTotal,
+    placeEpoch,
   ]);
 
   const debouncedQ = useDebouncedValue(filters.q);
@@ -176,6 +191,7 @@ export default function MapScreen() {
 
   const onRegionChangeComplete = useCallback((region: Region) => {
     panDismissed.current = false;
+    if (Date.now() < programMoveUntil.current) return;
     setGestureRegion(region);
   }, []);
 
@@ -197,11 +213,13 @@ export default function MapScreen() {
 
   const onRecenter = useCallback(() => {
     if (!resolvedCenter) return;
-    setAppliedCitySlug(null);
-    patchFilters({ city: null, neighbourhood: null });
     setSelectedPins(null);
-    commitViewport(regionForRadiusKm(resolvedCenter, INITIAL_RADIUS_KM), 'program');
-  }, [resolvedCenter, patchFilters, setAppliedCitySlug, commitViewport]);
+    goNearMe();
+  }, [resolvedCenter, goNearMe]);
+
+  useEffect(() => {
+    setSelectedPins(null);
+  }, [placeEpoch]);
 
   if (!viewport) {
     return (
@@ -222,14 +240,20 @@ export default function MapScreen() {
   }
 
   const countReady = areaTotal > 0 || Boolean(areaQuery.data || mapQuery.data);
+  // Still showing the previous area's answer while the new one loads.
+  const updating =
+    mapQuery.isFetching && (mapQuery.isPlaceholderData || mapBoxTotal == null);
   const statusLabel = error
     ? friendlyPublicError(
         error,
         "Can't load the map right now. Check your connection and try again.",
       )
-    : countReady
-      ? `${areaTotal.toLocaleString()} event${areaTotal === 1 ? '' : 's'} in view`
-      : 'Updating map…';
+    : updating || !countReady
+      ? place
+        ? `Loading ${place.label}…`
+        : 'Updating map…'
+      : `${areaTotal.toLocaleString()} event${areaTotal === 1 ? '' : 's'} in view`
+
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -287,6 +311,10 @@ export default function MapScreen() {
             onActiveChange={setSearchActive}
             filterCount={filterCount}
           />
+          <View style={styles.chipRow} pointerEvents="box-none">
+          {place ? (
+            <LocationChip label={place.label} onClear={onRecenter} />
+          ) : null}
           <View
             pointerEvents="none"
             style={[
@@ -306,6 +334,10 @@ export default function MapScreen() {
             >
               {statusLabel}
             </Text>
+            {updating && !error ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : null}
+          </View>
           </View>
         </SafeAreaView>
 
@@ -381,8 +413,16 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     gap: 10,
   },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   countChip: {
-    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },

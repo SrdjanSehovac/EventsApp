@@ -38,4 +38,4 @@ export {
   RecentScrapes,
   CityExplorer,
 } from './admin';
-export type { AdminInsights, CoverageMetric } from './admin';
+export type { AdminInsights, CoverageMetric } from './admin';export { LocationChip } from './LocationChip';

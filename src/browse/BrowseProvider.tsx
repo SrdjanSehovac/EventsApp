@@ -18,6 +18,13 @@ import { loadListSort, saveListSort } from '../preferences/listSort';
 import type { EventMapPin, PublicSortField } from '../types/events';
 import { DEFAULT_LIST_SORT } from '../utils/listSort';
 
+/** The place picked from search, shown as a chip so it is easy to clear. */
+export type BrowsePlace = {
+  kind: 'city' | 'neighbourhood';
+  label: string;
+  citySlug: string;
+};
+
 export type MapBaseType = 'standard' | 'satellite';
 
 /** Gesture commits follow a finger. Program commits come from the city picker or Show all. */
@@ -45,6 +52,12 @@ type BrowseContextValue = {
   /** Explicit box total from GET /events/map `total`, when the server sends it. */
   mapBoxTotal: number | null;
   setMapBoxTotal: (total: number | null) => void;
+  /** Place chosen from search; null means "near me" or a free pan. */
+  place: BrowsePlace | null;
+  setPlace: (place: BrowsePlace | null) => void;
+  /** Bumped on every place jump so screens can reset (scroll to top, clear pins). */
+  placeEpoch: number;
+  bumpPlaceEpoch: () => void;
 };
 
 const BrowseContext = createContext<BrowseContextValue | null>(null);
@@ -82,6 +95,9 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
   const [appliedCitySlug, setAppliedCitySlug] = useState<string | null>(null);
   const [loadedPins, setLoadedPinsState] = useState<EventMapPin[]>([]);
   const [mapBoxTotal, setMapBoxTotal] = useState<number | null>(null);
+  const [place, setPlace] = useState<BrowsePlace | null>(null);
+  const [placeEpoch, setPlaceEpoch] = useState(0);
+  const bumpPlaceEpoch = useCallback(() => setPlaceEpoch((n) => n + 1), []);
   const setLoadedPins = useCallback((pins: EventMapPin[]) => {
     setLoadedPinsState(pins);
   }, []);
@@ -118,6 +134,10 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
       setLoadedPins,
       mapBoxTotal,
       setMapBoxTotal,
+      place,
+      setPlace,
+      placeEpoch,
+      bumpPlaceEpoch,
     }),
     [
       filters,
@@ -134,6 +154,9 @@ export function BrowseProvider({ children }: { children: ReactNode }) {
       loadedPins,
       setLoadedPins,
       mapBoxTotal,
+      place,
+      placeEpoch,
+      bumpPlaceEpoch,
     ],
   );
 

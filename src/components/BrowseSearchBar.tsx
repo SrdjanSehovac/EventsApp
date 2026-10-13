@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  useDeferredValue,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -18,14 +19,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { useBrowse } from '../browse';
-import { findProductCity, productCityQueryValue } from '../config/cities';
-import { useCities } from '../hooks';
+import { useBrowse, usePlaceActions } from '../browse';
+import { findProductCity } from '../config/cities';
 import { useTheme } from '../theme';
 import { eventDetailHref } from '../utils/eventDetail';
-import { regionForRadiusKm, regionForZoom } from '../utils/mapRegion';
 import { pinMatchesQuery } from '../utils/areaCount';
-import { searchPlaces, type PlaceMatch } from '../utils/placeSearch';
+import { searchPlaces, topPlace, type PlaceMatch } from '../utils/placeSearch';
 
 type BrowseSearchBarProps = {
   value: string;
@@ -63,14 +62,15 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
   ) {
     const { colors, typography, spacing, radius, shadows } = useTheme();
     const router = useRouter();
-    const {
-      filters,
-      patchFilters,
-      setAppliedCitySlug,
-      commitViewport,
-      loadedPins,
-    } = useBrowse();
-    const citiesQuery = useCities();
+    const { filters, loadedPins } = useBrowse();
+    const { goToPlace } = usePlaceActions();
+    // Typing stays local: the map and list only change when a place or an
+    // event search is committed, so keystrokes never refetch or hide pins.
+    const [draft, setDraft] = useState(value);
+    useEffect(() => {
+      setDraft(value);
+    }, [value]);
+    const deferredDraft = useDeferredValue(draft);
     const [open, setOpen] = useState(false);
     const openRef = useRef(false);
     const stickRef = useRef(false);
@@ -114,37 +114,43 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
 
     const places = useMemo(
       () =>
-        searchPlaces(value, {
+        searchPlaces(deferredDraft, {
           citySlug: findProductCity(filters.city)?.slug ?? null,
         }),
-      [value, filters.city],
+      [deferredDraft, filters.city],
     );
     const events = useMemo(() => {
-      const query = value.trim();
+      const query = deferredDraft.trim();
       if (!query) return [];
       return loadedPins.filter((pin) => pinMatchesQuery(pin, query)).slice(0, EVENT_LIMIT);
-    }, [loadedPins, value]);
+    }, [loadedPins, deferredDraft]);
 
-    const showPanel = open && value.trim().length > 0;
+    const showPanel = open && draft.trim().length > 0;
     const hasPlaces = places.cities.length > 0 || places.neighbourhoods.length > 0;
 
     function choosePlace(place: PlaceMatch) {
-      const city = findProductCity(place.citySlug);
-      if (!city) return;
-      // Mark the city applied before the filter update so a neighbourhood
-      // zoom is not replaced by the city-wide camera.
-      setAppliedCitySlug(city.slug);
-      patchFilters({
-        city: productCityQueryValue(city, citiesQuery.data ?? []),
-        neighbourhood: null,
-        q: '',
-      });
-      const region =
-        place.kind === 'neighbourhood' && place.zoom != null
-          ? regionForZoom(place.lat, place.lng, place.zoom)
-          : regionForRadiusKm({ lat: city.lat, lng: city.lng }, city.radiusKm);
-      commitViewport(region, 'program');
       close();
+      setDraft('');
+      goToPlace(place);
+    }
+
+    function submit() {
+      const text = draft.trim();
+      if (!text) {
+        close();
+        return;
+      }
+      // Return on a place name goes to the best place match; anything
+      // else becomes an event search in the current area.
+      const place = topPlace(searchPlaces(text, {
+        citySlug: findProductCity(filters.city)?.slug ?? null,
+      }));
+      if (place) {
+        choosePlace(place);
+        return;
+      }
+      close();
+      onChangeText(text);
     }
 
     return (
@@ -163,11 +169,14 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
             <Ionicons name="search" size={18} color={colors.textMuted} />
             <TextInput
               ref={inputRef}
-              value={value}
+              value={draft}
               onChangeText={(next) => {
                 stickRef.current = false;
-                setOpen(true);
-                onChangeText(next);
+                if (!openRef.current) {
+                  openRef.current = true;
+                  setOpen(true);
+                }
+                setDraft(next);
               }}
               onFocus={() => setOpen(true)}
               onBlur={() => {
@@ -185,18 +194,21 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
               autoCorrect={false}
               returnKeyType="search"
               blurOnSubmit
-              onSubmitEditing={() => close()}
+              onSubmitEditing={submit}
               style={[
                 typography.body,
                 styles.input,
                 { color: colors.text, marginLeft: spacing.sm },
               ]}
             />
-            {value ? (
+            {draft ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Clear search"
-                onPress={() => onChangeText('')}
+                onPress={() => {
+                  setDraft('');
+                  if (value) onChangeText('');
+                }}
                 hitSlop={8}
                 style={styles.clear}
               >

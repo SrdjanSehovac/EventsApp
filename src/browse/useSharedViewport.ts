@@ -34,12 +34,19 @@ export function useEnsureMapViewport() {
     commitViewport,
     appliedCitySlug,
     setAppliedCitySlug,
+    place,
+    setPlace,
   } = useBrowse();
   const geoQuery = useUserGeo();
   const focusedCity = useMemo(
     () => findProductCity(filters.city),
     [filters.city],
   );
+
+  // A city changed from Filters makes the search chip stale.
+  useEffect(() => {
+    if (place && place.citySlug !== (focusedCity?.slug ?? null)) setPlace(null);
+  }, [place, focusedCity, setPlace]);
 
   useEffect(() => {
     if (viewport || !geoQuery.isFetched) return;

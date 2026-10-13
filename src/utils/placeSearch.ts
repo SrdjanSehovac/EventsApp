@@ -11,6 +11,8 @@ export type PlaceMatch = {
   lng: number;
   /** Neighbourhood camera. Cities use the product-city radius instead. */
   zoom: number | null;
+  /** Match strength; higher is better. */
+  score: number;
 };
 
 export type PlaceSearchResult = {
@@ -141,7 +143,39 @@ function ranked<T>(
     .map((row) => row.match);
 }
 
+const CACHE_LIMIT = 200;
+const cache = new Map<string, PlaceSearchResult>();
+
+/** Cached: retyping or backspacing never redoes the fuzzy scan. */
 export function searchPlaces(
+  query: string,
+  options?: { citySlug?: string | null },
+): PlaceSearchResult {
+  const key = `${options?.citySlug ?? ''}|${foldPlaceText(query)}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const result = computePlaces(query, options);
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, result);
+  return result;
+}
+
+/**
+ * The place Return should jump to: the best city when it is an exact or
+ * prefix hit, otherwise the best of cities and neighbourhoods.
+ */
+export function topPlace(result: PlaceSearchResult): PlaceMatch | null {
+  const city = result.cities[0] ?? null;
+  const hood = result.neighbourhoods[0] ?? null;
+  if (!city) return hood;
+  if (!hood || city.score >= 840 || city.score >= hood.score) return city;
+  return hood;
+}
+
+function computePlaces(
   query: string,
   options?: { citySlug?: string | null },
 ): PlaceSearchResult {
@@ -162,6 +196,7 @@ export function searchPlaces(
       lat: city.lat,
       lng: city.lng,
       zoom: null,
+      score,
     };
     return { score, match, title: city.name };
   }).filter((row) => row.score > 0);
@@ -186,6 +221,7 @@ export function searchPlaces(
       lat: place.lat,
       lng: place.lng,
       zoom: place.zoom,
+      score,
     };
     return [{ score, match, title: place.name }];
   });
