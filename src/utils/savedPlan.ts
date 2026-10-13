@@ -81,3 +81,21 @@ export function calendarWindow(
 export function monthDelta(from: { year: number; month: number }, to: { year: number; month: number }) {
   return (to.year - from.year) * 12 + (to.month - from.month);
 }
+
+/** "Starts in 5 hours", "Starts in 1 hour", "Starts in 30 minutes". */
+export function leadLabel(minutes: number): string {
+  if (minutes % 60 === 0) {
+    const h = minutes / 60;
+    return `Starts in ${h} hour${h === 1 ? '' : 's'}`;
+  }
+  return `Starts in ${minutes} minutes`;
+}
+
+/** Short toggle label: "5 hours before", "30 min before". */
+export function leadOptionLabel(minutes: number): string {
+  if (minutes % 60 === 0) {
+    const h = minutes / 60;
+    return `${h} hour${h === 1 ? '' : 's'} before`;
+  }
+  return `${minutes} min before`;
+}

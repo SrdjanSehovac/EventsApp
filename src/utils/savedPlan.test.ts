@@ -2,6 +2,8 @@ import type { EventListItem } from '../types/events';
 import { dateKeyFromIso } from './calendar';
 import {
   calendarWindow,
+  leadLabel,
+  leadOptionLabel,
   countdownLabel,
   monthDelta,
   nextUp,
@@ -42,3 +44,9 @@ const ninePm = new Date(2026, 9, 15, 21, 0);
 check('UTC timestamps land on the local day', dateKeyFromIso(ninePm.toISOString()), '2026-10-15');
 check('offset timestamps keep their own date', dateKeyFromIso('2026-10-15T21:00:00-04:00'), '2026-10-15');
 check('date-only values are kept', dateKeyFromIso('2026-10-15'), '2026-10-15');
+check('lead text 3h', leadLabel(180), 'Starts in 3 hours');
+check('lead text 1h', leadLabel(60), 'Starts in 1 hour');
+check('lead text 30m', leadLabel(30), 'Starts in 30 minutes');
+check('option label', leadOptionLabel(300), '5 hours before');
+check('5h reminder skipped when start is 4h away', reminderFireDate(new Date(now + 4 * 3600e3).toISOString(), 300, now), null);
+check('30m reminder kept when start is 4h away', reminderFireDate(new Date(now + 4 * 3600e3).toISOString(), 30, now) != null, true);

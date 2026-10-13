@@ -25,7 +25,13 @@ import {
   useMyBusiness,
   useMySubmissions,
 } from '../src/hooks';
-import { ensureNotificationPermission, setRemindersEnabled } from '../src/reminders';
+import {
+  REMINDER_LEADS,
+  ensureNotificationPermission,
+  setReminderLeads,
+  setRemindersEnabled,
+} from '../src/reminders';
+import { leadOptionLabel } from '../src/utils/savedPlan';
 import { useReminderState } from '../src/reminders/useReminders';
 import { useTheme } from '../src/theme';
 import { openExternalUrl } from '../src/utils/eventDetail';
@@ -177,7 +183,7 @@ export default function SettingsScreen() {
         <View style={card}>
           <Toggle
             label="Event reminders"
-            hint="A notification 1 hour before each saved event"
+            hint="Notifications before each saved event"
             value={reminders?.enabled ?? true}
             onChange={(next) => {
               void (async () => {
@@ -188,6 +194,52 @@ export default function SettingsScreen() {
               })();
             }}
           />
+          {(reminders?.enabled ?? true) ? (
+            <View style={styles.leads}>
+              <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 8 }]}>
+                Remind me (pick any)
+              </Text>
+              <View style={styles.leadRow}>
+                {REMINDER_LEADS.map((lead) => {
+                  const chosen = reminders?.leads ?? [60];
+                  const on = chosen.includes(lead);
+                  return (
+                    <Pressable
+                      key={lead}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={leadOptionLabel(lead)}
+                      onPress={() => {
+                        const next = on ? chosen.filter((m) => m !== lead) : [...chosen, lead];
+                        void (async () => {
+                          if (!on) await ensureNotificationPermission();
+                          await setReminderLeads(next, favourites.data?.items ?? []);
+                        })();
+                      }}
+                      style={[
+                        styles.leadChip,
+                        {
+                          borderRadius: radius.full,
+                          borderColor: on ? colors.primary : colors.border,
+                          backgroundColor: on ? colors.primary : 'transparent',
+                        },
+                      ]}
+                    >
+                      {on ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
+                      <Text style={{ fontWeight: '700', fontSize: 13, color: on ? colors.onPrimary : colors.text }}>
+                        {leadOptionLabel(lead)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {(reminders?.leads ?? [60]).length === 0 ? (
+                <Text style={[typography.caption, { color: colors.warning, marginTop: 8 }]}>
+                  No times picked, so no reminders will be sent.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
           <Toggle
             label="Show saved events on My calendar"
@@ -310,6 +362,9 @@ const styles = StyleSheet.create({
   avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   section: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 24, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', minHeight: 52, paddingVertical: 8 },
+  leads: { paddingBottom: 12 },
+  leadRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  leadChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 7 },
   divider: { height: StyleSheet.hairlineWidth },
   btn: { flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   btnWide: { alignSelf: 'stretch', minHeight: 48, alignItems: 'center', justifyContent: 'center' },

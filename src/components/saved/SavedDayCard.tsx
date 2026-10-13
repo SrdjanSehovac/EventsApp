@@ -48,7 +48,7 @@ export const SavedDayCard = memo(function SavedDayCard({
   const image = allowedImageUrl(item.image_url);
   const outbound = resolveOutboundLink(item);
   const place = formatEventPlace(item);
-  const canRemind = remindersOn && Boolean(reminderFireDate(item.starts_at));
+  const canRemind = remindersOn && Boolean(reminderFireDate(item.starts_at, 30));
   const accent = colorForCategory(item.primary_category);
 
   return (
@@ -151,7 +151,7 @@ export const SavedDayCard = memo(function SavedDayCard({
                 color={reminderOff ? colors.textMuted : colors.primary}
               />
               <Switch
-                accessibilityLabel={`Remind me 1 hour before ${item.title}`}
+                accessibilityLabel={`Reminders for ${item.title}`}
                 value={!reminderOff}
                 onValueChange={(on) => void setEventReminder(item, on)}
                 trackColor={{ false: colors.border, true: colors.primaryMuted }}
