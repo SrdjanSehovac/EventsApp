@@ -3,7 +3,7 @@
     "name": "events_app",
     "slug": "events_app",
     "owner": "srdjansehovac",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "eventsapp",
@@ -21,7 +21,10 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Show nearby events on the map and in the list.",
-        "NSPhotoLibraryUsageDescription": "Attach photos to events you post as a verified business."
+        "NSPhotoLibraryUsageDescription": "Attach photos to events you post as a verified business.",
+        "NSCalendarsUsageDescription": "Add events you save to your calendar.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "Add events you save to your calendar.",
+        "NSRemindersUsageDescription": "Add events you save to your reminders."
       },
       "bundleIdentifier": "com.ripkeed.events-app",
       "config": {
@@ -78,7 +81,20 @@
           "imageWidth": 200
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Add events you save to your calendar.",
+          "remindersPermission": "Add events you save to your reminders."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0F766E"
+        }
+      ]
     ]
   }
 }

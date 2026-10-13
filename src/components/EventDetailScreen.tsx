@@ -46,6 +46,7 @@ import { eventPhase } from '../utils/eventLive';
 import { friendlyPublicError } from '../utils/publicError';
 import { parseImageFallback } from '../utils/imageFallback';
 import { EventMapSnippet } from './EventMapSnippet';
+import { AddToCalendarButton } from './AddToCalendarButton';
 import { FavouriteButton } from './FavouriteButton';
 import { ImageFallbackTile } from './ImageFallbackTile';
 import { PhotoViewer } from './PhotoViewer';
@@ -528,6 +529,17 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                     </Text>
                   ))
                 : null}
+              {!ended ? (
+                <AddToCalendarButton
+                  event={{
+                    title: detail.title,
+                    starts_at: detail.starts_at,
+                    ends_at: detail.ends_at,
+                    location: [place.name, place.address].filter(Boolean).join(', ') || null,
+                    url: outbound?.url ?? null,
+                  }}
+                />
+              ) : null}
             </Section>
 
             <Section icon="location-outline" title="Where">

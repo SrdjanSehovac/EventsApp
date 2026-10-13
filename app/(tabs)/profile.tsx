@@ -1,392 +1,190 @@
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { ApiError } from '../../src/api/client';
-import { BusinessCard } from '../../src/components/BusinessCard';
-import { MyCalendar } from '../../src/components/MyCalendar';
-import { MySubmissions } from '../../src/components/MySubmissions';
-import { useAuth, useCalendarAutoSave, useFavourites, useMyBusiness, useMySubmissions } from '../../src/hooks';
+import { SavedCalendar } from '../../src/components/saved/SavedCalendar';
+import { SavedDayCard } from '../../src/components/saved/SavedDayCard';
+import { useAuth, useCalendarAutoSave, useFavourites } from '../../src/hooks';
 import { Screen } from '../../src/layout';
+import { syncReminders } from '../../src/reminders';
+import { useReminderState } from '../../src/reminders/useReminders';
 import { useTheme } from '../../src/theme';
+import type { EventListItem } from '../../src/types/events';
+import { formatEventTime, formatDayHeading, parseEventDate } from '../../src/utils/calendar';
+import { eventDetailHref } from '../../src/utils/eventDetail';
+import { formatEventPlace } from '../../src/utils/eventFormat';
+import { allowedImageUrl } from '../../src/utils/outboundLinks';
 import { friendlyPublicError } from '../../src/utils/publicError';
+import { countdownLabel, nextUp, splitSaved } from '../../src/utils/savedPlan';
 
-function shouldShowFavouritesError(error: unknown) {
-  if (!error) return false;
-  if (error instanceof ApiError && (error.status === 404 || error.status === 501)) {
-    return false;
-  }
-  if (
-    error instanceof Error &&
-    /failed to fetch|network request failed|load failed/i.test(error.message)
-  ) {
-    return false;
-  }
-  return true;
+function quietError(error: unknown) {
+  if (!error) return true;
+  if (error instanceof ApiError && (error.status === 404 || error.status === 501)) return true;
+  return error instanceof Error && /failed to fetch|network request failed|load failed/i.test(error.message);
 }
 
-export default function ProfileScreen() {
+/** Re-render each minute so the countdown and "Happening now" stay current. */
+function useMinuteClock() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+export default function SavedScreen() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
-  const { user, isSignedIn, status, signOut, deleteAccount } = useAuth();
   const router = useRouter();
+  const { isSignedIn, status } = useAuth();
   const favouritesQuery = useFavourites(isSignedIn);
   const calendarAutoSave = useCalendarAutoSave();
-  const favouriteItems = favouritesQuery.data?.items ?? [];
-  const calendarItems = calendarAutoSave.enabled ? favouriteItems : [];
-  const submissionsQuery = useMySubmissions(isSignedIn);
-  const businessQuery = useMyBusiness(isSignedIn);
-  const initial = user?.display_name?.trim()?.[0]?.toUpperCase() ?? '?';
+  const reminders = useReminderState();
+  const now = useMinuteClock();
+  const [pastOpen, setPastOpen] = useState(false);
+
+  const items = useMemo(() => favouritesQuery.data?.items ?? [], [favouritesQuery.data]);
+  const { upcoming, past } = useMemo(() => splitSaved(items, now), [items, now]);
+  const hero = useMemo(() => nextUp(items, now), [items, now]);
+  const calendarItems = calendarAutoSave.enabled ? upcoming : [];
+  const remindersOn = reminders?.enabled ?? true;
+  const offList = reminders?.off ?? [];
+
+  useEffect(() => {
+    if (items.length) void syncReminders(items).catch(() => undefined);
+  }, [items]);
 
   return (
     <Screen>
       <ScrollView
-        style={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.lg }}
+        contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.xxl }}
       >
-        <Text style={[typography.title, { color: colors.text }]}>Saved</Text>
-        <Text
-          style={[
-            typography.caption,
-            { color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg },
-          ]}
-        >
-          Calendar of saved events, account, and posting
-        </Text>
-
-        {shouldShowFavouritesError(favouritesQuery.error) ? (
-          <Text
-            style={[
-              typography.caption,
-              { color: colors.danger, marginBottom: spacing.md },
-            ]}
+        <View style={styles.titleRow}>
+          <Text style={[typography.title, { color: colors.text, flex: 1 }]}>Saved</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Submit an event"
+            onPress={() => router.push('/submit-event')}
+            hitSlop={8}
+            style={[styles.iconBtn, { backgroundColor: colors.surface }]}
           >
-            {friendlyPublicError(
-              favouritesQuery.error,
-              "Couldn't load saved events. Please try again.",
-            )}
+            <Ionicons name="add" size={22} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Account and settings"
+            onPress={() => router.push('/settings')}
+            hitSlop={8}
+            style={[styles.iconBtn, { backgroundColor: colors.surface }]}
+          >
+            <Ionicons name="person-circle-outline" size={22} color={colors.primary} />
+          </Pressable>
+        </View>
+
+        {!isSignedIn && status !== 'loading' ? (
+          <View style={[styles.signIn, shadows.soft, { backgroundColor: colors.surface, borderRadius: radius.lg }]}>
+            <Ionicons name="heart-outline" size={28} color={colors.primary} />
+            <Text style={[typography.heading, { color: colors.text, marginTop: spacing.sm, fontSize: 18 }]}>
+              Save events to plan your weeks
+            </Text>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', marginTop: 4 }]}>
+              Sign in, then tap the heart on any event. It shows up here with a reminder an hour before.
+            </Text>
+            <Pressable
+              onPress={() => router.push('/sign-in')}
+              style={[styles.cta, { backgroundColor: colors.primary, borderRadius: radius.full }]}
+            >
+              <Text style={{ color: colors.onPrimary, fontWeight: '800' }}>Sign in</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {!quietError(favouritesQuery.error) ? (
+          <Text style={[typography.caption, { color: colors.danger, marginBottom: spacing.md }]}>
+            {friendlyPublicError(favouritesQuery.error, "Couldn't load saved events. Please try again.")}
           </Text>
         ) : null}
 
         {isSignedIn && favouritesQuery.isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ marginBottom: spacing.lg }} />
-        ) : (
-          <MyCalendar
-            items={calendarItems}
-            signedIn={isSignedIn}
-            onSignIn={() => router.push('/sign-in')}
-          />
-        )}
-
-
-        <View
-          style={[
-            styles.prefRow,
-            shadows.soft,
-            {
-              marginTop: spacing.md,
-              backgroundColor: colors.surface,
-              borderRadius: radius.lg,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}>
-            <Text style={[typography.body, { color: colors.text, fontWeight: '600' }]}>
-              Add liked events to my calendar
-            </Text>
-            <Text
-              style={[
-                typography.caption,
-                { color: colors.textSecondary, marginTop: 2 },
-              ]}
-            >
-              When on, hearts place events on My calendar by date
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel="Add liked events to my calendar"
-            value={calendarAutoSave.enabled}
-            onValueChange={(next) => {
-              void calendarAutoSave.setEnabled(next);
-            }}
-            trackColor={{ false: colors.border, true: colors.primaryMuted }}
-            thumbColor={calendarAutoSave.enabled ? colors.primary : colors.surfaceElevated}
-          />
-        </View>
-
-        {isSignedIn ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View all favourites"
-            onPress={() => router.push('/favourites')}
-            style={[
-              styles.linkRow,
-              shadows.soft,
-              {
-                marginTop: spacing.md,
-                backgroundColor: colors.surface,
-                borderRadius: radius.lg,
-              },
-            ]}
-          >
-            <Ionicons name="heart" size={18} color={colors.danger} />
-            <Text
-              style={[
-                typography.body,
-                { color: colors.text, fontWeight: '600', flex: 1, marginLeft: spacing.sm },
-              ]}
-            >
-              All saved events
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
+          <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
         ) : null}
 
-        <View
-          style={[
-            styles.accountCard,
-            shadows.soft,
-            {
-              backgroundColor: colors.surface,
-              borderRadius: radius.lg,
-              marginTop: spacing.xl,
-              marginBottom: spacing.md,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.avatar,
-              { backgroundColor: colors.primaryMuted },
-            ]}
-          >
-            {isSignedIn ? (
-              <Text style={[typography.heading, { color: colors.primary }]}>{initial}</Text>
-            ) : (
-              <Ionicons name="person" size={22} color={colors.primary} />
-            )}
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            {status === 'loading' ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : isSignedIn && user ? (
-              <>
-                <Text style={[typography.heading, { color: colors.text }]}>
-                  {user.display_name}
-                </Text>
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    typography.caption,
-                    { color: colors.textSecondary, marginTop: 2 },
-                  ]}
-                >
-                  {user.email}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={[typography.heading, { color: colors.text }]}>
-                  Account
-                </Text>
-                <Text
-                  style={[
-                    typography.caption,
-                    { color: colors.textSecondary, marginTop: 2 },
-                  ]}
-                >
-                  Sign in to save events across devices.
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
+        {hero ? <HeroCard item={hero} now={now} /> : null}
 
-        {isSignedIn ? (
-          <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
+        {isSignedIn && !favouritesQuery.isLoading ? (
+          <SavedCalendar items={calendarItems} remindersOn={remindersOn} remindersOff={offList} />
+        ) : null}
+
+        {past.length ? (
+          <View style={{ marginTop: spacing.xl }}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Sign out"
-              onPress={() => void signOut()}
-              style={[
-                styles.secondaryBtn,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.full,
-                },
-              ]}
+              accessibilityState={{ expanded: pastOpen }}
+              onPress={() => setPastOpen((v) => !v)}
+              style={styles.pastHead}
             >
-              <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
-                Sign out
+              <Text style={[typography.heading, { color: colors.text, fontSize: 18, flex: 1 }]}>
+                Past ({past.length})
               </Text>
+              <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Delete account"
-              onPress={() => {
-                Alert.alert(
-                  'Delete account?',
-                  'This permanently deletes your account and the saved events stored with it. This can’t be undone.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Delete account',
-                      style: 'destructive',
-                      onPress: () => {
-                        void deleteAccount().catch((error: unknown) => {
-                          Alert.alert(
-                            'Couldn’t delete account',
-                            friendlyPublicError(
-                              error,
-                              'Account deletion isn’t available right now. Please try again later.',
-                            ),
-                          );
-                        });
-                      },
-                    },
-                  ],
-                );
-              }}
-              style={[
-                styles.secondaryBtn,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text style={[typography.body, { color: colors.danger, fontWeight: '700' }]}>
-                Delete account
-              </Text>
-            </Pressable>
+            {pastOpen
+              ? past.map((item, i) => (
+                  <SavedDayCard key={item.event_id} item={item} index={i} remindersOn={false} reminderOff />
+                ))
+              : null}
           </View>
-        ) : (
-          <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Sign in"
-              onPress={() => router.push('/sign-in')}
-              style={[
-                styles.primaryBtn,
-                { backgroundColor: colors.primary, borderRadius: radius.full },
-              ]}
-            >
-              <Text
-                style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}
-              >
-                Sign in
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Create account"
-              onPress={() => router.push('/sign-up')}
-              style={[
-                styles.secondaryBtn,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
-                Create account
-              </Text>
-            </Pressable>
-          </View>
-        )}
-
-        <View style={{ marginBottom: spacing.lg }}>
-          <BusinessCard
-            profile={businessQuery.data}
-            signedIn={isSignedIn}
-            loading={isSignedIn && businessQuery.isLoading}
-            onSignIn={() => router.push('/sign-in')}
-          />
-        </View>
-
-        <MySubmissions
-          items={submissionsQuery.data ?? []}
-          signedIn={isSignedIn}
-          onSignIn={() => router.push('/sign-in')}
-        />
-
-        {__DEV__ ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Admin tools"
-            onPress={() => router.push('/admin')}
-            style={[
-              styles.linkRow,
-              {
-                marginTop: spacing.lg,
-                backgroundColor: colors.surface,
-                borderRadius: radius.lg,
-              },
-            ]}
-          >
-            <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
-            <View style={{ flex: 1, marginLeft: spacing.sm }}>
-              <Text style={[typography.body, { color: colors.textSecondary, fontWeight: '600' }]}>
-                Admin tools
-              </Text>
-              <Text style={[typography.caption, { color: colors.textMuted }]}>
-                Pipeline health and catalog insights
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
         ) : null}
       </ScrollView>
     </Screen>
   );
 }
 
+function HeroCard({ item, now }: { item: EventListItem; now: number }) {
+  const { colors, typography, radius, shadows } = useTheme();
+  const router = useRouter();
+  const [failed, setFailed] = useState(false);
+  const image = allowedImageUrl(item.image_url);
+  const start = parseEventDate(item.starts_at);
+  const place = formatEventPlace(item);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Coming up next: ${item.title}`}
+      onPress={() => router.push(eventDetailHref(item.event_id))}
+      style={[styles.hero, shadows.card, { borderRadius: radius.xl, backgroundColor: colors.primaryMuted }]}
+    >
+      {image && !failed ? (
+        <Image source={{ uri: image }} onError={() => setFailed(true)} style={StyleSheet.absoluteFill} />
+      ) : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,20,16,0.55)' }]} />
+      <View style={styles.heroBody}>
+        <Text style={styles.heroKicker}>COMING UP NEXT</Text>
+        <Text numberOfLines={2} style={[typography.heading, { color: '#fff' }]}>{item.title}</Text>
+        <Text numberOfLines={1} style={[typography.caption, { color: 'rgba(255,255,255,0.85)', marginTop: 2 }]}>
+          {[start ? `${formatDayHeading(start)} · ${formatEventTime(item.starts_at)}` : null, place].filter(Boolean).join(' · ')}
+        </Text>
+        <View style={[styles.countdown, { backgroundColor: colors.primary, borderRadius: radius.full }]}>
+          <Ionicons name="time-outline" size={14} color={colors.onPrimary} />
+          <Text style={{ color: colors.onPrimary, fontWeight: '800', fontSize: 13 }}>{countdownLabel(item, now)}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
-  accountCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtn: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryBtn: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 56,
-    paddingHorizontal: 14,
-  },
-  prefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 64,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  signIn: { alignItems: 'center', padding: 20, marginBottom: 16 },
+  cta: { marginTop: 14, paddingHorizontal: 28, paddingVertical: 12 },
+  hero: { height: 180, overflow: 'hidden', marginBottom: 20, justifyContent: 'flex-end' },
+  heroBody: { padding: 16 },
+  heroKicker: { color: '#99F6E4', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 4 },
+  countdown: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, marginTop: 10 },
+  pastHead: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
 });
