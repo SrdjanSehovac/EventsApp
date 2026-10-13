@@ -34,6 +34,8 @@ type BrowseSearchBarProps = {
   placeholder?: string;
   /** Fired when the field gains or loses focus. */
   onActiveChange?: (active: boolean) => void;
+  /** Fired when the suggestions panel shows or hides. */
+  onPanelChange?: (open: boolean) => void;
 };
 
 export type BrowseSearchBarHandle = {
@@ -57,6 +59,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
       filterCount = 0,
       placeholder = 'Search cities, neighbourhoods, events…',
       onActiveChange,
+      onPanelChange,
     },
     ref,
   ) {
@@ -75,6 +78,8 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
     const openRef = useRef(false);
     const stickRef = useRef(false);
     const blockMapUntil = useRef(0);
+    /** The filter button sits where Cancel was; ignore it right after closing. */
+    const blockFiltersUntil = useRef(0);
     const inputRef = useRef<TextInput>(null);
     const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const onActiveChangeRef = useRef(onActiveChange);
@@ -85,6 +90,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
       if (blurTimer.current) clearTimeout(blurTimer.current);
       stickRef.current = false;
       blockMapUntil.current = Date.now() + 450;
+      blockFiltersUntil.current = Date.now() + 400;
       inputRef.current?.blur();
       Keyboard.dismiss();
       if (!openRef.current) return;
@@ -126,6 +132,11 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
     }, [loadedPins, deferredDraft]);
 
     const showPanel = open && draft.trim().length > 0;
+    const onPanelChangeRef = useRef(onPanelChange);
+    onPanelChangeRef.current = onPanelChange;
+    useEffect(() => {
+      onPanelChangeRef.current?.(showPanel);
+    }, [showPanel]);
     const hasPlaces = places.cities.length > 0 || places.neighbourhoods.length > 0;
 
     function choosePlace(place: PlaceMatch) {
@@ -221,7 +232,10 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel search"
-              onPressIn={() => close()}
+              // On release, not press-in: closing on press-in swapped in the
+              // filter button under the finger and the release opened Filters.
+              onPress={() => close()}
+              hitSlop={6}
               style={styles.cancel}
             >
               <Text style={[typography.body, { color: colors.primary, fontWeight: '700' }]}>
@@ -233,6 +247,7 @@ export const BrowseSearchBar = forwardRef<BrowseSearchBarHandle, BrowseSearchBar
             accessibilityRole="button"
             accessibilityLabel="Open filters"
             onPress={() => {
+              if (Date.now() < blockFiltersUntil.current) return;
               close();
               onPressFilters();
             }}

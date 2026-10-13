@@ -31,6 +31,12 @@ export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>
     const { colors, typography, spacing } = useTheme();
     const searchRef = useRef<BrowseSearchBarHandle>(null);
     const [active, setActive] = useState(false);
+    // The header floats over the list so the suggestions panel overlays the
+    // rows instead of pushing them down. This spacer keeps the list below the
+    // closed header, so the list never jumps while suggestions open.
+    const [baseHeight, setBaseHeight] = useState(0);
+    const panelOpen = useRef(false);
+    const focusedRef = useRef(false);
     useImperativeHandle(
       ref,
       () => ({
@@ -41,9 +47,16 @@ export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>
     );
 
     return (
+      <>
+      <View style={{ height: baseHeight }} />
       <SafeAreaView
         edges={['top']}
         pointerEvents="box-none"
+        onLayout={(event) => {
+          if ((panelOpen.current || focusedRef.current) && baseHeight > 0) return;
+          const next = Math.round(event.nativeEvent.layout.height);
+          if (next !== baseHeight) setBaseHeight(next);
+        }}
         style={[styles.header, { backgroundColor: colors.background }]}
       >
         <View style={[styles.wrap, { paddingHorizontal: spacing.lg }]}>
@@ -59,7 +72,13 @@ export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>
             value={value}
             onChangeText={onChangeText}
             onPressFilters={onPressFilters}
+            onPanelChange={(next) => {
+              panelOpen.current = next;
+            }}
             onActiveChange={(next) => {
+              // Set before the panel can render, so its height is never
+              // mistaken for the closed header.
+              focusedRef.current = next;
               setActive(next);
               onActiveChange?.(next);
             }}
@@ -68,12 +87,17 @@ export const BrowseHeader = forwardRef<BrowseSearchBarHandle, BrowseHeaderProps>
           />
         </View>
       </SafeAreaView>
+      </>
     );
   },
 );
 
 const styles = StyleSheet.create({
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     zIndex: 30,
     elevation: 30,
   },
