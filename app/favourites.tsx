@@ -66,7 +66,7 @@ export default function FavouritesScreen() {
           style={styles.list}
           data={items}
           keyExtractor={(item) => item.event_id}
-          renderItem={({ item }) => <EventCard item={item} variant="listing" />}
+          renderItem={({ item }) => <EventCard item={item} variant="photo" />}
           ListEmptyComponent={
             <Text style={[typography.body, { color: colors.textMuted }]}>
               No favourites yet. Open an event and tap the heart to save it.

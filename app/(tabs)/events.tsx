@@ -242,7 +242,7 @@ export default function EventsScreen() {
             data={items}
             keyExtractor={(item) => item.event_id}
             renderItem={({ item }) => (
-              <EventCard item={item} variant="listing" pressDisabled={searchActive} />
+              <EventCard item={item} variant="photo" pressDisabled={searchActive} />
             )}
             ListEmptyComponent={
               <Text

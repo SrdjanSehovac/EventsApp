@@ -14,7 +14,15 @@ import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
 import { eventDetailHref } from '../utils/eventDetail';
-import { formatEventPlace, formatEventPrice, formatFactsRow, formatSaleBadge } from '../utils/eventFormat';
+import {
+  formatCardPlace,
+  formatCardWhen,
+  formatEventPlace,
+  formatEventPrice,
+  formatFactsRow,
+  formatSaleBadge,
+} from '../utils/eventFormat';
+import { normalizeLinkType } from '../utils/outboundLinks';
 import {
   allowedImageUrl,
   isBlockedSourceLabel,
@@ -27,7 +35,7 @@ import { FavouriteButton } from './FavouriteButton';
 import { VerifiedBadge } from './VerifiedBadge';
 import { ImageFallbackTile } from './ImageFallbackTile';
 
-type EventCardVariant = 'card' | 'listing' | 'preview';
+type EventCardVariant = 'card' | 'listing' | 'preview' | 'photo';
 
 type EventCardProps = {
   item: EventListItem;
@@ -67,7 +75,7 @@ function TimingChip({ phase }: { phase: Extract<EventPhase, 'ended' | 'live'> })
 }
 
 export function EventCard({ item, variant = 'card', pressDisabled = false }: EventCardProps) {
-  const { colors, typography, spacing, radius, shadows } = useTheme();
+  const { colors, typography, spacing, radius, shadows, isDark } = useTheme();
   const openTickets = useOpenTickets();
   const router = useRouter();
   const [imageFailed, setImageFailed] = useState(false);
@@ -132,6 +140,134 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
       )}
     </View>
   );
+
+  if (variant === 'photo') {
+    const ticketish = outbound && phase !== 'ended' && normalizeLinkType(outbound.linkType) !== 'website';
+    const ticketLabel = outbound && normalizeLinkType(outbound.linkType) === 'register' ? 'Register' : 'Tickets';
+    const cardPlace = formatCardPlace(item);
+    const showCategory =
+      item.primary_category && !isBlockedSourceLabel(item.primary_category.name);
+    return (
+      <View
+        style={[
+          styles.photoCard,
+          isDark ? null : shadows.soft,
+          {
+            backgroundColor: colors.surface,
+            borderRadius: radius.lg,
+            borderColor: colors.border,
+            borderWidth: isDark ? StyleSheet.hairlineWidth : 0,
+          },
+        ]}
+      >
+        <View style={styles.photoFrame}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.title}`}
+          onPress={openDetail}
+          style={StyleSheet.absoluteFill}
+        >
+          {hero}
+        </Pressable>
+        {timingPhase ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.photoBadge,
+              styles.photoTopLeft,
+              { backgroundColor: timingPhase === 'live' ? '#DC2626' : 'rgba(17,20,19,0.78)' },
+            ]}
+          >
+            {timingPhase === 'live' ? <View style={styles.liveDot} /> : null}
+            <Text style={styles.photoBadgeText}>
+              {timingPhase === 'live' ? 'Happening now' : 'Ended'}
+            </Text>
+          </View>
+        ) : null}
+        {chipLabel ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.photoBadge,
+              styles.photoBottomLeft,
+              { backgroundColor: saleLabel ? '#DC2626' : 'rgba(17,20,19,0.78)' },
+            ]}
+          >
+            <Text style={styles.photoBadgeText}>{chipLabel}</Text>
+          </View>
+        ) : null}
+        <View style={styles.photoHeart}>
+          <FavouriteButton item={item} variant="glass" />
+        </View>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${item.title}`}
+          onPress={openDetail}
+          style={styles.photoBody}
+        >
+          <Text
+            numberOfLines={2}
+            maxFontSizeMultiplier={1.3}
+            style={[styles.photoTitle, { color: colors.text }]}
+          >
+            {item.title}
+          </Text>
+          <Text
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.3}
+            style={[styles.photoLine, { color: ended ? colors.textMuted : colors.textSecondary, marginTop: 4 }]}
+          >
+            {formatCardWhen(item.starts_at)}
+          </Text>
+          {cardPlace ? (
+            <Text
+              numberOfLines={1}
+              maxFontSizeMultiplier={1.3}
+              style={[styles.photoLine, { color: colors.textSecondary }]}
+            >
+              {cardPlace}
+            </Text>
+          ) : null}
+          <View style={styles.photoFooter}>
+            <View style={styles.photoChips}>
+              {showCategory ? (
+                <View
+                  style={[
+                    styles.categoryChip,
+                    { backgroundColor: tintForCategory(item.primary_category, isDark ? '55' : '22') },
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={1.2}
+                    style={[styles.chipText, { color: isDark ? colors.text : categoryColor }]}
+                  >
+                    {item.primary_category!.name}
+                  </Text>
+                </View>
+              ) : null}
+              {item.verified_organizer ? <VerifiedBadge compact /> : null}
+            </View>
+            {ticketish && outbound ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={`${ticketLabel} for ${item.title}`}
+                onPress={() => openTickets({ url: outbound.url, event: item, item })}
+                hitSlop={6}
+                style={[styles.ticketsBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text maxFontSizeMultiplier={1.2} style={[styles.ticketsText, { color: colors.onPrimary }]}>
+                  {ticketLabel}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </Pressable>
+      </View>
+    );
+  }
 
   if (variant === 'listing') {
     return (
@@ -476,6 +612,45 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
 }
 
 const styles = StyleSheet.create({
+  photoCard: {
+    marginHorizontal: 12,
+    marginBottom: 14,
+    overflow: 'hidden',
+  },
+  photoFrame: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  photoBadge: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  photoTopLeft: { top: 10, left: 10 },
+  photoBottomLeft: { left: 10, bottom: 10 },
+  photoBadgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#FFFFFF' },
+  photoHeart: { position: 'absolute', top: 8, right: 8 },
+  photoBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12 },
+  photoTitle: { fontSize: 17, lineHeight: 22, fontWeight: '700' },
+  photoLine: { fontSize: 14, lineHeight: 19, fontWeight: '500' },
+  photoFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    minHeight: 34,
+    gap: 8,
+  },
+  photoChips: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
+  categoryChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, flexShrink: 1 },
+  chipText: { fontSize: 12, fontWeight: '700' },
+  ticketsBtn: { paddingHorizontal: 16, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  ticketsText: { fontSize: 14, fontWeight: '800' },
   card: {
     overflow: 'hidden',
   },

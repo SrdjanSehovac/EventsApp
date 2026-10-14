@@ -11,7 +11,7 @@ import type { EventListItem } from '../types/events';
 
 type FavouriteButtonProps = {
   item: EventListItem;
-  variant?: 'default' | 'plain' | 'overlay';
+  variant?: 'default' | 'plain' | 'overlay' | 'glass';
 };
 
 function describeFavouriteError(error: unknown) {
@@ -50,6 +50,7 @@ export function FavouriteButton({
 
   const overlay = variant === 'overlay';
   const plain = variant === 'plain';
+  const glass = variant === 'glass';
 
   return (
     <Pressable
@@ -61,7 +62,9 @@ export function FavouriteButton({
       style={[
         styles.button,
         overlay ? shadows.soft : null,
-        overlay
+        glass
+          ? { backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 0, width: 38, height: 38, borderRadius: 19 }
+          : overlay
           ? { backgroundColor: colors.surface, borderWidth: 0 }
           : plain
             ? { borderWidth: 0, width: 44, height: 44 }
@@ -71,8 +74,8 @@ export function FavouriteButton({
     >
       <Ionicons
         name={isFavourite ? 'heart' : 'heart-outline'}
-        size={overlay || plain ? 22 : 16}
-        color={colors.primary}
+        size={glass ? 20 : overlay || plain ? 22 : 16}
+        color={glass ? (isFavourite ? '#E11D48' : '#1B1F1E') : colors.primary}
       />
     </Pressable>
   );
