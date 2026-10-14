@@ -1,4 +1,4 @@
-export const BUSINESS_KINDS = ['venue', 'promoter', 'retail', 'other'] as const;
+export const BUSINESS_KINDS = ['venue', 'business', 'community_group'] as const;
 
 export type BusinessKind = (typeof BUSINESS_KINDS)[number];
 
@@ -15,10 +15,13 @@ export type BusinessStatus = (typeof BUSINESS_STATUSES)[number];
 export type BusinessApplyInput = {
   business_name: string;
   website: string;
+  social_url?: string | null;
   business_email: string;
   phone?: string | null;
   city: string;
   kind: BusinessKind;
+  description?: string | null;
+  business_number?: string | null;
 };
 
 export type BusinessProfile = BusinessApplyInput & {
@@ -27,6 +30,9 @@ export type BusinessProfile = BusinessApplyInput & {
   email_verified: boolean;
   bio?: string | null;
   rejection_reason?: string | null;
+  /** 'email' when the code was sent, 'unavailable'/'failed' when it could not be. */
+  delivery?: string | null;
+  suspended?: boolean;
   created_at: string;
   updated_at?: string | null;
   source: 'server' | 'local';
@@ -34,7 +40,6 @@ export type BusinessProfile = BusinessApplyInput & {
 
 export const BUSINESS_KIND_LABELS: Record<BusinessKind, string> = {
   venue: 'Venue',
-  promoter: 'Promoter',
-  retail: 'Retail',
-  other: 'Other',
+  business: 'Business',
+  community_group: 'Community group',
 };

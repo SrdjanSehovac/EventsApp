@@ -93,6 +93,7 @@ export function detailToListItem(detail: EventDetail): EventListItem {
     longitude: detail.longitude ?? detail.venue?.longitude,
     tags: detail.tags,
     vibe: detail.vibe,
+    verified_organizer: detail.verified_organizer,
   };
 }
 

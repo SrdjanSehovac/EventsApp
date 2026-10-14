@@ -14,6 +14,7 @@ import { useAuth, useCategories, useMyBusiness } from '../src/hooks';
 import { useSubmitEvent } from '../src/hooks/submissions';
 import { colorForCategory, useTheme } from '../src/theme';
 import { friendlyPublicError } from '../src/utils/publicError';
+import { toIsoStart } from '../src/utils/startTime';
 
 const FALLBACK_CATEGORIES = [
   { slug: 'music', name: 'Music' },
@@ -26,33 +27,6 @@ const FALLBACK_CATEGORIES = [
 
 function errorMessage(error: unknown) {
   return friendlyPublicError(error, "Couldn't submit that event. Please try again.");
-}
-
-function toIsoStart(dateRaw: string, timeRaw: string): string | null {
-  const date = dateRaw.trim();
-  const time = timeRaw.trim() || '19:00';
-  let isoDate: string | null = null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    isoDate = date;
-  } else {
-    const match = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      isoDate = `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
-    }
-  }
-  if (!isoDate) return null;
-
-  const timeMatch = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-  if (!timeMatch) return null;
-  let hour = Number(timeMatch[1]);
-  const minute = Number(timeMatch[2]);
-  const meridiem = timeMatch[3]?.toUpperCase();
-  if (meridiem === 'PM' && hour < 12) hour += 12;
-  if (meridiem === 'AM' && hour === 12) hour = 0;
-  if (hour > 23 || minute > 59) return null;
-
-  return `${isoDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
 }
 
 export default function SubmitEventScreen() {
@@ -131,7 +105,7 @@ export default function SubmitEventScreen() {
 
   if (status === 'loading') {
     return (
-      <AuthScreen title="Submit event">
+      <AuthScreen title="Post an event">
         <ActivityIndicator color={colors.primary} />
       </AuthScreen>
     );
@@ -140,8 +114,8 @@ export default function SubmitEventScreen() {
   if (!isSignedIn) {
     return (
       <AuthScreen
-        title="Submit event"
-        subtitle="Sign in to send an event for the catalogue."
+        title="Post an event"
+        subtitle="Sign in to post or suggest an event."
       >
         <Pressable
           accessibilityRole="button"
@@ -160,9 +134,41 @@ export default function SubmitEventScreen() {
     );
   }
 
+  if (businessQuery.isLoading) {
+    return (
+      <AuthScreen title="Post an event">
+        <ActivityIndicator color={colors.primary} />
+      </AuthScreen>
+    );
+  }
+
+  if (!verifiedBusiness || verifiedBusiness.suspended) {
+    return (
+      <AuthScreen
+        title="Post an event"
+        subtitle={
+          verifiedBusiness?.suspended
+            ? 'Posting is paused for this organizer account.'
+            : 'Only verified organizers can post events. You can apply, or suggest an event for our team to review.'
+        }
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Contribute"
+          onPress={() => router.replace('/contribute')}
+          style={[styles.button, { backgroundColor: colors.primary, borderRadius: radius.md }]}
+        >
+          <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
+            Become an organizer or suggest an event
+          </Text>
+        </Pressable>
+      </AuthScreen>
+    );
+  }
+
   if (done) {
     return (
-      <AuthScreen title="Submitted" subtitle="Thanks — it will show under My submissions on Saved.">
+      <AuthScreen title="Posted" subtitle="Thanks. New organizers’ first events, and anything our checks flag, are reviewed before going live. Track it under Your posts in Account & Settings.">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back to saved"
@@ -182,12 +188,8 @@ export default function SubmitEventScreen() {
 
   return (
     <AuthScreen
-      title="Submit event"
-      subtitle={
-        verifiedBusiness
-          ? `Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`
-          : 'Share a night out, market, or show. We’ll keep it on Saved while it’s reviewed.'
-      }
+      title="Post an event"
+      subtitle={`Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`}
     >
       <AuthField
         label="TITLE"

@@ -51,6 +51,8 @@ export type OccurrenceOut = {
 };
 
 export type EventListItem = {
+  /** Posted by a verified organizer (shows the Verified badge). */
+  verified_organizer?: boolean;
   event_id: string;
   title: string;
   summary?: string | null;
@@ -89,6 +91,7 @@ export type EventListItem = {
 };
 
 export type EventDetail = {
+  verified_organizer?: boolean;
   event_id: string;
   source: string;
   source_url: string;

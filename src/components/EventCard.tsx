@@ -24,6 +24,7 @@ import {
 import { eventPhase, type EventPhase } from '../utils/eventLive';
 import { parseImageFallback } from '../utils/imageFallback';
 import { FavouriteButton } from './FavouriteButton';
+import { VerifiedBadge } from './VerifiedBadge';
 import { ImageFallbackTile } from './ImageFallbackTile';
 
 type EventCardVariant = 'card' | 'listing' | 'preview';
@@ -190,6 +191,7 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
               {facts}
             </Text>
             <View style={styles.listingMeta}>
+              {item.verified_organizer ? <VerifiedBadge compact /> : null}
               {timingPhase ? <TimingChip phase={timingPhase} /> : null}
               {chipLabel ? (
                 <View
@@ -356,7 +358,8 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
           >
             {facts}
           </Text>
-          {timingPhase ? <TimingChip phase={timingPhase} /> : null}
+          {item.verified_organizer ? <VerifiedBadge compact /> : null}
+              {timingPhase ? <TimingChip phase={timingPhase} /> : null}
         </View>
         {summary ? (
           <Text

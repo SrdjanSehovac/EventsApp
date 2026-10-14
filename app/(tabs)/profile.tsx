@@ -67,8 +67,8 @@ export default function SavedScreen() {
           <Text style={[typography.title, { color: colors.text, flex: 1 }]}>Saved</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Submit an event"
-            onPress={() => router.push('/submit-event')}
+            accessibilityLabel="Add an event"
+            onPress={() => router.push('/contribute')}
             hitSlop={8}
             style={[styles.iconBtn, { backgroundColor: colors.surface }]}
           >

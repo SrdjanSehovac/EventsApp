@@ -9,6 +9,7 @@ type MySubmissionsProps = {
   items: SubmittedEvent[];
   signedIn: boolean;
   onSignIn: () => void;
+  canPost?: boolean;
 };
 
 function formatWhen(startsAt: string) {
@@ -24,12 +25,12 @@ function formatWhen(startsAt: string) {
 
 function statusLabel(status: SubmittedEvent['status']) {
   if (status === 'local') return 'Saved on device';
-  if (status === 'accepted') return 'Accepted';
-  if (status === 'rejected') return 'Rejected';
+  if (status === 'accepted') return 'Live';
+  if (status === 'rejected') return 'Not approved';
   return 'Pending review';
 }
 
-export function MySubmissions({ items, signedIn, onSignIn }: MySubmissionsProps) {
+export function MySubmissions({ items, signedIn, onSignIn, canPost = false }: MySubmissionsProps) {
   const { colors, typography, spacing, radius } = useTheme();
   const router = useRouter();
 
@@ -50,10 +51,10 @@ export function MySubmissions({ items, signedIn, onSignIn }: MySubmissionsProps)
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[typography.heading, { color: colors.text, fontSize: 18 }]}>
-            My submissions
+            Your posts
           </Text>
           <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-            Events you sent in for the catalogue
+            Events you posted as an organizer
           </Text>
         </View>
       </View>
@@ -115,15 +116,15 @@ export function MySubmissions({ items, signedIn, onSignIn }: MySubmissionsProps)
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Submit an event"
-        onPress={() => router.push(signedIn ? '/submit-event' : '/sign-in')}
+        accessibilityLabel={canPost ? 'Post an event' : 'Become an organizer or suggest an event'}
+        onPress={() => router.push(signedIn ? (canPost ? '/submit-event' : '/contribute') : '/sign-in')}
         style={[
           styles.submitBtn,
           { backgroundColor: colors.primary, borderRadius: radius.md, marginTop: spacing.md },
         ]}
       >
         <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
-          Submit an event
+          {canPost ? 'Post an event' : 'Become an organizer or suggest an event'}
         </Text>
       </Pressable>
     </View>

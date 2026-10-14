@@ -50,6 +50,8 @@ import { AddToCalendarButton } from './AddToCalendarButton';
 import { FavouriteButton } from './FavouriteButton';
 import { ImageFallbackTile } from './ImageFallbackTile';
 import { PhotoViewer } from './PhotoViewer';
+import { ReportEventButton } from './ReportEventButton';
+import { VerifiedBadge } from './VerifiedBadge';
 import { largestImageUrl } from '../utils/imageUrl';
 
 type EventDetailScreenProps = {
@@ -311,6 +313,11 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 </Text>
               ) : null}
               {hostedBy ? <HostedBy label={hostedBy} url={organizerUrl} /> : null}
+              {detail?.verified_organizer ? (
+                <View style={{ marginTop: spacing.xs }}>
+                  <VerifiedBadge />
+                </View>
+              ) : null}
             </View>
           )}
           <View
@@ -415,6 +422,11 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             ) : null}
             {(showPhoto || imageTile) && hostedBy ? (
               <HostedBy label={hostedBy} url={organizerUrl} />
+            ) : null}
+            {(showPhoto || imageTile) && detail.verified_organizer ? (
+              <View style={{ marginTop: spacing.xs }}>
+                <VerifiedBadge />
+              </View>
             ) : null}
             {seriesName && !isBlockedSourceLabel(seriesName) ? (
               <Text
@@ -726,6 +738,8 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
                 </Pressable>
               </Section>
             ) : null}
+
+            <ReportEventButton eventId={eventId} />
           </View>
         ) : null}
       </ScrollView>

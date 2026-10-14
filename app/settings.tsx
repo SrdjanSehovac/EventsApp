@@ -307,6 +307,7 @@ export default function SettingsScreen() {
             items={submissionsQuery.data ?? []}
             signedIn={isSignedIn}
             onSignIn={() => router.push('/sign-in')}
+            canPost={businessQuery.data?.status === 'verified' && !businessQuery.data?.suspended}
           />
         </View>
 

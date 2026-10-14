@@ -39,3 +39,5 @@ export {
   CityExplorer,
 } from './admin';
 export type { AdminInsights, CoverageMetric } from './admin';export { LocationChip } from './LocationChip';
+export { VerifiedBadge } from './VerifiedBadge';
+export { ReportEventButton } from './ReportEventButton';
