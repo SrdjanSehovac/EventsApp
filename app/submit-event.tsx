@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -49,6 +50,11 @@ export default function SubmitEventScreen() {
   const [time, setTime] = useState('19:00');
   const [price, setPrice] = useState('');
   const [isFree, setIsFree] = useState(true);
+  const [rsvp, setRsvp] = useState(false);
+  const [capacity, setCapacity] = useState('');
+  const [closeDate, setCloseDate] = useState('');
+  const [closeTime, setCloseTime] = useState('');
+  const [waitlist, setWaitlist] = useState(true);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -75,6 +81,24 @@ export default function SubmitEventScreen() {
       setError('Use a start date like 09/20/2026 and a time like 19:00.');
       return;
     }
+    const rsvpOn = isFree && rsvp;
+    const cap = capacity.trim() ? Number(capacity) : null;
+    if (rsvpOn && cap !== null && (!Number.isInteger(cap) || cap < 1)) {
+      setError('Capacity must be a whole number, or leave it empty for no limit.');
+      return;
+    }
+    let closesAt: string | null = null;
+    if (rsvpOn && closeDate.trim()) {
+      closesAt = toIsoStart(closeDate, closeTime || '23:59');
+      if (!closesAt) {
+        setError('Use a close date like 09/20/2026 and a time like 18:00.');
+        return;
+      }
+      if (closesAt > startsAt) {
+        setError('Registration should close before the event starts.');
+        return;
+      }
+    }
     const priceCad = isFree ? 0 : Number(price);
     if (!isFree && (!Number.isFinite(priceCad) || priceCad < 0)) {
       setError('Enter a price in CAD, or mark the event as free.');
@@ -91,6 +115,10 @@ export default function SubmitEventScreen() {
         starts_at: startsAt,
         is_free: isFree,
         price_cad: isFree ? 0 : priceCad,
+        rsvp_enabled: rsvpOn,
+        rsvp_capacity: rsvpOn ? cap : null,
+        rsvp_closes_at: rsvpOn ? closesAt : null,
+        rsvp_waitlist: rsvpOn && cap !== null && waitlist,
         category_slug: categorySlug,
         category_name: selectedCategory?.name ?? null,
         photo_urls: verifiedBusiness ? photoUrls : undefined,
@@ -319,6 +347,53 @@ export default function SubmitEventScreen() {
         />
       )}
 
+      {isFree ? (
+        <View style={[styles.rsvpBox, { borderColor: colors.border, borderRadius: radius.md, marginBottom: spacing.lg }]}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>Free registration (RSVP)</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                Guests register in the app and get a QR ticket. You get a guest list with check-in.
+              </Text>
+            </View>
+            <Switch accessibilityLabel="Require RSVP" value={rsvp} onValueChange={setRsvp} />
+          </View>
+          {rsvp ? (
+            <View style={{ marginTop: spacing.md }}>
+              <AuthField
+                label="CAPACITY (OPTIONAL)"
+                value={capacity}
+                onChangeText={setCapacity}
+                placeholder="No limit"
+                keyboardType="number-pad"
+              />
+              <AuthField
+                label="REGISTRATION CLOSES (OPTIONAL)"
+                value={closeDate}
+                onChangeText={setCloseDate}
+                placeholder="MM/DD/YYYY — default: when it starts"
+                keyboardType="numbers-and-punctuation"
+              />
+              {closeDate.trim() ? (
+                <AuthField
+                  label="CLOSE TIME"
+                  value={closeTime}
+                  onChangeText={setCloseTime}
+                  placeholder="23:59"
+                  keyboardType="numbers-and-punctuation"
+                />
+              ) : null}
+              {capacity.trim() ? (
+                <View style={styles.switchRow}>
+                  <Text style={[typography.body, { color: colors.text, flex: 1 }]}>Waitlist when full</Text>
+                  <Switch accessibilityLabel="Waitlist when full" value={waitlist} onValueChange={setWaitlist} />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {verifiedBusiness ? (
         <EventMediaFields
           photoUrls={photoUrls}
@@ -363,6 +438,8 @@ export default function SubmitEventScreen() {
 }
 
 const styles = StyleSheet.create({
+  rsvpBox: { borderWidth: StyleSheet.hairlineWidth, padding: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   button: {
     minHeight: 48,
     alignItems: 'center',

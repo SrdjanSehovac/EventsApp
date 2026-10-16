@@ -68,6 +68,8 @@ function RootNavigator() {
         <Stack.Screen name="business-verify" />
         <Stack.Screen name="contribute" />
         <Stack.Screen name="suggest-event" />
+        <Stack.Screen name="ticket/[id]" />
+        <Stack.Screen name="guests/[id]" />
       </Stack>
     </>
   );

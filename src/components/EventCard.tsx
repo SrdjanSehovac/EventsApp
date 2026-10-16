@@ -250,7 +250,19 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
               ) : null}
               {item.verified_organizer ? <VerifiedBadge compact /> : null}
             </View>
-            {ticketish && outbound ? (
+            {item.rsvp_enabled && !ended ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Register free for ${item.title}`}
+                onPress={openDetail}
+                hitSlop={6}
+                style={[styles.ticketsBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text maxFontSizeMultiplier={1.2} style={[styles.ticketsText, { color: colors.onPrimary }]}>
+                  Register — Free
+                </Text>
+              </Pressable>
+            ) : ticketish && outbound && !item.rsvp_enabled ? (
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel={`${ticketLabel} for ${item.title}`}

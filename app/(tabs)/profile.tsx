@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { ApiError } from '../../src/api/client';
 import { SavedCalendar } from '../../src/components/saved/SavedCalendar';
 import { SavedDayCard } from '../../src/components/saved/SavedDayCard';
+import { MyTickets } from '../../src/components/MyTickets';
 import { useAuth, useCalendarAutoSave, useFavourites } from '../../src/hooks';
 import { Screen } from '../../src/layout';
 import { syncReminders } from '../../src/reminders';
@@ -112,6 +113,8 @@ export default function SavedScreen() {
         {isSignedIn && favouritesQuery.isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.xl }} />
         ) : null}
+
+        <MyTickets enabled={isSignedIn} />
 
         {hero ? <HeroCard item={hero} now={now} /> : null}
 

@@ -15,7 +15,8 @@ import { useRouter } from 'expo-router';
 
 import { openInAppBrowser } from '../checkout/openInAppBrowser';
 import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
-import { useEvent } from '../hooks';
+import { useAuth, useEvent, useMyTicket, useRegisterForEvent } from '../hooks';
+import { rsvpState } from '../utils/rsvpFormat';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import {
   asLabelList,
@@ -183,6 +184,97 @@ function Section({
   );
 }
 
+function RsvpFooter({
+  eventId,
+  rsvp,
+  item,
+}: {
+  eventId: string;
+  rsvp: NonNullable<import('../types/events').EventDetail['rsvp']>;
+  item: import('../types/events').EventListItem | null;
+}) {
+  const { colors, typography, radius } = useTheme();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
+  const { ticket } = useMyTicket(isSignedIn ? eventId : undefined);
+  const register = useRegisterForEvent();
+  const [error, setError] = useState<string | null>(null);
+  const state = rsvpState(rsvp, ticket?.status ?? null);
+  const disabled = state.action === 'none' || register.isPending;
+
+  async function onPress() {
+    setError(null);
+    if (state.action === 'ticket') {
+      router.push(`/ticket/${eventId}`);
+      return;
+    }
+    if (!isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+    try {
+      await register.mutateAsync({ eventId, item });
+      router.push(`/ticket/${eventId}?new=1`);
+    } catch (err) {
+      setError(friendlyPublicError(err, "Couldn't register. Please try again."));
+    }
+  }
+
+  return (
+    <SafeAreaView
+      edges={['bottom']}
+      style={[
+        styles.footer,
+        { backgroundColor: colors.background, borderTopColor: colors.hairline, paddingBottom: Math.max(insets.bottom, 12) },
+      ]}
+    >
+      {state.note || error ? (
+        <Text
+          style={[
+            typography.caption,
+            { color: error ? colors.danger : rsvp.full ? colors.warning : colors.textSecondary, fontWeight: '700', textAlign: 'center', marginBottom: 6 },
+          ]}
+        >
+          {error ?? state.note}
+        </Text>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={state.label}
+        accessibilityState={{ disabled }}
+        disabled={disabled}
+        onPress={() => void onPress()}
+        style={[
+          styles.primaryCta,
+          {
+            backgroundColor: state.action === 'none' ? colors.surfaceElevated : state.action === 'ticket' ? colors.surface : colors.primary,
+            borderColor: colors.primary,
+            borderWidth: state.action === 'ticket' ? 1.5 : 0,
+            borderRadius: radius.full,
+          },
+        ]}
+      >
+        {register.isPending ? (
+          <ActivityIndicator color={colors.onPrimary} />
+        ) : (
+          <Text
+            style={[
+              typography.body,
+              {
+                color: state.action === 'none' ? colors.textSecondary : state.action === 'ticket' ? colors.primary : colors.onPrimary,
+                fontWeight: '800',
+              },
+            ]}
+          >
+            {state.label}
+          </Text>
+        )}
+      </Pressable>
+    </SafeAreaView>
+  );
+}
+
 export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const { colors, typography, spacing, radius } = useTheme();
   const openTickets = useOpenTickets();
@@ -231,7 +323,8 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const vibes = publicLabels(detail?.vibe);
   const audience = publicLabels(detail?.audience);
   const performers = publicLabels(detail?.performers);
-  const outbound = detail ? resolveOutboundLink(detail) : null;
+  const rsvpOn = Boolean(detail?.rsvp_enabled && detail?.rsvp);
+  const outbound = detail && !rsvpOn ? resolveOutboundLink(detail) : null;
   const actionLabel = outbound ? formatActionLabel(outbound.label, price) : null;
   const videoUrl = allowedOutboundUrl(detail?.video_url);
   const about = detail ? formatAboutBody(detail) : null;
@@ -264,7 +357,7 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          paddingBottom: ended || outbound ? 120 + insets.bottom : spacing.xxxl,
+          paddingBottom: ended || outbound || rsvpOn ? 120 + insets.bottom : spacing.xxxl,
         }}
       >
         <View style={showPhoto || imageTile ? styles.hero : styles.heroCompact}>
@@ -779,6 +872,8 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
             </Text>
           </Pressable>
         </SafeAreaView>
+      ) : rsvpOn && detail ? (
+        <RsvpFooter eventId={eventId} rsvp={detail.rsvp!} item={listItem ?? null} />
       ) : outbound ? (
         <SafeAreaView
           edges={['bottom']}

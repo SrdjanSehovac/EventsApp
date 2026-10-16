@@ -41,3 +41,6 @@ export {
 export type { AdminInsights, CoverageMetric } from './admin';export { LocationChip } from './LocationChip';
 export { VerifiedBadge } from './VerifiedBadge';
 export { ReportEventButton } from './ReportEventButton';
+export { QrCode } from './QrCode';
+export { AddToCalendarButton } from './AddToCalendarButton';
+export { MyTickets } from './MyTickets';

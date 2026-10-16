@@ -53,6 +53,10 @@ function asSubmitted(
     photo_urls: data.photo_urls ?? fallback.photo_urls ?? [],
     video_url: data.video_url ?? fallback.video_url ?? null,
     bio: data.bio ?? fallback.bio ?? null,
+    rsvp_enabled: data.rsvp_enabled ?? fallback.rsvp_enabled ?? false,
+    rsvp_capacity: data.rsvp_capacity ?? fallback.rsvp_capacity ?? null,
+    rsvp_closes_at: data.rsvp_closes_at ?? fallback.rsvp_closes_at ?? null,
+    rsvp_waitlist: data.rsvp_waitlist ?? fallback.rsvp_waitlist ?? false,
     status: data.status ?? 'pending',
     created_at: data.created_at ?? new Date().toISOString(),
     source: 'server',
@@ -107,6 +111,10 @@ export async function submitEvent(input: SubmitEventInput): Promise<SubmittedEve
       photo_urls: input.photo_urls?.length ? input.photo_urls : null,
       video_url: input.video_url || null,
       bio: input.bio?.trim() || null,
+      rsvp_enabled: Boolean(input.rsvp_enabled),
+      rsvp_capacity: input.rsvp_enabled ? input.rsvp_capacity ?? null : null,
+      rsvp_closes_at: input.rsvp_enabled ? input.rsvp_closes_at ?? null : null,
+      rsvp_waitlist: Boolean(input.rsvp_enabled && input.rsvp_capacity && input.rsvp_waitlist),
     },
   });
 

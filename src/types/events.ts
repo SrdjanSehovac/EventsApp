@@ -53,6 +53,8 @@ export type OccurrenceOut = {
 export type EventListItem = {
   /** Posted by a verified organizer (shows the Verified badge). */
   verified_organizer?: boolean;
+  /** Free in-app RSVP instead of an external ticket link. */
+  rsvp_enabled?: boolean;
   event_id: string;
   title: string;
   summary?: string | null;
@@ -92,6 +94,8 @@ export type EventListItem = {
 
 export type EventDetail = {
   verified_organizer?: boolean;
+  rsvp_enabled?: boolean;
+  rsvp?: RsvpInfo | null;
   event_id: string;
   source: string;
   source_url: string;
@@ -309,4 +313,16 @@ export type SimilarEventsParams = {
 
 export type NeighbourhoodsParams = {
   city?: string;
+};
+
+export type RsvpInfo = {
+  enabled: boolean;
+  capacity?: number | null;
+  confirmed: number;
+  spots_left?: number | null;
+  full: boolean;
+  waitlist: boolean;
+  waitlist_count: number;
+  closes_at?: string | null;
+  closed: boolean;
 };

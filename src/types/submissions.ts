@@ -12,11 +12,15 @@ export type SubmitEventInput = {
   photo_urls?: string[];
   video_url?: string | null;
   bio?: string | null;
+  rsvp_enabled?: boolean;
+  rsvp_capacity?: number | null;
+  rsvp_closes_at?: string | null;
+  rsvp_waitlist?: boolean;
 };
 
 export type SubmittedEvent = SubmitEventInput & {
   submission_id: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'local';
+  status: 'pending' | 'accepted' | 'active' | 'rejected' | 'local' | string;
   created_at: string;
   source: 'server' | 'local';
 };
