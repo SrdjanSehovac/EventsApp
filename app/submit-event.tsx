@@ -148,7 +148,7 @@ export default function SubmitEventScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Sign in"
-          onPress={() => router.push('/sign-in')}
+          onPress={() => router.push({ pathname: '/sign-up', params: { reason: 'post' } })}
           style={[
             styles.button,
             { backgroundColor: colors.primary, borderRadius: radius.md },

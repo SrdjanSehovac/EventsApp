@@ -76,8 +76,8 @@ export default function SuggestEventScreen() {
   }
   if (!isSignedIn) {
     return (
-      <AuthScreen title="Suggest an event" subtitle="Sign in to suggest an event.">
-        {button('Sign in', () => router.push('/sign-in'))}
+      <AuthScreen title="Suggest an event" subtitle="Create a free account (or sign in) to suggest an event.">
+        {button('Create account or sign in', () => router.push({ pathname: '/sign-up', params: { reason: 'post' } }))}
       </AuthScreen>
     );
   }

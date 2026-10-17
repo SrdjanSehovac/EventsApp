@@ -1,15 +1,37 @@
+export type LegalStatus = {
+  needs_acceptance: boolean;
+  accepted_at?: string | null;
+  terms_version?: string | null;
+  privacy_version?: string | null;
+  disclaimer_version?: string | null;
+};
+
 export type AuthUser = {
   user_id: string;
   email: string;
   display_name: string;
   home_lat?: number | null;
   home_lng?: number | null;
+  /** Missing on sessions stored by older builds: treated as needing acceptance. */
+  legal?: LegalStatus | null;
+};
+
+export type LegalAcceptanceInput = {
+  terms_version: string;
+  privacy_version: string;
+  disclaimer_version: string;
+  accept_terms_and_privacy: boolean;
+  acknowledge_disclaimer: boolean;
+  age_confirmed: boolean;
+  app_version?: string | null;
+  platform?: string | null;
 };
 
 export type SignUpInput = {
   email: string;
   password: string;
   display_name: string;
+  legal: LegalAcceptanceInput;
 };
 
 export type SignInInput = {
@@ -37,4 +59,5 @@ export type RawAuthUser = {
   homeLat?: number | null;
   home_lng?: number | null;
   homeLng?: number | null;
+  legal?: LegalStatus | null;
 };

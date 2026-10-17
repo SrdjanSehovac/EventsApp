@@ -1,9 +1,8 @@
 import { Alert, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
 import { ApiError } from '../api/client';
-import { useAuth } from '../auth';
+import { useRequireAccount } from '../auth';
 import { friendlyPublicError } from '../utils/publicError';
 import { useIsFavourited, useToggleFavourite } from '../hooks/favourites';
 import { useTheme } from '../theme';
@@ -26,21 +25,20 @@ export function FavouriteButton({
   variant = 'default',
 }: FavouriteButtonProps) {
   const { colors, shadows } = useTheme();
-  const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const requireAccount = useRequireAccount();
   const isFavourite = useIsFavourited(item.event_id);
   const toggle = useToggleFavourite();
 
   async function onPress() {
-    if (!isSignedIn) {
-      router.push('/sign-in');
-      return;
-    }
+    if (!requireAccount('save', () => save(true))) return;
+    await save(!isFavourite);
+  }
 
+  async function save(next: boolean) {
     try {
       await toggle.mutateAsync({
         eventId: item.event_id,
-        next: !isFavourite,
+        next,
         item,
       });
     } catch (error) {

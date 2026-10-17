@@ -130,7 +130,7 @@ export function MySubmissions({ items, signedIn, onSignIn, canPost = false }: My
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={canPost ? 'Post an event' : 'Become an organizer or suggest an event'}
-        onPress={() => router.push(signedIn ? (canPost ? '/submit-event' : '/contribute') : '/sign-in')}
+        onPress={() => router.push(signedIn ? (canPost ? '/submit-event' : '/contribute') : { pathname: '/sign-up', params: { reason: 'post' } })}
         style={[
           styles.submitBtn,
           { backgroundColor: colors.primary, borderRadius: radius.md, marginTop: spacing.md },

@@ -10,6 +10,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+import { useRequireAccount } from '../auth';
+
 import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
@@ -78,6 +80,7 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
   const { colors, typography, spacing, radius, shadows, isDark } = useTheme();
   const openTickets = useOpenTickets();
   const router = useRouter();
+  const requireAccount = useRequireAccount();
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
@@ -104,7 +107,12 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
     router.push(eventDetailHref(item.event_id));
   }
 
-  async function shareEvent() {
+  function shareEvent() {
+    if (!requireAccount('share', () => doShare())) return;
+    void doShare();
+  }
+
+  async function doShare() {
     const url = platformFreeUrl(outbound?.url) ?? undefined;
     const message = url ? `${item.title}\n${url}` : item.title;
     await Share.share({

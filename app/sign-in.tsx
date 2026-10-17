@@ -25,8 +25,7 @@ export default function SignInScreen() {
     setSubmitting(true);
     try {
       await signIn({ email: email.trim(), password });
-      if (router.canGoBack()) router.back();
-      else router.replace('/');
+      // The sheet closes itself: sign-in screens are only mounted while signed out.
     } catch (err) {
       setError(friendlyAuthError(err, 'sign-in'));
     } finally {
@@ -37,7 +36,8 @@ export default function SignInScreen() {
   return (
     <AuthScreen
       title="Sign in"
-      subtitle="Use the email and password for your account."
+      subtitle="Welcome back to Jaunta."
+      hideBack={!router.canGoBack()}
     >
       <AuthField
         label="EMAIL"
@@ -97,7 +97,7 @@ export default function SignInScreen() {
         <Text style={[typography.body, { color: colors.textSecondary }]}>
           New here?{' '}
         </Text>
-        <Link href="/sign-up" asChild>
+        <Link href="/sign-up" replace asChild>
           <Pressable accessibilityRole="link" accessibilityLabel="Create an account">
             <Text style={[typography.body, { color: colors.primary, fontWeight: '700' }]}>
               Create an account

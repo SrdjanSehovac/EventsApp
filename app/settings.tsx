@@ -34,6 +34,7 @@ import {
 import { leadOptionLabel } from '../src/utils/savedPlan';
 import { useReminderState } from '../src/reminders/useReminders';
 import { THEME_MODES, useTheme, type ThemeMode } from '../src/theme';
+import { openLegalDoc } from '../src/legal';
 import { openExternalUrl } from '../src/utils/eventDetail';
 import { friendlyPublicError } from '../src/utils/publicError';
 
@@ -48,7 +49,6 @@ const APPEARANCE_LABELS: Record<
 };
 
 // Placeholders until the public pages exist.
-const PRIVACY_URL = 'https://51-161-102-13.sslip.io/privacy';
 const HELP_URL = 'mailto:support@ripkeed.com?subject=EventsApp%20help';
 
 export default function SettingsScreen() {
@@ -313,7 +313,11 @@ export default function SettingsScreen() {
 
         {sectionTitle('About')}
         <View style={card}>
-          <Row icon="shield-checkmark-outline" label="Privacy policy" onPress={() => void openExternalUrl(PRIVACY_URL)} />
+          <Row icon="document-text-outline" label="Terms of Use" onPress={() => void openLegalDoc('terms')} />
+          <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
+          <Row icon="shield-checkmark-outline" label="Privacy Policy" onPress={() => void openLegalDoc('privacy')} />
+          <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
+          <Row icon="alert-circle-outline" label="Event Liability Disclaimer" onPress={() => void openLegalDoc('disclaimer')} />
           <View style={[styles.divider, { backgroundColor: colors.hairline }]} />
           <Row icon="help-circle-outline" label="Help & feedback" onPress={() => void openExternalUrl(HELP_URL)} />
           <View style={[styles.divider, { backgroundColor: colors.hairline }]} />

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { addToDeviceCalendar, type CalendarExportEvent } from '../reminders/calendarExport';
+import { useRequireAccount } from '../auth';
 import { useTheme } from '../theme';
 
 export function AddToCalendarButton({
@@ -12,12 +13,16 @@ export function AddToCalendarButton({
   compact?: boolean;
 }) {
   const { colors, radius } = useTheme();
+  const requireAccount = useRequireAccount();
   if (!event.starts_at) return null;
+  const add = () => void addToDeviceCalendar(event);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Add to Apple Calendar"
-      onPress={() => void addToDeviceCalendar(event)}
+      onPress={() => {
+        if (requireAccount('calendar', add)) add();
+      }}
       hitSlop={6}
       style={[
         styles.btn,

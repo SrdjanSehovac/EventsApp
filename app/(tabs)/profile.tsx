@@ -1,3 +1,4 @@
+import { useRequireAccount } from '../../src/auth';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +41,7 @@ export default function SavedScreen() {
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const router = useRouter();
   const { isSignedIn, status } = useAuth();
+  const requireAccount = useRequireAccount();
   const favouritesQuery = useFavourites(isSignedIn);
   const calendarAutoSave = useCalendarAutoSave();
   const reminders = useReminderState();
@@ -69,7 +71,10 @@ export default function SavedScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add an event"
-            onPress={() => router.push('/contribute')}
+            onPress={() => {
+              const go = () => router.push('/contribute');
+              if (requireAccount('post', go)) go();
+            }}
             hitSlop={8}
             style={[styles.iconBtn, { backgroundColor: colors.surface }]}
           >

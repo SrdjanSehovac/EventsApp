@@ -34,10 +34,10 @@ export default function ContributeScreen() {
   }
   if (!isSignedIn) {
     return (
-      <AuthScreen title="Add an event" subtitle="Sign in to post or suggest events.">
+      <AuthScreen title="Add an event" subtitle="Create a free account (or sign in) to post or suggest events.">
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/sign-in')}
+          onPress={() => router.push({ pathname: '/sign-up', params: { reason: 'post' } })}
           style={[styles.button, { backgroundColor: colors.primary, borderRadius: radius.md }]}
         >
           <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>Sign in</Text>

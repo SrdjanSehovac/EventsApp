@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 
 import { openInAppBrowser } from '../checkout/openInAppBrowser';
 import { useOpenTickets } from '../checkout/TicketCheckoutProvider';
+import { useRequireAccount } from '../auth';
 import { useAuth, useEvent, useMyTicket, useRegisterForEvent } from '../hooks';
 import { rsvpState } from '../utils/rsvpFormat';
 import { colorForCategory, tintForCategory, useTheme } from '../theme';
@@ -197,6 +198,7 @@ function RsvpFooter({
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isSignedIn } = useAuth();
+  const requireAccount = useRequireAccount();
   const { ticket } = useMyTicket(isSignedIn ? eventId : undefined);
   const register = useRegisterForEvent();
   const [error, setError] = useState<string | null>(null);
@@ -209,10 +211,11 @@ function RsvpFooter({
       router.push(`/ticket/${eventId}`);
       return;
     }
-    if (!isSignedIn) {
-      router.push('/sign-in');
-      return;
-    }
+    if (!requireAccount('rsvp', () => doRegister())) return;
+    await doRegister();
+  }
+
+  async function doRegister() {
     try {
       await register.mutateAsync({ eventId, item });
       router.push(`/ticket/${eventId}?new=1`);
@@ -276,6 +279,7 @@ function RsvpFooter({
 }
 
 export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
+  const requireAccount = useRequireAccount();
   const { colors, typography, spacing, radius } = useTheme();
   const openTickets = useOpenTickets();
   const insets = useSafeAreaInsets();
@@ -335,7 +339,13 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
   const ended = phase === 'ended';
   const live = phase === 'live';
 
-  async function shareEvent() {
+  function shareEvent() {
+    if (!detail) return;
+    if (!requireAccount('share', () => doShare())) return;
+    void doShare();
+  }
+
+  async function doShare() {
     if (!detail) return;
     // Never share a competing event platform's page (Eventbrite, Meetup, ...).
     const url =
