@@ -40,7 +40,7 @@ export const EMPTY_FILTERS: EventsFilterState = {
   categorySlugs: [],
   city: null,
   neighbourhood: null,
-  when: 'upcoming',
+  when: 'week',
   startsAfter: '',
   startsBefore: '',
   ticketing: null,
@@ -60,6 +60,7 @@ export const WHEN_OPTIONS: { label: string; value: WhenPreset }[] = [
   { label: 'Today', value: 'today' },
   { label: 'Tonight', value: 'tonight' },
   { label: 'Weekend', value: 'weekend' },
+  { label: 'This week', value: 'week' },
   { label: 'Upcoming', value: 'upcoming' },
 ];
 

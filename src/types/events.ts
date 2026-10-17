@@ -21,7 +21,7 @@ export type SortField =
   | '-created_at'
   | 'scraped_at'
   | '-scraped_at';
-export type WhenPreset = 'now' | 'today' | 'tonight' | 'weekend' | 'upcoming';
+export type WhenPreset = 'now' | 'today' | 'tonight' | 'weekend' | 'week' | 'upcoming';
 export type SettingFilter = 'indoor' | 'outdoor' | 'hybrid' | 'unknown';
 export type SaleKind = 'sale' | 'clearance';
 
