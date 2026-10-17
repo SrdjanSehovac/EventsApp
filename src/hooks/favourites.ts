@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { addFavourite, fetchFavourites, removeFavourite } from '../api/favourites';
 import { useAuth } from '../auth';
+import { cancelReminder, scheduleReminder } from '../reminders';
 import type { EventListItem } from '../types/events';
 
 export const favouriteKeys = {
@@ -64,6 +65,20 @@ export function useToggleFavourite() {
     onError: (_error, _vars, context) => {
       if (context?.previous) {
         queryClient.setQueryData(favouriteKeys.list(), context.previous);
+      }
+    },
+    onSuccess: (_data, { eventId, next, item }) => {
+      // Reminder follows the save: schedule (asking permission the first
+      // time) on save, cancel on unsave.
+      if (next) {
+        const saved =
+          item ??
+          queryClient
+            .getQueryData<{ items: EventListItem[] }>(favouriteKeys.list())
+            ?.items.find((entry) => entry.event_id === eventId);
+        if (saved) void scheduleReminder(saved).catch(() => undefined);
+      } else {
+        void cancelReminder(eventId).catch(() => undefined);
       }
     },
     onSettled: () => {

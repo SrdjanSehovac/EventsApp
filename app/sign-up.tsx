@@ -1,32 +1,40 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
+import { friendlyAuthError } from '../src/auth/authErrors';
 import { AuthField, AuthScreen } from '../src/components';
 import { useAuth } from '../src/hooks';
+import {
+  consentComplete,
+  EMPTY_CONSENT,
+  LegalConsent,
+  legalAcceptance,
+  type LegalConsentState,
+} from '../src/legal';
 import { useTheme } from '../src/theme';
 
-function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Sign-up is not available yet (EventServer needs POST /v1/auth/signup).';
-    }
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Could not create account.';
-}
+const REASON_COPY: Record<string, string> = {
+  save: 'Create a free account to save events. Takes 30 seconds.',
+  calendar: 'Create a free account to add events to your calendar. Takes 30 seconds.',
+  share: 'Create a free account to share events. Takes 30 seconds.',
+  post: 'Create a free account to post or suggest events. Takes 30 seconds.',
+  rsvp: 'Create a free account to RSVP. Takes 30 seconds.',
+  default: 'Takes 30 seconds. Your account keeps your saved events, reminders and RSVPs.',
+};
 
 export default function SignUpScreen() {
   const { colors, typography, spacing, radius } = useTheme();
   const { signUp } = useAuth();
   const router = useRouter();
+  const { reason } = useLocalSearchParams<{ reason?: string }>();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consent, setConsent] = useState<LegalConsentState>(EMPTY_CONSENT);
+  const canSubmit = consentComplete(consent) && !submitting;
 
   async function onSubmit() {
     setError(null);
@@ -38,16 +46,22 @@ export default function SignUpScreen() {
       setError('Password must be at least 8 characters.');
       return;
     }
+    if (!consentComplete(consent)) {
+      setError('Please tick all three boxes to create your account.');
+      return;
+    }
     setSubmitting(true);
     try {
       await signUp({
         email: email.trim(),
         password,
         display_name: displayName.trim(),
+        legal: legalAcceptance(),
       });
-      router.replace('/');
+      // The sheet closes itself (only mounted while signed out); the action
+      // that opened it then runs from the root navigator.
     } catch (err) {
-      setError(errorMessage(err));
+      setError(friendlyAuthError(err, 'sign-up'));
     } finally {
       setSubmitting(false);
     }
@@ -55,8 +69,9 @@ export default function SignUpScreen() {
 
   return (
     <AuthScreen
-      title="Create account"
-      subtitle="Email and password only — no Ticketmaster or Gemini required."
+      title="Create your Jaunta account"
+      subtitle={REASON_COPY[reason ?? ''] ?? REASON_COPY.default}
+      hideBack={!router.canGoBack()}
     >
       <AuthField
         label="DISPLAY NAME"
@@ -87,6 +102,8 @@ export default function SignUpScreen() {
         textContentType="newPassword"
       />
 
+      <LegalConsent value={consent} onChange={setConsent} />
+
       {error ? (
         <Text
           style={[
@@ -101,12 +118,14 @@ export default function SignUpScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Create account"
+        accessibilityState={{ disabled: !canSubmit }}
+        testID="create-account"
         onPress={() => void onSubmit()}
-        disabled={submitting}
+        disabled={!canSubmit}
         style={[
           styles.submit,
           {
-            backgroundColor: colors.primary,
+            backgroundColor: canSubmit || submitting ? colors.primary : colors.border,
             borderRadius: radius.md,
             opacity: submitting ? 0.7 : 1,
           },
@@ -115,7 +134,12 @@ export default function SignUpScreen() {
         {submitting ? (
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
-          <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
+          <Text
+            style={[
+              typography.body,
+              { color: canSubmit ? colors.onPrimary : colors.textMuted, fontWeight: '700' },
+            ]}
+          >
             Create account
           </Text>
         )}
@@ -125,7 +149,7 @@ export default function SignUpScreen() {
         <Text style={[typography.body, { color: colors.textSecondary }]}>
           Already have an account?{' '}
         </Text>
-        <Link href="/sign-in" asChild>
+        <Link href="/sign-in" replace asChild>
           <Pressable accessibilityRole="link" accessibilityLabel="Sign in">
             <Text style={[typography.body, { color: colors.primary, fontWeight: '700' }]}>
               Sign in

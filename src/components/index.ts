@@ -14,6 +14,7 @@ export { FavouriteButton } from './FavouriteButton';
 export { AuthScreen } from './AuthScreen';
 export { AuthField } from './AuthField';
 export { BrowseSearchBar } from './BrowseSearchBar';
+export type { BrowseSearchBarHandle } from './BrowseSearchBar';
 export { BrowseHeader } from './BrowseHeader';
 export { MapListToggle } from './MapListToggle';
 export { MapTypeToggle } from './MapTypeToggle';
@@ -37,4 +38,9 @@ export {
   RecentScrapes,
   CityExplorer,
 } from './admin';
-export type { AdminInsights, CoverageMetric } from './admin';
+export type { AdminInsights, CoverageMetric } from './admin';export { LocationChip } from './LocationChip';
+export { VerifiedBadge } from './VerifiedBadge';
+export { ReportEventButton } from './ReportEventButton';
+export { QrCode } from './QrCode';
+export { AddToCalendarButton } from './AddToCalendarButton';
+export { MyTickets } from './MyTickets';

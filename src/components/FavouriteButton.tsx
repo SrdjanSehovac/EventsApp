@@ -1,28 +1,23 @@
 import { Alert, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
 import { ApiError } from '../api/client';
-import { useAuth } from '../auth';
+import { useRequireAccount } from '../auth';
+import { friendlyPublicError } from '../utils/publicError';
 import { useIsFavourited, useToggleFavourite } from '../hooks/favourites';
 import { useTheme } from '../theme';
 import type { EventListItem } from '../types/events';
 
 type FavouriteButtonProps = {
   item: EventListItem;
-  variant?: 'default' | 'plain' | 'overlay';
+  variant?: 'default' | 'plain' | 'overlay' | 'glass';
 };
 
 function describeFavouriteError(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) return 'Sign in to save favourites.';
-    if (error.status === 404) {
-      return 'Favourites are not available on this EventServer yet (missing /v1/me/favourites).';
-    }
-    return error.message;
+  if (error instanceof ApiError && error.status === 401) {
+    return 'Sign in to save favourites.';
   }
-  if (error instanceof Error) return error.message;
-  return 'Could not update favourite.';
+  return friendlyPublicError(error, "Couldn't update saved events. Please try again.");
 }
 
 export function FavouriteButton({
@@ -30,21 +25,20 @@ export function FavouriteButton({
   variant = 'default',
 }: FavouriteButtonProps) {
   const { colors, shadows } = useTheme();
-  const router = useRouter();
-  const { isSignedIn } = useAuth();
+  const requireAccount = useRequireAccount();
   const isFavourite = useIsFavourited(item.event_id);
   const toggle = useToggleFavourite();
 
   async function onPress() {
-    if (!isSignedIn) {
-      router.push('/sign-in');
-      return;
-    }
+    if (!requireAccount('save', () => save(true))) return;
+    await save(!isFavourite);
+  }
 
+  async function save(next: boolean) {
     try {
       await toggle.mutateAsync({
         eventId: item.event_id,
-        next: !isFavourite,
+        next,
         item,
       });
     } catch (error) {
@@ -54,6 +48,7 @@ export function FavouriteButton({
 
   const overlay = variant === 'overlay';
   const plain = variant === 'plain';
+  const glass = variant === 'glass';
 
   return (
     <Pressable
@@ -65,18 +60,20 @@ export function FavouriteButton({
       style={[
         styles.button,
         overlay ? shadows.soft : null,
-        overlay
+        glass
+          ? { backgroundColor: 'rgba(255,255,255,0.86)', borderWidth: 0, width: 38, height: 38, borderRadius: 19 }
+          : overlay
           ? { backgroundColor: colors.surface, borderWidth: 0 }
           : plain
-            ? { borderWidth: 0, width: 36, height: 36 }
+            ? { borderWidth: 0, width: 44, height: 44 }
             : { borderColor: colors.border },
         { opacity: toggle.isPending ? 0.6 : 1 },
       ]}
     >
       <Ionicons
         name={isFavourite ? 'heart' : 'heart-outline'}
-        size={overlay || plain ? 22 : 16}
-        color={colors.primary}
+        size={glass ? 20 : overlay || plain ? 22 : 16}
+        color={glass ? (isFavourite ? '#E11D48' : '#1B1F1E') : colors.primary}
       />
     </Pressable>
   );

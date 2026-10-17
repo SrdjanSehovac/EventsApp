@@ -21,6 +21,7 @@ import {
   weekCells,
 } from '../utils/calendar';
 import { eventDetailHref } from '../utils/eventDetail';
+import { eventPhase } from '../utils/eventLive';
 import { FavouriteButton } from './FavouriteButton';
 
 type CalendarMode = 'month' | 'week';
@@ -384,6 +385,9 @@ function CalendarEventRow({ item }: { item: EventListItem }) {
   const { colors, typography, spacing, radius } = useTheme();
   const router = useRouter();
   const place = [item.neighbourhood, item.city].filter(Boolean).join(', ');
+  const phase = eventPhase(item);
+  const timing =
+    phase === 'ended' ? 'Ended' : phase === 'live' ? 'Happening now' : null;
 
   return (
     <View
@@ -411,9 +415,16 @@ function CalendarEventRow({ item }: { item: EventListItem }) {
         </Text>
         <Text
           numberOfLines={1}
-          style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}
+          style={[
+            typography.caption,
+            {
+              color: phase === 'ended' ? colors.textMuted : colors.textSecondary,
+              marginTop: 2,
+            },
+          ]}
         >
           {formatEventTime(item.starts_at)}
+          {timing ? ` · ${timing}` : ''}
           {place ? ` · ${place}` : ''}
         </Text>
       </Pressable>
@@ -448,9 +459,10 @@ const styles = StyleSheet.create({
     padding: 3,
   },
   modeChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    minWidth: 58,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minWidth: 72,
+    minHeight: 36,
     alignItems: 'center',
   },
   navRow: {
@@ -460,9 +472,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   navBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

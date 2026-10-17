@@ -1,13 +1,20 @@
 import type { Region } from 'react-native-maps';
 
+import { findProductCity } from '../config/cities';
 import type { UserGeo } from '../types/common';
 
 /** ~111 km per degree of latitude */
 const KM_PER_DEG_LAT = 111;
 
+const toronto = findProductCity('toronto');
+if (!toronto) {
+  throw new Error('Toronto is missing from the product city registry');
+}
+
+/** Downtown Toronto — the camera until a city or device location is chosen. */
 export const DEFAULT_MAP_GEO: UserGeo = {
-  lat: 43.6532,
-  lng: -79.3832,
+  lat: toronto.lat,
+  lng: toronto.lng,
 };
 
 /** Search + camera radius on first load / recenter. */
@@ -19,6 +26,23 @@ const MAX_RADIUS_KM = 100;
 /** Center move (degrees) or radius change (km) vs last settled search. */
 const CENTER_DIRTY_DEG = 0.02;
 const RADIUS_DIRTY_KM = 2.5;
+
+/**
+ * Camera for a neighbourhood. `zoom` is a web-mercator level:
+ * 14 is a few blocks, 12 is a former borough.
+ */
+export function regionForZoom(lat: number, lng: number, zoom: number): Region {
+  const latitudeDelta = 360 / 2 ** zoom;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  const longitudeDelta =
+    cosLat > 0.01 ? latitudeDelta / cosLat : latitudeDelta;
+  return {
+    latitude: lat,
+    longitude: lng,
+    latitudeDelta,
+    longitudeDelta,
+  };
+}
 
 export function regionForRadiusKm(
   center: UserGeo,

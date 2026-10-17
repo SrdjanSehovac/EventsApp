@@ -2,6 +2,8 @@ import { apiRequest } from './client';
 import type {
   AuthSessionResponse,
   AuthUser,
+  LegalAcceptanceInput,
+  LegalStatus,
   RawAuthUser,
   SignInInput,
   SignUpInput,
@@ -11,8 +13,9 @@ import type {
  * EventServer auth contract (expected under `/v1`):
  *   POST /auth/signup  { email, password, display_name }
  *   POST /auth/login   { email, password }
- *   GET  /auth/me
- *   POST /auth/logout
+ *   GET    /auth/me
+ *   DELETE /auth/me   permanent account deletion
+ *   POST   /auth/logout
  *
  * TODO: If EventServer ships OAuth2PasswordRequestForm instead of JSON login,
  * switch `/auth/login` to `application/x-www-form-urlencoded` with
@@ -49,6 +52,7 @@ export function normalizeUser(
     display_name: displayName,
     home_lat: data.home_lat ?? data.homeLat ?? null,
     home_lng: data.home_lng ?? data.homeLng ?? null,
+    legal: data.legal ?? null,
   };
 }
 
@@ -81,6 +85,7 @@ export async function signUpRequest(input: SignUpInput) {
       email: input.email.trim(),
       password: input.password,
       display_name: input.display_name.trim(),
+      legal: input.legal,
     },
     auth: false,
   });
@@ -108,6 +113,13 @@ export async function fetchCurrentUser(signal?: AbortSignal) {
   return normalizeUser(payload);
 }
 
+export async function deleteAccountRequest() {
+  await apiRequest<void>({
+    path: '/auth/me',
+    method: 'DELETE',
+  });
+}
+
 export async function signOutRequest() {
   try {
     await apiRequest<void>({
@@ -117,4 +129,13 @@ export async function signOutRequest() {
   } catch {
     // Local sign-out still proceeds if EventServer has no logout route.
   }
+}
+
+/** Accept the current Terms / Privacy / Disclaimer (signed-in users). */
+export async function acceptLegalRequest(input: LegalAcceptanceInput): Promise<LegalStatus> {
+  return apiRequest<LegalStatus>({
+    path: '/legal/accept',
+    method: 'POST',
+    body: input,
+  });
 }

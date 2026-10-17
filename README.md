@@ -15,7 +15,7 @@ npx expo start
 
 Point the client at EventServer with `EXPO_PUBLIC_API_URL` (no trailing slash), e.g. `http://192.168.1.10:8000`. Simulators default to `http://localhost:8000` (`10.0.2.2` on Android).
 
-SW Ontario cities in the filter sheet are **Any, Toronto, Ottawa, London, Mississauga** (plain labels, no “City:” prefix). Categories are twelve parent groups (Nightlife, Music, Comedy, Arts, Food & Drink, Markets, Sales, Festivals, Sports & Fitness, Family, Workshops, Community) — leaves like Classical, DJ/Electronic, and All-Ages fold into those parents. When, date range, ticketing, and indoor/outdoor stay on the sheet.
+City filters offer **Any** plus the 21 product cities (Toronto, Montreal, Vancouver, Ottawa, Calgary, Edmonton, Quebec City, Winnipeg, Hamilton, Kitchener, London, Halifax, St. Catharines, Windsor, Oshawa, Victoria, Saskatoon, Regina, Sherbrooke, Kelowna, Mississauga). The picker groups them by province and is searchable. Labels stay plain names (no “City:” prefix). Choosing a city recentres the map on that downtown. Categories are twelve parent groups (Nightlife, Music, Comedy, Arts, Food & Drink, Markets, Sales, Festivals, Sports & Fitness, Family, Workshops, Community) — leaves like Classical, DJ/Electronic, and All-Ages fold into those parents. When, date range, ticketing, and indoor/outdoor stay on the sheet.
 
 ## Auth
 
@@ -49,7 +49,7 @@ Suggested EventServer model: pending until staff accept into the public `events`
 
 Low-friction **digital** verification: website + business email. **No government ID upload, face scan, or selfie check** — the app will not add those flows.
 
-From **Saved → Post as a business / Become a business**: business name, website, business email, optional phone, city chips (Toronto / Ottawa / London / Mississauga), and what you are (venue / promoter / retail / other). Copy on the form: *Verify your business email — same domain as your website works best. No ID selfie required.*
+From **Saved → Post as a business / Become a business**: business name, website, business email, optional phone, a city picker (the same 21 product cities), and what you are (venue / promoter / retail / other). Copy on the form: *Verify your business email — same domain as your website works best. No ID selfie required.*
 
 Status screen tracks `pending_email` → `pending_review` → `verified` | `rejected`. Email links can open `eventsapp://business-verify?token=…` (or `/business-verify?token=` / `?code=`). When verified, Saved shows **Posting unlocked** and Submit event gains photos, optional short video URL, and bio.
 

@@ -1,13 +1,14 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { AuthScreen } from '../src/components';
 import { useAuth } from '../src/hooks';
 import { useTheme } from '../src/theme';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 export default function AccountScreen() {
   const { colors, typography, spacing, radius } = useTheme();
-  const { user, isSignedIn, status, signOut } = useAuth();
+  const { user, isSignedIn, status, signOut, deleteAccount } = useAuth();
   const router = useRouter();
 
   if (status === 'loading') {
@@ -114,6 +115,49 @@ export default function AccountScreen() {
       >
         <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>
           Sign out
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Delete account"
+        onPress={() => {
+          Alert.alert(
+            'Delete account?',
+            'This permanently deletes your account and the saved events stored with it. This can’t be undone.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete account',
+                style: 'destructive',
+                onPress: () => {
+                  void deleteAccount().catch((error: unknown) => {
+                    Alert.alert(
+                      'Couldn’t delete account',
+                      friendlyPublicError(
+                        error,
+                        'Account deletion isn’t available right now. Please try again later.',
+                      ),
+                    );
+                  });
+                },
+              },
+            ],
+          );
+        }}
+        style={[
+          styles.button,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderWidth: 1,
+            borderRadius: radius.md,
+            marginTop: spacing.md,
+          },
+        ]}
+      >
+        <Text style={[typography.body, { color: colors.danger, fontWeight: '700' }]}>
+          Delete account
         </Text>
       </Pressable>
     </AuthScreen>

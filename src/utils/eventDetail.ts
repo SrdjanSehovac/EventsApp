@@ -6,6 +6,24 @@ import type {
   EventListItem,
   EventMapPin,
 } from '../types/events';
+import { formatPlaceLines } from './eventPresentation';
+import {
+  allowedImageUrl,
+  allowedOutboundUrl,
+  isBlockedUrl,
+} from './outboundLinks';
+
+export {
+  formatAboutBody,
+  formatActionLabel,
+  hostedByLine,
+  organizerPageUrl,
+  formatDetailPrice,
+  formatOccurrenceLine,
+  formatPlaceLines,
+  formatScheduleLines,
+  isSchemaOrgType,
+} from './eventPresentation';
 
 export function eventDetailHref(eventId: string) {
   return {
@@ -31,7 +49,12 @@ export function pinToListItem(pin: EventMapPin): EventListItem {
     neighbourhood: pin.neighbourhood,
     city: pin.city,
     primary_category: pin.primary_category,
-    image_url: pin.image_url,
+    image_url: allowedImageUrl(pin.image_url),
+    image_fallback: pin.image_fallback,
+    external_url: pin.external_url,
+    checkout_url: pin.checkout_url,
+    eventbrite_event_id: pin.eventbrite_event_id,
+    link_type: pin.link_type,
     latitude: pin.latitude,
     longitude: pin.longitude,
     distance_km: pin.distance_m != null ? pin.distance_m / 1000 : null,
@@ -59,26 +82,38 @@ export function detailToListItem(detail: EventDetail): EventListItem {
       detail.categories.find((c) => c.is_primary) ??
       detail.categories[0] ??
       null,
-    image_url: detail.image_url ?? collectPhotoUrls(detail)[0] ?? null,
+    image_url:
+      allowedImageUrl(detail.image_url) ?? collectPhotoUrls(detail)[0] ?? null,
+    image_fallback: detail.image_fallback,
+    external_url: detail.external_url,
+    checkout_url: detail.checkout_url,
+    eventbrite_event_id: detail.eventbrite_event_id,
+    link_type: detail.link_type,
     latitude: detail.latitude ?? detail.venue?.latitude,
     longitude: detail.longitude ?? detail.venue?.longitude,
     tags: detail.tags,
     vibe: detail.vibe,
+    verified_organizer: detail.verified_organizer,
   };
+}
+
+function imageSrc(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  const src = record.url ?? record.src ?? record.image_url;
+  return typeof src === 'string' ? src : null;
 }
 
 function asUrlList(value: unknown): string[] {
   if (!value) return [];
-  if (Array.isArray(value)) {
-    return value.filter(
-      (entry): entry is string =>
-        typeof entry === 'string' && /^https?:\/\//i.test(entry.trim()),
-    );
+  const entries = Array.isArray(value) ? value : [value];
+  const urls: string[] = [];
+  for (const entry of entries) {
+    const src = allowedImageUrl(imageSrc(entry));
+    if (src) urls.push(src);
   }
-  if (typeof value === 'string' && /^https?:\/\//i.test(value.trim())) {
-    return [value.trim()];
-  }
-  return [];
+  return urls;
 }
 
 export function collectPhotoUrls(detail: EventDetail): string[] {
@@ -89,7 +124,7 @@ export function collectPhotoUrls(detail: EventDetail): string[] {
     urls.push(next);
   };
 
-  push(detail.image_url);
+  push(allowedImageUrl(detail.image_url));
   for (const url of asUrlList(detail.image_urls)) push(url);
   for (const url of asUrlList(detail.photo_urls)) push(url);
   return urls;
@@ -116,230 +151,12 @@ export function asLabelList(value: unknown): string[] {
   return labels;
 }
 
-function toNumber(value?: number | string | null): number | null {
-  if (value == null || value === '') return null;
-  const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function formatCad(value: number): string {
-  return value.toLocaleString(undefined, {
-    style: 'currency',
-    currency: 'CAD',
-    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
-  });
-}
-
-export function formatDetailPrice(detail: EventDetail): string | null {
-  const notes = detail.price_notes?.trim() || null;
-  if (detail.is_free === true) {
-    return notes ? `Free · ${notes}` : 'Free';
-  }
-
-  const min = toNumber(detail.price_min_cad);
-  const max = toNumber(detail.price_max_cad);
-  let price: string | null = null;
-  if (min != null && max != null && min !== max) {
-    price = `${formatCad(min)}–${formatCad(max)}`;
-  } else if (min != null) {
-    price = formatCad(min);
-  } else if (max != null) {
-    price = formatCad(max);
-  } else if (detail.ticketing === 'ticketed') {
-    price = 'Ticketed';
-  } else if (detail.ticketing === 'donation') {
-    price = 'Donation';
-  } else if (detail.ticketing === 'door') {
-    price = 'Pay at door';
-  } else if (detail.ticketing === 'rsvp' || detail.requires_rsvp) {
-    price = 'RSVP';
-  } else if (detail.is_free === false) {
-    price = 'Paid';
-  }
-
-  if (price && notes) return `${price} · ${notes}`;
-  return price ?? notes;
-}
-
-export function isValidTimeZone(timeZone?: string | null): timeZone is string {
-  if (!timeZone) return false;
-  try {
-    Intl.DateTimeFormat('en-US', { timeZone });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function formatWhenWithZone(
-  value?: string | null,
-  timeZone?: string | null,
-  options?: { includeZone?: boolean; dateOnly?: boolean },
-): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  const zone = isValidTimeZone(timeZone) ? timeZone : undefined;
-  return date.toLocaleString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    ...(options?.dateOnly
-      ? {}
-      : { hour: 'numeric', minute: '2-digit' }),
-    timeZone: zone,
-    timeZoneName: options?.includeZone && !options?.dateOnly ? 'short' : undefined,
-  });
-}
-
-export function formatTimeOfDay(
-  value?: string | null,
-  timeZone?: string | null,
-): string | null {
-  if (!value) return null;
-  if (/^\d{1,2}:\d{2}/.test(value)) {
-    const [hours, minutes] = value.split(':').map(Number);
-    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date.toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const zone = isValidTimeZone(timeZone) ? timeZone : undefined;
-  return date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: zone,
-  });
-}
-
-export function dateKeyInZone(
-  value?: string | null,
-  timeZone?: string | null,
-): string | null {
-  if (!value) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    const prefix = value.match(/^(\d{4}-\d{2}-\d{2})/);
-    return prefix?.[1] ?? null;
-  }
-  const zone = isValidTimeZone(timeZone) ? timeZone : undefined;
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-  if (!year || !month || !day) return null;
-  return `${year}-${month}-${day}`;
-}
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-export function formatScheduleLines(detail: EventDetail): string[] {
-  const zone = detail.timezone;
-  const lines: string[] = [];
-
-  if (detail.schedule_type === 'date_range' && (detail.range_start_date || detail.range_end_date)) {
-    const start =
-      formatWhenWithZone(detail.range_start_date, zone, { dateOnly: true }) ??
-      detail.range_start_date;
-    const end =
-      formatWhenWithZone(detail.range_end_date, zone, { dateOnly: true }) ??
-      detail.range_end_date;
-    if (start && end) lines.push(`${start} – ${end}`);
-    else if (start) lines.push(`From ${start}`);
-    else if (end) lines.push(`Until ${end}`);
-
-    const dailyStart = formatTimeOfDay(detail.daily_start_time, zone);
-    const dailyEnd = formatTimeOfDay(detail.daily_end_time, zone);
-    if (dailyStart && dailyEnd) lines.push(`${dailyStart} – ${dailyEnd} daily`);
-    else if (dailyStart) lines.push(`From ${dailyStart} daily`);
-
-    const closed = (detail.closed_weekdays ?? [])
-      .map((day) => WEEKDAYS[day] ?? null)
-      .filter((label): label is string => Boolean(label));
-    if (closed.length) lines.push(`Closed ${closed.join(', ')}`);
-  } else {
-    const start = formatWhenWithZone(detail.starts_at, zone, { includeZone: true });
-    const end = formatWhenWithZone(detail.ends_at, zone);
-    if (start && end && detail.starts_at && detail.ends_at) {
-      const startDay = dateKeyInZone(detail.starts_at, zone);
-      const endDay = dateKeyInZone(detail.ends_at, zone);
-      if (startDay && endDay && startDay === endDay) {
-        const endTime = formatTimeOfDay(detail.ends_at, zone);
-        lines.push(endTime ? `${start} – ${endTime}` : start);
-      } else {
-        lines.push(`${start} – ${end}`);
-      }
-    } else if (start) {
-      lines.push(start);
-    }
-  }
-
-  if (detail.raw_schedule_text?.trim()) {
-    const raw = detail.raw_schedule_text.trim();
-    if (!lines.some((line) => line.includes(raw))) lines.push(raw);
-  }
-
-  if (isValidTimeZone(zone) && lines.length > 0 && !lines[0].includes(zone)) {
-    const zoneLabel = new Date(
-      detail.starts_at ?? Date.now(),
-    ).toLocaleTimeString(undefined, {
-      timeZone: zone,
-      timeZoneName: 'short',
-      hour: 'numeric',
-    });
-    const abbr = zoneLabel.split(' ').pop();
-    if (abbr && !lines[0].includes(abbr)) {
-      lines.push(zone.replace(/_/g, ' '));
-    }
-  }
-
-  return lines.length ? lines : ['Schedule TBD'];
-}
-
-export function formatOccurrenceLine(
-  occurrence: { starts_at: string; ends_at: string },
-  timeZone?: string | null,
-): string {
-  const start = formatWhenWithZone(occurrence.starts_at, timeZone, {
-    includeZone: true,
-  });
-  const sameDay =
-    dateKeyInZone(occurrence.starts_at, timeZone) ===
-    dateKeyInZone(occurrence.ends_at, timeZone);
-  const endTime = formatTimeOfDay(occurrence.ends_at, timeZone);
-  if (start && endTime && sameDay) {
-    return `${start} – ${endTime}`;
-  }
-  const end = formatWhenWithZone(occurrence.ends_at, timeZone);
-  if (start && end) return `${start} – ${end}`;
-  return start ?? 'Schedule TBD';
-}
-
 export function formatVenueName(detail: EventDetail): string | null {
-  return detail.venue?.name?.trim() || detail.raw_venue_name?.trim() || null;
+  return formatPlaceLines(detail).name;
 }
 
 export function formatFullAddress(detail: EventDetail): string | null {
-  const parts = [
-    detail.venue?.address_line || detail.raw_venue_address,
-    detail.venue?.neighbourhood || detail.neighbourhood,
-    detail.venue?.city,
-  ]
-    .map((part) => part?.trim() || '')
-    .filter(Boolean);
-  return [...new Set(parts)].join(', ') || null;
+  return formatPlaceLines(detail).address;
 }
 
 export function parseCoord(value?: number | string | null): number | null {
@@ -371,10 +188,12 @@ export function mapsSearchUrl(
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 }
 
+/** Maps and other non-ticket links. Ticket buttons use the in-app checkout. */
 export async function openExternalUrl(url?: string | null): Promise<void> {
-  if (!url) return;
+  const next = allowedOutboundUrl(url);
+  if (!next || isBlockedUrl(next)) return;
   try {
-    await Linking.openURL(url);
+    await Linking.openURL(next);
   } catch {
     // Ignore platforms that reject the scheme.
   }

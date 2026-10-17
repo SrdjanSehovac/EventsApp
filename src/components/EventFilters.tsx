@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { SW_ONTARIO_CITIES } from '../config/cities';
+import { buildCityOptions } from '../config/cities';
 import { useTheme } from '../theme';
 import type { CategoryNode } from '../types/categories';
 import type {
@@ -40,7 +40,7 @@ export const EMPTY_FILTERS: EventsFilterState = {
   categorySlugs: [],
   city: null,
   neighbourhood: null,
-  when: 'upcoming',
+  when: 'week',
   startsAfter: '',
   startsBefore: '',
   ticketing: null,
@@ -60,6 +60,7 @@ export const WHEN_OPTIONS: { label: string; value: WhenPreset }[] = [
   { label: 'Today', value: 'today' },
   { label: 'Tonight', value: 'tonight' },
   { label: 'Weekend', value: 'weekend' },
+  { label: 'This week', value: 'week' },
   { label: 'Upcoming', value: 'upcoming' },
 ];
 
@@ -72,6 +73,8 @@ type EventFiltersProps = {
   neighbourhoods: NeighbourhoodCount[];
   showSearch?: boolean;
   showClear?: boolean;
+  /** Fired with the filter clear. Used to return list sort to Soonest. */
+  onReset?: () => void;
 };
 
 function toIsoDate(raw: string, endOfDay: boolean) {
@@ -180,6 +183,7 @@ export function EventFilters({
   neighbourhoods,
   showSearch = true,
   showClear = true,
+  onReset,
 }: EventFiltersProps) {
   const { colors, typography, spacing, radius } = useTheme();
 
@@ -187,19 +191,7 @@ export function EventFilters({
     onChange({ ...value, ...partial });
   }
 
-  const apiByName = new Map(
-    cities.map((city) => [city.city.toLowerCase(), city] as const),
-  );
-  const cityOptions = [
-    { label: 'Any', value: null },
-    ...SW_ONTARIO_CITIES.map((name) => {
-      const match = apiByName.get(name.toLowerCase());
-      return {
-        label: name,
-        value: match?.city ?? name,
-      };
-    }),
-  ];
+  const cityOptions = buildCityOptions(cities);
 
   const neighbourhoodOptions = [
     { label: 'Any', value: null },
@@ -228,7 +220,10 @@ export function EventFilters({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Clear all filters"
-            onPress={() => onChange({ ...EMPTY_FILTERS, q: value.q })}
+            onPress={() => {
+              onChange({ ...EMPTY_FILTERS, q: value.q });
+              onReset?.();
+            }}
             hitSlop={8}
           >
             <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
@@ -286,6 +281,8 @@ export function EventFilters({
           placeholder="Any"
           value={value.city}
           options={cityOptions}
+          searchable
+          searchPlaceholder="Search cities…"
           onChange={(city) => patch({ city, neighbourhood: null })}
         />
         <SelectField

@@ -3,6 +3,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from '@tanstack/react-query';
+import type { Region } from 'react-native-maps';
 
 import {
   fetchCities,
@@ -12,8 +13,10 @@ import {
   fetchNeighbourhoods,
   fetchSimilarEvents,
   fetchTodayEvents,
+  fetchViewportMapEvents,
   searchEvents,
 } from '../api/events';
+import { quantizeRegion } from '../utils/mapViewport';
 import type { UserGeo } from '../types/common';
 import type {
   MapEventsParams,
@@ -70,8 +73,10 @@ export function useInfiniteEvents(
       fetchEvents({ ...params, page: pageParam }, geo, signal),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      const { page, total_pages } = lastPage.meta;
-      return page < total_pages ? page + 1 : undefined;
+      const page = lastPage.meta?.page;
+      const totalPages = lastPage.meta?.total_pages;
+      if (page == null || totalPages == null) return undefined;
+      return page < totalPages ? page + 1 : undefined;
     },
     enabled,
   });
@@ -88,6 +93,34 @@ export function useMapEvents(
     enabled,
     placeholderData: keepPreviousData,
     staleTime: 60_000,
+  });
+}
+
+/**
+ * Visible-region map query. The caller commits the region only after a
+ * meaningful pan or zoom and a gesture debounce, so this does not wait again.
+ *
+ * The request is the visible box. The server's `total` counts that box and
+ * matches the list `meta.total`. A padded request would report off-screen
+ * events and, past `limit`, can drop events that are actually on screen.
+ * Pins already loaded just outside a zoom-in are kept locally.
+ */
+export function useMapViewport(
+  params: Omit<
+    MapEventsParams,
+    'north' | 'south' | 'east' | 'west' | 'radius_km' | 'limit'
+  >,
+  region: Region | null,
+  enabled = true,
+) {
+  const keyRegion = region ? quantizeRegion(region) : null;
+
+  return useQuery({
+    queryKey: [...eventKeys.all, 'map', 'viewport', params, keyRegion] as const,
+    queryFn: ({ signal }) => fetchViewportMapEvents(params, region!, signal),
+    enabled: enabled && region != null,
+    placeholderData: keepPreviousData,
+    staleTime: 20_000,
   });
 }
 

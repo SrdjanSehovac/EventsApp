@@ -9,17 +9,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthField, AuthScreen, DigitalProofNote } from '../src/components';
 import { useAuth, useMyBusiness, useResendBusinessVerification, useVerifyBusinessEmail } from '../src/hooks';
 import { useTheme } from '../src/theme';
 import { BUSINESS_KIND_LABELS } from '../src/types/business';
+import { friendlyPublicError } from '../src/utils/publicError';
 import type { BusinessProfile } from '../src/types/business';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not update your application.';
+  return friendlyPublicError(error, "Couldn't update your application. Please try again.");
 }
 
 function StatusBadge({
@@ -52,19 +50,24 @@ function headingFor(profile: BusinessProfile) {
     case 'pending_email':
       return {
         title: 'Verify your email',
-        subtitle: `We sent a link to ${profile.business_email}. Same domain as your website works best.`,
+        subtitle:
+          profile.delivery === 'unavailable' || profile.delivery === 'failed'
+            ? `We couldn’t email a code to ${profile.business_email} right now. Your application is still in the review queue and we’ll confirm your email directly.`
+            : `Enter the 6-digit code we sent to ${profile.business_email}.`,
         badge: { label: 'Pending email', tone: 'pending' as const },
       };
     case 'pending_review':
       return {
         title: 'In review',
-        subtitle: `Thanks — ${profile.business_name} is on a digital check (website + verified email). No ID selfie or government ID upload.`,
+        subtitle: `Thanks — a person reviews every organizer application. We’ll check ${profile.business_name}’s website, links and email.`,
         badge: { label: 'Pending review', tone: 'review' as const },
       };
     case 'verified':
       return {
-        title: 'You’re verified',
-        subtitle: `Posting is unlocked for ${profile.business_name}.`,
+        title: profile.suspended ? 'Posting paused' : 'You’re a verified organizer',
+        subtitle: profile.suspended
+          ? 'Posting is paused for this account. Contact support if you think this is a mistake.'
+          : `Post events as ${profile.business_name}. Your first 3 events are reviewed before they go live.`,
         badge: { label: 'Verified', tone: 'success' as const },
       };
     case 'rejected':
@@ -72,12 +75,12 @@ function headingFor(profile: BusinessProfile) {
         title: 'Not approved',
         subtitle:
           profile.rejection_reason ||
-          'This application wasn’t approved. You can apply again with a matching business email.',
+          'This application wasn’t approved. You can apply again with more details.',
         badge: { label: 'Rejected', tone: 'danger' as const },
       };
     default:
       return {
-        title: 'Business application',
+        title: 'Organizer application',
         subtitle: 'Digital proof only — no ID selfie required.',
         badge: { label: 'Pending', tone: 'pending' as const },
       };
@@ -101,13 +104,11 @@ export default function BusinessStatusScreen() {
     setError(null);
     const value = code.trim();
     if (!value) {
-      setError('Paste the code or token from your business email.');
+      setError('Enter the code from your work email.');
       return;
     }
     try {
-      await verify.mutateAsync(
-        value.length > 12 ? { token: value } : { code: value },
-      );
+      await verify.mutateAsync({ code: value });
       setCode('');
     } catch (err) {
       setError(errorMessage(err));
@@ -127,7 +128,7 @@ export default function BusinessStatusScreen() {
 
   if (status === 'loading' || (isSignedIn && businessQuery.isLoading)) {
     return (
-      <AuthScreen title="Business">
+      <AuthScreen title="Organizer">
         <ActivityIndicator color={colors.primary} />
       </AuthScreen>
     );
@@ -135,7 +136,7 @@ export default function BusinessStatusScreen() {
 
   if (!isSignedIn) {
     return (
-      <AuthScreen title="Business" subtitle="Sign in to see your application.">
+      <AuthScreen title="Organizer" subtitle="Sign in to see your application.">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Sign in"
@@ -155,7 +156,7 @@ export default function BusinessStatusScreen() {
 
   if (businessQuery.error && !profile) {
     return (
-      <AuthScreen title="Business" subtitle={errorMessage(businessQuery.error)}>
+      <AuthScreen title="Organizer" subtitle={errorMessage(businessQuery.error)}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Try again"
@@ -176,13 +177,13 @@ export default function BusinessStatusScreen() {
   if (!profile) {
     return (
       <AuthScreen
-        title="Business"
-        subtitle="You’re not a verified business yet. Apply with a website and business email."
+        title="Organizer"
+        subtitle="You’re not a verified organizer yet. Venues, businesses and community groups can apply."
       >
         <DigitalProofNote />
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Become a business"
+          accessibilityLabel="Become an organizer"
           onPress={() => router.push('/become-business')}
           style={[
             styles.button,
@@ -190,7 +191,7 @@ export default function BusinessStatusScreen() {
           ]}
         >
           <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
-            Become a business
+            Become an organizer
           </Text>
         </Pressable>
       </AuthScreen>
@@ -200,7 +201,7 @@ export default function BusinessStatusScreen() {
   const copy = headingFor(profile);
 
   return (
-    <AuthScreen title="Business" subtitle={copy.subtitle}>
+    <AuthScreen title="Organizer" subtitle={copy.subtitle}>
       <View style={{ flexDirection: 'row', marginBottom: spacing.lg }}>
         <StatusBadge label={copy.badge.label} tone={copy.badge.tone} />
       </View>
@@ -226,16 +227,17 @@ export default function BusinessStatusScreen() {
         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
           {BUSINESS_KIND_LABELS[profile.kind]} · {profile.city}
         </Text>
-        <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-          {profile.website}
-        </Text>
+        {profile.website || profile.social_url ? (
+          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
+            {profile.website || profile.social_url}
+          </Text>
+        ) : null}
         <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
           {profile.business_email}
         </Text>
         {profile.source === 'local' ? (
           <Text style={[typography.caption, { color: colors.warning, marginTop: 8 }]}>
-            Saved on this device — EventServer can pick it up once /v1/me/business
-            ships.
+            Saved on this device. It will sync when the service can accept it.
           </Text>
         ) : null}
       </View>
@@ -244,10 +246,11 @@ export default function BusinessStatusScreen() {
         <>
           <DigitalProofNote />
           <AuthField
-            label="CODE OR TOKEN FROM EMAIL"
+            label="CODE FROM EMAIL"
             value={code}
             onChangeText={setCode}
-            placeholder="Paste the link token or 6-digit code"
+            placeholder="6-digit code"
+            keyboardType="number-pad"
             autoCapitalize="none"
           />
           {error ? (
@@ -285,7 +288,7 @@ export default function BusinessStatusScreen() {
             style={[styles.linkBtn, { marginTop: spacing.md }]}
           >
             <Text style={[typography.body, { color: colors.primary, fontWeight: '700' }]}>
-              {resent ? 'Verification email sent again' : 'Resend email'}
+              {resent ? 'New code sent' : 'Send a new code'}
             </Text>
           </Pressable>
         </>
@@ -309,16 +312,16 @@ export default function BusinessStatusScreen() {
               { color: colors.textSecondary, marginLeft: spacing.sm, flex: 1 },
             ]}
           >
-            Digital proof policy: website + verified business email. We will not
-            ask for a face scan or government ID.
+            We check your website or social link, work email and business details.
+            We will not ask for a face scan or government ID.
           </Text>
         </View>
       ) : null}
 
-      {profile.status === 'verified' ? (
+      {profile.status === 'verified' && !profile.suspended ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Submit event"
+          accessibilityLabel="Post an event"
           onPress={() => router.push('/submit-event')}
           style={[
             styles.button,
@@ -326,7 +329,7 @@ export default function BusinessStatusScreen() {
           ]}
         >
           <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
-            Submit an event
+            Post an event
           </Text>
         </Pressable>
       ) : null}

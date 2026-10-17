@@ -16,18 +16,18 @@ type BusinessCardProps = {
 function statusCopy(profile: BusinessProfile | null | undefined) {
   if (!profile) {
     return {
-      title: 'Post as a business',
-      subtitle: 'List nights out from your venue or brand with digital proof only.',
-      action: 'Become a business',
-      href: '/become-business' as const,
+      title: 'Post events as an organizer',
+      subtitle: 'Venues, businesses and community groups can apply. Anyone can suggest an event.',
+      action: 'Become an organizer or suggest',
+      href: '/contribute' as const,
       icon: 'storefront-outline' as const,
     };
   }
 
   if (profile.status === 'pending_email') {
     return {
-      title: 'Verify your business email',
-      subtitle: `Check ${profile.business_email}. Same domain as your website works best.`,
+      title: 'Organizer application: pending',
+      subtitle: `Confirm the code sent to ${profile.business_email}.`,
       action: 'Open status',
       href: '/business' as const,
       icon: 'mail-unread-outline' as const,
@@ -36,8 +36,8 @@ function statusCopy(profile: BusinessProfile | null | undefined) {
 
   if (profile.status === 'pending_review') {
     return {
-      title: 'Application in review',
-      subtitle: `${profile.business_name} · digital check, no ID selfie.`,
+      title: 'Organizer application: pending review',
+      subtitle: `${profile.business_name} · a person reviews every application.`,
       action: 'View status',
       href: '/business' as const,
       icon: 'time-outline' as const,
@@ -46,18 +46,28 @@ function statusCopy(profile: BusinessProfile | null | undefined) {
 
   if (profile.status === 'rejected') {
     return {
-      title: 'Application not approved',
-      subtitle: profile.rejection_reason || 'You can apply again with a matching business email.',
+      title: 'Organizer application: not approved',
+      subtitle: profile.rejection_reason || 'You can apply again, or suggest events instead.',
       action: 'See details',
       href: '/business' as const,
       icon: 'alert-circle-outline' as const,
     };
   }
 
+  if (profile.suspended) {
+    return {
+      title: 'Organizer posting paused',
+      subtitle: `${profile.business_name} can’t post right now.`,
+      action: 'See details',
+      href: '/business' as const,
+      icon: 'pause-circle-outline' as const,
+    };
+  }
+
   return {
-    title: 'Posting unlocked',
+    title: 'Verified organizer',
     subtitle: `${profile.business_name} · ${BUSINESS_KIND_LABELS[profile.kind]} in ${profile.city}`,
-    action: 'Submit event',
+    action: 'Post an event',
     href: '/submit-event' as const,
     icon: 'checkmark-circle' as const,
   };
@@ -72,7 +82,7 @@ export function BusinessCard({
   const { colors, typography, spacing, radius } = useTheme();
   const router = useRouter();
   const copy = statusCopy(profile);
-  const verified = profile?.status === 'verified';
+  const verified = profile?.status === 'verified' && !profile.suspended;
 
   return (
     <View
@@ -148,12 +158,12 @@ export function BusinessCard({
       {verified ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="View business status"
+          accessibilityLabel="View organizer status"
           onPress={() => router.push('/business')}
           style={styles.statusLink}
         >
           <Text style={[typography.caption, { color: colors.primary, fontWeight: '700' }]}>
-            View business status
+            View organizer status
           </Text>
         </Pressable>
       ) : null}

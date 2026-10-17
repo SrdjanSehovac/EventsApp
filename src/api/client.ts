@@ -1,4 +1,4 @@
-import { API_V1_URL } from '../config/api';
+import { API_MISCONFIGURED, API_V1_URL } from '../config/api';
 import type { ApiErrorBody, UserGeo } from '../types/common';
 import { getAuthToken, notifyUnauthorized } from './session';
 
@@ -60,6 +60,13 @@ export async function apiRequest<T>({
   signal,
   auth = true,
 }: RequestOptions): Promise<T> {
+  if (API_MISCONFIGURED || !API_V1_URL) {
+    throw new ApiError(
+      0,
+      'This build is not connected to the events service.',
+    );
+  }
+
   const url = new URL(
     path.startsWith('http') ? path : `${API_V1_URL}${path}`,
   );

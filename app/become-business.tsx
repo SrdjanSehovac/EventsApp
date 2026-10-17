@@ -8,9 +8,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
-import { AuthField, AuthScreen, DigitalProofNote } from '../src/components';
-import { SW_ONTARIO_CITIES } from '../src/config/cities';
+import { AuthField, AuthScreen, DigitalProofNote, SelectField } from '../src/components';
+import { PRODUCT_CITIES, buildCityOptions } from '../src/config/cities';
 import { domainsAlign, looksLikeEmail, looksLikeWebsite, normalizeWebsite } from '../src/business/proof';
 import { useApplyAsBusiness, useAuth, useMyBusiness } from '../src/hooks';
 import { useTheme } from '../src/theme';
@@ -20,11 +19,10 @@ import {
   type BusinessKind,
   type BusinessProfile,
 } from '../src/types/business';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not submit the application.';
+  return friendlyPublicError(error, "Couldn't submit the application. Please try again.");
 }
 
 type ApplyFormProps = {
@@ -37,9 +35,13 @@ function ApplyForm({ initial }: ApplyFormProps) {
   const apply = useApplyAsBusiness();
   const [businessName, setBusinessName] = useState(initial?.business_name ?? '');
   const [website, setWebsite] = useState(initial?.website ?? '');
+  const [socialUrl, setSocialUrl] = useState(initial?.social_url ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [businessNumber, setBusinessNumber] = useState(initial?.business_number ?? '');
   const [businessEmail, setBusinessEmail] = useState(initial?.business_email ?? '');
   const [phone, setPhone] = useState(initial?.phone ?? '');
-  const [city, setCity] = useState<string>(initial?.city ?? SW_ONTARIO_CITIES[0]);
+  const [city, setCity] = useState<string>(initial?.city ?? PRODUCT_CITIES[0].name);
+  const cityOptions = useMemo(() => buildCityOptions([], { includeAny: false }), []);
   const [kind, setKind] = useState<BusinessKind>(initial?.kind ?? 'venue');
   const [error, setError] = useState<string | null>(null);
 
@@ -53,26 +55,41 @@ function ApplyForm({ initial }: ApplyFormProps) {
   async function onSubmit() {
     setError(null);
     if (businessName.trim().length < 2) {
-      setError('Business name is required.');
+      setError('Organizer name is required.');
       return;
     }
-    if (!looksLikeWebsite(website)) {
+    if (!website.trim() && !socialUrl.trim()) {
+      setError('Add a website or a social media link.');
+      return;
+    }
+    if (website.trim() && !looksLikeWebsite(website)) {
       setError('Enter a website like yourvenue.ca.');
       return;
     }
+    if (socialUrl.trim() && !looksLikeWebsite(socialUrl)) {
+      setError('Enter a social link like instagram.com/yourvenue.');
+      return;
+    }
     if (!looksLikeEmail(businessEmail)) {
-      setError('Enter a business email we can verify.');
+      setError('Enter a work email we can send a code to.');
+      return;
+    }
+    if (description.trim().length < 20) {
+      setError('Tell us a little about what you organize (at least a sentence).');
       return;
     }
 
     try {
       await apply.mutateAsync({
         business_name: businessName.trim(),
-        website: normalizeWebsite(website),
+        website: website.trim() ? normalizeWebsite(website) : '',
+        social_url: socialUrl.trim() ? normalizeWebsite(socialUrl) : null,
         business_email: businessEmail.trim(),
         phone: phone.trim() || null,
         city,
         kind,
+        description: description.trim(),
+        business_number: businessNumber.trim() || null,
       });
       router.replace('/business');
     } catch (err) {
@@ -82,13 +99,13 @@ function ApplyForm({ initial }: ApplyFormProps) {
 
   return (
     <AuthScreen
-      title="Become a business"
-      subtitle="Post as a venue, promoter, or shop. Digital proof only."
+      title="Become an organizer"
+      subtitle="Venues, businesses and community groups can post events once a person has reviewed the application."
     >
       <DigitalProofNote />
 
       <AuthField
-        label="BUSINESS NAME"
+        label="ORGANIZER NAME"
         value={businessName}
         onChangeText={setBusinessName}
         placeholder="Harbourfront Centre"
@@ -103,7 +120,15 @@ function ApplyForm({ initial }: ApplyFormProps) {
         keyboardType="url"
       />
       <AuthField
-        label="BUSINESS EMAIL"
+        label="SOCIAL LINK (IF NO WEBSITE)"
+        value={socialUrl}
+        onChangeText={setSocialUrl}
+        placeholder="instagram.com/yourvenue"
+        autoCapitalize="none"
+        keyboardType="url"
+      />
+      <AuthField
+        label="WORK EMAIL"
         value={businessEmail}
         onChangeText={setBusinessEmail}
         placeholder="hello@harbourfrontcentre.com"
@@ -130,10 +155,24 @@ function ApplyForm({ initial }: ApplyFormProps) {
           ]}
         >
           Use an email on the same domain as your website when you can. We’ll still
-          send a verification link.
+          send a code, and a reviewer will take a closer look.
         </Text>
       ) : null}
 
+      <AuthField
+        label="ABOUT YOU"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="What kind of events do you run, and where?"
+        multiline
+      />
+      <AuthField
+        label="BUSINESS NUMBER (OPTIONAL)"
+        value={businessNumber}
+        onChangeText={setBusinessNumber}
+        placeholder="9-digit CRA business number"
+        keyboardType="number-pad"
+      />
       <AuthField
         label="PHONE (OPTIONAL)"
         value={phone}
@@ -142,51 +181,18 @@ function ApplyForm({ initial }: ApplyFormProps) {
         keyboardType="phone-pad"
       />
 
-      <Text
-        style={[
-          typography.caption,
-          {
-            color: colors.textMuted,
-            fontWeight: '700',
-            letterSpacing: 0.6,
-            marginBottom: spacing.sm,
-          },
-        ]}
-      >
-        CITY
-      </Text>
-      <View style={[styles.chipRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
-        {SW_ONTARIO_CITIES.map((name) => {
-          const selected = city === name;
-          return (
-            <Pressable
-              key={name}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setCity(name)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  {
-                    color: selected ? colors.onPrimary : colors.textSecondary,
-                    fontWeight: '700',
-                  },
-                ]}
-              >
-                {name}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginBottom: spacing.lg }}>
+        <SelectField
+          label="City"
+          placeholder="Toronto"
+          value={city}
+          options={cityOptions}
+          searchable
+          searchPlaceholder="Search cities…"
+          onChange={(next) => {
+            if (next) setCity(next);
+          }}
+        />
       </View>
 
       <Text
@@ -200,7 +206,7 @@ function ApplyForm({ initial }: ApplyFormProps) {
           },
         ]}
       >
-        WHAT YOU ARE
+        TYPE
       </Text>
       <View style={[styles.chipRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
         {BUSINESS_KINDS.map((value) => {
@@ -244,7 +250,7 @@ function ApplyForm({ initial }: ApplyFormProps) {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Submit business application"
+        accessibilityLabel="Submit organizer application"
         onPress={() => void onSubmit()}
         disabled={apply.isPending}
         style={[
@@ -260,7 +266,7 @@ function ApplyForm({ initial }: ApplyFormProps) {
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
-            Send verification email
+            Apply and send code
           </Text>
         )}
       </Pressable>
@@ -279,7 +285,7 @@ export default function BecomeBusinessScreen() {
 
   if (status === 'loading' || (isSignedIn && businessQuery.isLoading)) {
     return (
-      <AuthScreen title="Become a business">
+      <AuthScreen title="Become an organizer">
         <ActivityIndicator color={colors.primary} />
       </AuthScreen>
     );
@@ -288,8 +294,8 @@ export default function BecomeBusinessScreen() {
   if (!isSignedIn) {
     return (
       <AuthScreen
-        title="Become a business"
-        subtitle="Sign in to apply with a business email. No ID selfie required."
+        title="Become an organizer"
+        subtitle="Sign in to apply. No ID selfie required."
       >
         <DigitalProofNote />
         <Pressable
@@ -312,12 +318,12 @@ export default function BecomeBusinessScreen() {
   if (blockingStatus) {
     return (
       <AuthScreen
-        title="Become a business"
-        subtitle="You already have an application in progress."
+        title="Become an organizer"
+        subtitle="You already have an application. Check its status below."
       >
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="View business status"
+          accessibilityLabel="View organizer status"
           onPress={() => router.replace('/business')}
           style={[
             styles.button,

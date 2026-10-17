@@ -21,7 +21,7 @@ export type SortField =
   | '-created_at'
   | 'scraped_at'
   | '-scraped_at';
-export type WhenPreset = 'now' | 'today' | 'tonight' | 'weekend' | 'upcoming';
+export type WhenPreset = 'now' | 'today' | 'tonight' | 'weekend' | 'week' | 'upcoming';
 export type SettingFilter = 'indoor' | 'outdoor' | 'hybrid' | 'unknown';
 export type SaleKind = 'sale' | 'clearance';
 
@@ -51,6 +51,10 @@ export type OccurrenceOut = {
 };
 
 export type EventListItem = {
+  /** Posted by a verified organizer (shows the Verified badge). */
+  verified_organizer?: boolean;
+  /** Free in-app RSVP instead of an external ticket link. */
+  rsvp_enabled?: boolean;
   event_id: string;
   title: string;
   summary?: string | null;
@@ -68,6 +72,16 @@ export type EventListItem = {
   city?: string | null;
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
+  /** Placeholder when image_url is missing: `campus:<slug>` or `category:<slug>`. */
+  image_fallback?: string | null;
+  /** Organizer or ticketing page. Never a discovery-platform URL. */
+  external_url?: string | null;
+  /** Direct checkout, when the list payload includes one. */
+  checkout_url?: string | null;
+  /** Eventbrite event id, when the server already parsed one. */
+  eventbrite_event_id?: string | null;
+  /** tickets | register | website. Labels the outbound button. */
+  link_type?: string | null;
   scraped_at?: string | null;
   enriched_at?: string | null;
   has_embedding?: boolean;
@@ -79,6 +93,9 @@ export type EventListItem = {
 };
 
 export type EventDetail = {
+  verified_organizer?: boolean;
+  rsvp_enabled?: boolean;
+  rsvp?: RsvpInfo | null;
   event_id: string;
   source: string;
   source_url: string;
@@ -88,11 +105,24 @@ export type EventDetail = {
   summary?: string | null;
   bio?: string | null;
   image_url?: string | null;
+  /** Placeholder when image_url is missing: `campus:<slug>` or `category:<slug>`. */
+  image_fallback?: string | null;
   image_urls?: string[] | null;
   photo_urls?: string[] | null;
   video_url?: string | null;
   ticket_url?: string | null;
+  /** Organizer or ticketing page. */
   external_url?: string | null;
+  /** Direct checkout, when the host provides one. Preferred over external_url. */
+  checkout_url?: string | null;
+  /** Eventbrite event id, when the server already parsed one. */
+  eventbrite_event_id?: string | null;
+  /** tickets | register | website. Labels the outbound button. */
+  link_type?: string | null;
+  /** Clean venue name, when the server has one. */
+  venue_name?: string | null;
+  /** Clean street address, when the server has one. */
+  address_line?: string | null;
   venue?: VenueBrief | null;
   raw_venue_name?: string | null;
   raw_venue_address?: string | null;
@@ -125,6 +155,10 @@ export type EventDetail = {
   is_pet_friendly?: boolean | null;
   rain_or_shine?: boolean | null;
   series_name?: string | null;
+  /** Organizer display name, when the server has one. */
+  organizer_name?: string | null;
+  /** Organizer site. Opened in the in-app browser only when the link policy allows it. */
+  organizer_url?: string | null;
   performers?: unknown[];
   enrichment_confidence?: number | string | null;
   enriched_at?: string | null;
@@ -149,6 +183,12 @@ export type EventMapPin = {
   sale_kind?: SaleKind | null;
   primary_category?: CategoryBrief | null;
   image_url?: string | null;
+  /** Placeholder when image_url is missing: `campus:<slug>` or `category:<slug>`. */
+  image_fallback?: string | null;
+  external_url?: string | null;
+  checkout_url?: string | null;
+  eventbrite_event_id?: string | null;
+  link_type?: string | null;
   neighbourhood?: string | null;
   city?: string | null;
   distance_m?: number | null;
@@ -157,7 +197,10 @@ export type EventMapPin = {
 export type MapEventsResponse = {
   geo: GeoContext;
   items: EventMapPin[];
+  /** Number of items in this payload. Often the limit, not the box size. */
   count: number;
+  /** True box total, when the server sends one. `count` is not a substitute. */
+  total?: number | null;
 };
 
 export type PublicEventListResponse = {
@@ -222,6 +265,10 @@ export type PublicEventListParams = {
   starts_after?: string;
   starts_before?: string;
   radius_km?: number;
+  north?: number;
+  south?: number;
+  east?: number;
+  west?: number;
   sort?: PublicSortField;
 };
 
@@ -266,4 +313,16 @@ export type SimilarEventsParams = {
 
 export type NeighbourhoodsParams = {
   city?: string;
+};
+
+export type RsvpInfo = {
+  enabled: boolean;
+  capacity?: number | null;
+  confirmed: number;
+  spots_left?: number | null;
+  full: boolean;
+  waitlist: boolean;
+  waitlist_count: number;
+  closes_at?: string | null;
+  closed: boolean;
 };

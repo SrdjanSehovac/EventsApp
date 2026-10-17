@@ -9,26 +9,15 @@ import type {
 import { BUSINESS_KINDS } from '../types/business';
 
 /**
- * Become-a-business contract (expected under `/v1`, Bearer required).
+ * Organizer verification (EventServer `/v1/me/business`, Bearer required).
  *
- * DIGITAL proof only — EventServer should confirm the mailbox (and, when
- * possible, that the email domain matches the website). Do not require a
- * government ID upload or a face/selfie scan.
+ *   GET  /me/business               → BusinessStatusOut (application_status "none" when no application)
+ *   POST /me/business/apply         { business_name, website_url?, social_url?, business_email, phone?,
+ *                                     city, organizer_type, description?, business_number? }
+ *   POST /me/business/verify-email  {} sends a new code · { code } confirms it
  *
- *   POST /me/business/apply
- *        { business_name, website, business_email, phone, city, kind }
- *        → BusinessProfile (or `{ item }` / `{ business }` / `{ application }`)
- *   GET  /me/business
- *        → same shape, or 404 when the user has no application
- *   POST /me/business/verify-email
- *        { token } from the email link, or { code } typed from the message
- *   POST /me/business/resend-verification
- *        optional { business_email }
- *
- * Status: pending_email → pending_review → verified | rejected
- *
- * If these routes 404/501, the client caches the application on-device the
- * same way Submit event does.
+ * Status: pending_email → pending_review → approved (verified) | rejected. Every application
+ * is reviewed by a person; nothing is auto-approved.
  */
 
 export type VerifyBusinessEmailInput = {
@@ -36,131 +25,95 @@ export type VerifyBusinessEmailInput = {
   code?: string;
 };
 
-type RawBusiness = Partial<BusinessProfile> & {
-  id?: string;
-  applicationId?: string;
-  businessName?: string;
-  businessEmail?: string;
-  emailVerified?: boolean;
-  rejectionReason?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  type?: string;
-  category?: string;
-  what_you_are?: string;
+type ServerProof = {
+  business_name?: string;
+  website_url?: string | null;
+  business_email?: string;
+  phone?: string | null;
+  city?: string;
+  organizer_type?: string | null;
+  description?: string | null;
+  social_url?: string | null;
+  business_number?: string | null;
+  email_verified_at?: string | null;
+  admin_decision?: string | null;
+  admin_notes?: string | null;
+  decided_at?: string | null;
 };
 
-type WrappedBusiness =
-  | RawBusiness
-  | {
-      item?: RawBusiness;
-      business?: RawBusiness;
-      application?: RawBusiness;
-      profile?: RawBusiness;
-    };
+type ServerStatus = {
+  posting_tier?: string;
+  application_id?: string | null;
+  application_status?: string;
+  proof?: ServerProof | null;
+  delivery?: string | null;
+  organizer_suspended?: boolean;
+};
 
 function asKind(value: unknown): BusinessKind {
   const raw = String(value ?? '').toLowerCase();
-  return (BUSINESS_KINDS as readonly string[]).includes(raw)
-    ? (raw as BusinessKind)
-    : 'other';
+  return (BUSINESS_KINDS as readonly string[]).includes(raw) ? (raw as BusinessKind) : 'business';
 }
 
-function asStatus(value: unknown): BusinessProfile['status'] {
-  const raw = String(value ?? '')
-    .toLowerCase()
-    .replace(/[\s-]+/g, '_');
-
-  if (
-    raw === 'pending_email' ||
-    raw === 'pendingemail' ||
-    raw === 'email_pending' ||
-    raw === 'awaiting_email' ||
-    raw === 'unverified'
-  ) {
-    return 'pending_email';
-  }
-  if (
-    raw === 'pending_review' ||
-    raw === 'pendingreview' ||
-    raw === 'in_review' ||
-    raw === 'pending' ||
-    raw === 'submitted' ||
-    raw === 'under_review'
-  ) {
-    return 'pending_review';
-  }
-  if (raw === 'verified' || raw === 'approved' || raw === 'active') {
-    return 'verified';
-  }
-  if (raw === 'rejected' || raw === 'declined' || raw === 'denied') {
-    return 'rejected';
-  }
+function asStatus(value: unknown, tier?: string): BusinessProfile['status'] {
+  if (tier === 'verified_business') return 'verified';
+  const raw = String(value ?? '').toLowerCase();
+  if (raw === 'approved' || raw === 'verified') return 'verified';
+  if (raw === 'rejected' || raw === 'withdrawn') return 'rejected';
+  if (raw === 'pending_review') return 'pending_review';
   return 'pending_email';
 }
 
-function unwrap(raw: WrappedBusiness | null | undefined): RawBusiness {
-  if (!raw || typeof raw !== 'object') return {};
-  if ('item' in raw && raw.item) return raw.item;
-  if ('business' in raw && raw.business) return raw.business;
-  if ('application' in raw && raw.application) return raw.application;
-  if ('profile' in raw && raw.profile) return raw.profile;
-  return raw as RawBusiness;
-}
-
-function hasBusinessPayload(raw: WrappedBusiness | null | undefined): boolean {
-  const data = unwrap(raw);
-  return Boolean(
-    data.application_id ||
-      data.id ||
-      data.applicationId ||
-      data.business_name ||
-      data.businessName ||
-      data.status,
-  );
+function hasBusinessPayload(raw: ServerStatus | null | undefined): boolean {
+  if (!raw || typeof raw !== 'object') return false;
+  if (raw.posting_tier === 'verified_business') return true;
+  return Boolean(raw.application_id) && raw.application_status !== 'none';
 }
 
 export function asBusiness(
-  raw: WrappedBusiness | null | undefined,
+  raw: ServerStatus | null | undefined,
   fallback?: Partial<BusinessApplyInput>,
   source: BusinessProfile['source'] = 'server',
 ): BusinessProfile {
-  const data = unwrap(raw);
-  const status = asStatus(data.status);
-  const emailVerified =
-    data.email_verified ??
-    data.emailVerified ??
-    (status === 'pending_review' || status === 'verified');
-
+  const data = raw ?? {};
+  const proof = data.proof ?? {};
+  const status = asStatus(data.application_status, data.posting_tier);
   return {
-    application_id: String(
-      data.application_id ?? data.id ?? data.applicationId ?? `local-${Date.now()}`,
-    ),
-    business_name: data.business_name ?? data.businessName ?? fallback?.business_name ?? '',
-    website: normalizeWebsite(data.website ?? fallback?.website ?? ''),
-    business_email:
-      data.business_email ?? data.businessEmail ?? fallback?.business_email ?? '',
-    phone: data.phone ?? fallback?.phone ?? null,
-    city: data.city ?? fallback?.city ?? '',
-    kind: asKind(data.kind ?? data.type ?? data.category ?? data.what_you_are ?? fallback?.kind),
+    application_id: String(data.application_id ?? `local-${Date.now()}`),
+    business_name: proof.business_name ?? fallback?.business_name ?? '',
+    website: proof.website_url ?? fallback?.website ?? '',
+    social_url: proof.social_url ?? fallback?.social_url ?? null,
+    business_email: proof.business_email ?? fallback?.business_email ?? '',
+    phone: proof.phone ?? fallback?.phone ?? null,
+    city: proof.city ?? fallback?.city ?? '',
+    kind: asKind(proof.organizer_type ?? fallback?.kind),
+    description: proof.description ?? fallback?.description ?? null,
+    business_number: proof.business_number ?? fallback?.business_number ?? null,
     status,
-    email_verified: Boolean(emailVerified),
-    bio: data.bio ?? null,
-    rejection_reason: data.rejection_reason ?? data.rejectionReason ?? null,
-    created_at: data.created_at ?? data.createdAt ?? new Date().toISOString(),
-    updated_at: data.updated_at ?? data.updatedAt ?? null,
+    email_verified: Boolean(proof.email_verified_at) || status === 'verified',
+    bio: null,
+    rejection_reason: status === 'rejected' ? proof.admin_notes ?? null : null,
+    delivery: data.delivery ?? null,
+    suspended: Boolean(data.organizer_suspended),
+    created_at: proof.decided_at ?? new Date().toISOString(),
+    updated_at: null,
     source,
   };
 }
 
 function applyBody(input: BusinessApplyInput) {
+  const website = input.website.trim() ? normalizeWebsite(input.website) : null;
+  const social = input.social_url?.trim() ? normalizeWebsite(input.social_url) : null;
   return {
-    business_name: input.business_name,
-    website: normalizeWebsite(input.website),
+    business_name: input.business_name.trim(),
+    website_url: website,
+    social_url: social,
     business_email: input.business_email.trim(),
     phone: input.phone?.trim() || null,
     city: input.city,
-    kind: input.kind,
+    organizer_type: input.kind,
+    description: input.description?.trim() || null,
+    business_number: input.business_number?.trim() || null,
   };
 }
 
@@ -168,7 +121,7 @@ export async function fetchMyBusiness(
   signal?: AbortSignal,
 ): Promise<BusinessProfile | null> {
   try {
-    const raw = await apiRequest<WrappedBusiness | null>({
+    const raw = await apiRequest<ServerStatus | null>({
       path: '/me/business',
       signal,
     });
@@ -185,7 +138,7 @@ export async function fetchMyBusiness(
 export async function applyAsBusiness(
   input: BusinessApplyInput,
 ): Promise<BusinessProfile> {
-  const payload = await apiRequest<WrappedBusiness>({
+  const payload = await apiRequest<ServerStatus>({
     path: '/me/business/apply',
     method: 'POST',
     body: applyBody(input),
@@ -198,24 +151,21 @@ export async function verifyBusinessEmail(
 ): Promise<BusinessProfile> {
   const token = input.token?.trim();
   const code = input.code?.trim();
-  const payload = await apiRequest<WrappedBusiness>({
+  const payload = await apiRequest<ServerStatus>({
     path: '/me/business/verify-email',
     method: 'POST',
-    body: {
-      ...(token ? { token } : {}),
-      ...(code ? { code } : {}),
-    },
+    body: code || token ? { code: code || token } : {},
   });
   return asBusiness(payload);
 }
 
 export async function resendBusinessVerification(
-  businessEmail?: string,
+  _businessEmail?: string,
 ): Promise<void> {
   await apiRequest<void>({
-    path: '/me/business/resend-verification',
+    path: '/me/business/verify-email',
     method: 'POST',
-    body: businessEmail ? { business_email: businessEmail } : {},
+    body: {},
   });
 }
 

@@ -9,15 +9,14 @@ import {
 } from 'react';
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
+  Platform,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
-import { colorForCategory, useTheme } from '../theme';
+import { useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import {
@@ -26,8 +25,8 @@ import {
   regionForCluster,
   type PinCluster,
 } from '../utils/clusterPins';
-import { isEventLive } from '../utils/eventLive';
 import { formatPinBadge } from '../utils/eventFormat';
+import { mapStyleFor } from '../utils/mapStyle';
 import type { MapBaseType } from '../browse';
 
 export type EventsMapHandle = {
@@ -43,16 +42,19 @@ type EventsMapProps = {
   mapRegion?: Region | null;
   mapType?: MapBaseType;
   onRegionChangeComplete?: (region: Region) => void;
+  /** User drag, so the screen can dismiss the keyboard. */
+  onPanDrag?: () => void;
   onMarkerPress?: (pin: EventMapPin) => void;
   onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
+  /** When true, a tap only dismisses search and must not open a pin. */
+  blocksSelection?: () => boolean;
 };
 
 type PinMarkerProps = {
   cluster: PinCluster;
-  selected: boolean;
-  live: boolean;
-  forceTracks: boolean;
+  fill: string;
+  textColor: string;
   pinStroke: string;
   pinOutline: string;
   onPress: (cluster: PinCluster) => void;
@@ -60,61 +62,29 @@ type PinMarkerProps = {
 
 const PinMarker = memo(function PinMarker({
   cluster,
-  selected,
-  live,
-  forceTracks,
+  fill,
+  textColor,
   pinStroke,
   pinOutline,
   onPress,
 }: PinMarkerProps) {
-  const pulse = useRef(new Animated.Value(0)).current;
-  const [layoutReady, setLayoutReady] = useState(false);
   const pin = cluster.pins[0];
-  const fill = colorForCategory(pin?.primary_category);
   const label = cluster.count > 1 ? String(cluster.count) : formatPinBadge(pin);
+  const showDot = cluster.count === 1 && !label;
+  // Width includes padding and the white border, so "Free" / "$25" / "Sale"
+  // are not clipped to "Fr..." by a 44pt hit target.
+  const badgeWidth =
+    cluster.count > 1
+      ? Math.max(44, label.length * 16 + 20)
+      : Math.max(64, label.length * 8 + 28);
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
 
   useEffect(() => {
-    setLayoutReady(false);
-    const timer = setTimeout(() => setLayoutReady(true), 400);
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
+    setTracksViewChanges(true);
+    const timer = setTimeout(() => setTracksViewChanges(false), 350);
     return () => clearTimeout(timer);
-  }, [cluster.id, selected, live, fill, label]);
-
-  useEffect(() => {
-    if (!live || cluster.count > 1) {
-      pulse.setValue(0);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.timing(pulse, {
-        toValue: 1,
-        duration: 1400,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: false,
-      }),
-    );
-    loop.start();
-    return () => {
-      loop.stop();
-      pulse.setValue(0);
-    };
-  }, [live, pulse, cluster.count]);
-
-  const ringStyle = {
-    opacity: pulse.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.55, 0],
-    }),
-    transform: [
-      {
-        scale: pulse.interpolate({
-          inputRange: [0, 1],
-          outputRange: [1, 2.2],
-        }),
-      },
-    ],
-  };
-
-  const tracksViewChanges = live || selected || forceTracks || !layoutReady;
+  }, [cluster.id, label]);
 
   return (
     <Marker
@@ -123,52 +93,53 @@ const PinMarker = memo(function PinMarker({
         longitude: cluster.longitude,
       }}
       anchor={{ x: 0.5, y: 1 }}
-      zIndex={selected ? 6 : cluster.count > 1 ? 4 : live ? 3 : 1}
+      zIndex={cluster.count > 1 ? 2 : 1}
       tracksViewChanges={tracksViewChanges}
       tappable
       stopPropagation
       onPress={() => onPress(cluster)}
     >
-      <View style={styles.markerHit} pointerEvents="none">
-        {live && cluster.count === 1 ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.pulseRing,
-              { borderColor: fill },
-              ringStyle,
-            ]}
-          />
-        ) : null}
+      <View collapsable={false} style={styles.markerHit} pointerEvents="none">
+        {/* Outer halo ring, white inner ring, solid fill, then a two-layer
+            pointer tip so the tip reads on both pale and green tiles. */}
         <View
           style={[
-            styles.markerScale,
-            selected && styles.markerScaleSelected,
+            styles.halo,
+            {
+              borderColor: pinOutline,
+              shadowColor: pinOutline,
+              borderRadius: showDot ? 13 : cluster.count > 1 ? badgeWidth / 2 + 3 : 999,
+            },
           ]}
         >
-          <View
-            style={[
-              cluster.count > 1 ? styles.cluster : styles.badge,
-              selected && styles.badgeSelected,
-              {
-                backgroundColor: fill,
-                borderColor: pinStroke,
-                shadowColor: selected ? fill : pinOutline,
-              },
-            ]}
-          >
-            <Text
-              numberOfLines={1}
+          {showDot ? (
+            <View style={[styles.dot, { backgroundColor: fill, borderColor: pinStroke }]} />
+          ) : (
+            <View
               style={[
-                styles.badgeText,
-                cluster.count > 1 && styles.clusterText,
-                selected && styles.badgeTextSelected,
+                cluster.count > 1 ? styles.cluster : styles.badge,
+                cluster.count > 1
+                  ? { width: badgeWidth, height: badgeWidth, borderRadius: badgeWidth / 2 }
+                  : { width: badgeWidth },
+                { backgroundColor: fill, borderColor: pinStroke },
               ]}
             >
-              {label}
-            </Text>
-          </View>
-          <View style={[styles.caret, { borderTopColor: fill }]} />
+              <Text
+                style={[
+                  styles.badgeText,
+                  { color: textColor },
+                  cluster.count > 1 && styles.clusterText,
+                ]}
+              >
+                {label}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.tipWrap}>
+          <View style={[styles.tipOuter, { borderTopColor: pinOutline }]} />
+          <View style={[styles.tipRing, { borderTopColor: pinStroke }]} />
+          <View style={[styles.tipFill, { borderTopColor: fill }]} />
         </View>
       </View>
     </Marker>
@@ -181,24 +152,22 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       pins,
       initialRegion,
       userGeo,
-      selectedEventId,
       isLoading = false,
       mapRegion,
       mapType = 'standard',
       onRegionChangeComplete,
+      onPanDrag,
       onMarkerPress,
       onClusterPress,
       onMapPress,
+      blocksSelection,
     },
     ref,
   ) {
     const { colors } = useTheme();
     const mapRef = useRef<MapView>(null);
     const hasLoadedOnce = useRef(false);
-    const prevSelectedRef = useRef<string | null>(null);
     const ignoreMapPressUntilRef = useRef(0);
-    const [redrawId, setRedrawId] = useState<string | null>(null);
-    const [nowMs, setNowMs] = useState(() => Date.now());
 
     if (!isLoading) {
       hasLoadedOnce.current = true;
@@ -209,21 +178,6 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
         mapRef.current?.animateToRegion(region, durationMs);
       },
     }));
-
-    useEffect(() => {
-      const prev = prevSelectedRef.current;
-      prevSelectedRef.current = selectedEventId ?? null;
-      if (prev && prev !== selectedEventId) {
-        setRedrawId(prev);
-        const timer = setTimeout(() => setRedrawId(null), 350);
-        return () => clearTimeout(timer);
-      }
-    }, [selectedEventId]);
-
-    useEffect(() => {
-      const timer = setInterval(() => setNowMs(Date.now()), 60_000);
-      return () => clearInterval(timer);
-    }, []);
 
     const clusters = useMemo(
       () => clusterPins(pins, mapRegion ?? initialRegion),
@@ -239,31 +193,41 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
           style={styles.map}
           initialRegion={initialRegion}
           mapType={mapType === 'satellite' ? 'satellite' : 'standard'}
+          // Apple Maps: light or dark base to match the app theme.
+          userInterfaceStyle={colors.mapStyle}
+          // Google Maps (Android): muted parks so pins stand out.
+          customMapStyle={mapStyleFor(colors.mapStyle)}
           showsUserLocation={Boolean(userGeo)}
           showsMyLocationButton={false}
+          showsCompass={false}
+          showsScale={false}
+          showsPointsOfInterests={false}
+          showsTraffic={false}
+          showsIndoors={false}
+          toolbarEnabled={false}
+          mapPadding={{ top: 8, right: 8, bottom: 8, left: 8 }}
           onRegionChangeComplete={onRegionChangeComplete}
+          onPanDrag={onPanDrag ? () => onPanDrag() : undefined}
           onPress={() => {
             if (Date.now() < ignoreMapPressUntilRef.current) return;
             onMapPress?.();
           }}
         >
           {clusters.map((cluster) => {
-            const selected = cluster.pins.some(
-              (pin) => pin.event_id === selectedEventId,
-            );
-            const live =
-              cluster.count === 1 && isEventLive(cluster.pins[0], nowMs);
             return (
               <PinMarker
                 key={cluster.id}
                 cluster={cluster}
-                selected={selected}
-                live={live}
+                fill={colors.pin}
+                textColor={colors.pinText}
                 pinStroke={colors.pinStroke}
                 pinOutline={colors.pinOutline}
-                forceTracks={cluster.id === redrawId}
                 onPress={(next) => {
                   ignoreMapPressUntilRef.current = Date.now() + 400;
+                  if (blocksSelection?.()) {
+                    onMapPress?.();
+                    return;
+                  }
                   if (next.count > 1) {
                     // Spread-out clusters zoom in (Realtor.ca-style);
                     // coincident pins open the multi-event sheet.
@@ -314,77 +278,88 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   markerHit: {
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    overflow: 'visible',
   },
-  pulseRing: {
-    position: 'absolute',
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    top: 6,
+  halo: {
+    borderWidth: 1.5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 3,
+    elevation: 5,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
-    borderWidth: 2,
-    maxWidth: 128,
-    minWidth: 18,
-    minHeight: 18,
+    borderWidth: 2.5,
+    minWidth: 44,
+    minHeight: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
-    elevation: 4,
   },
-  markerScale: {
-    alignItems: 'center',
-    transform: [{ scale: 1 }],
-  },
-  markerScaleSelected: {
-    transform: [{ scale: 1.16 }],
-  },
-  badgeSelected: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderWidth: 1.5,
-    shadowOpacity: 0.45,
-    shadowRadius: 4,
-    elevation: 6,
+  dot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2.5,
   },
   cluster: {
-    minWidth: 32,
-    minHeight: 32,
+    minWidth: 44,
+    minHeight: 44,
     paddingHorizontal: 8,
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.35,
-    shadowRadius: 2,
-    elevation: 4,
   },
   badgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  badgeTextSelected: {
-    fontSize: 11.5,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
   clusterText: {
-    fontSize: 13,
+    fontSize: 14,
   },
-  caret: {
+  tipWrap: {
+    width: 20,
+    height: 12,
+    marginTop: -2,
+    alignItems: 'center',
+  },
+  tipOuter: {
+    position: 'absolute',
+    top: 0,
     width: 0,
     height: 0,
-    marginTop: -1,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 7,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  tipRing: {
+    position: 'absolute',
+    top: 0,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  tipFill: {
+    position: 'absolute',
+    top: 0,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6.5,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
   },

@@ -2,15 +2,13 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthScreen } from '../src/components';
 import { useAuth, useVerifyBusinessEmail } from '../src/hooks';
 import { useTheme } from '../src/theme';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not verify that email.';
+  return friendlyPublicError(error, "Couldn't verify that email. Please try again.");
 }
 
 function firstParam(value: string | string[] | undefined): string {

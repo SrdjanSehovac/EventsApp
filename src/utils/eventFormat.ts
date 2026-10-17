@@ -210,3 +210,35 @@ export function formatPlaceLine(item: PlaceLike): string {
   }
   return item.neighbourhood || item.city || 'Location TBD';
 }
+
+/** Card date line: "Wed Oct 14 · 7:30 PM" (device time zone). */
+export function formatCardWhen(value?: string | null): string {
+  if (!value) return 'Date TBD';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Date TBD';
+  const day = date
+    .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    .replace(/,/g, '');
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
+
+/** Card place line: "Venue · City", or neighbourhood/city when there is no venue. No duplicates. */
+export function formatCardPlace(item: {
+  venue_name?: string | null;
+  neighbourhood?: string | null;
+  city?: string | null;
+}): string | null {
+  const venue = item.venue_name?.trim() || null;
+  const city = item.city?.trim() || null;
+  const parts: string[] = [];
+  const push = (part: string | null) => {
+    if (!part) return;
+    const low = part.toLowerCase();
+    if (parts.some((p) => p.toLowerCase() === low || p.toLowerCase().includes(low))) return;
+    parts.push(part);
+  };
+  push(venue ?? item.neighbourhood?.trim() ?? null);
+  push(city);
+  return parts.length ? parts.join(' · ') : null;
+}

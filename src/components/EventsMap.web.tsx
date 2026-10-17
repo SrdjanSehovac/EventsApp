@@ -18,10 +18,11 @@ import {
 import type { Region } from 'react-native-maps';
 
 import type { MapBaseType } from '../browse';
-import { colorForCategory, useTheme } from '../theme';
+import { useTheme } from '../theme';
 import type { EventMapPin } from '../types/events';
 import type { UserGeo } from '../types/common';
 import { isEventLive } from '../utils/eventLive';
+import { webTileFilter, webTileUrl } from '../utils/mapStyle';
 import { formatPinBadge } from '../utils/eventFormat';
 
 export type EventsMapHandle = {
@@ -37,9 +38,13 @@ type EventsMapProps = {
   mapRegion?: Region | null;
   mapType?: MapBaseType;
   onRegionChangeComplete?: (region: Region) => void;
+  /** User drag, so the screen can dismiss the keyboard. */
+  onPanDrag?: () => void;
   onMarkerPress?: (pin: EventMapPin) => void;
   onClusterPress?: (pins: EventMapPin[]) => void;
   onMapPress?: () => void;
+  /** When true, a tap only dismisses search and must not open a pin. */
+  blocksSelection?: () => boolean;
 };
 
 function escapeHtml(value: string) {
@@ -62,7 +67,15 @@ function buildLeafletHtml(
   region: Region,
   selectedEventId: string | null | undefined,
   mapType: MapBaseType,
-  chrome: { background: string; primary: string },
+  chrome: {
+    background: string;
+    primary: string;
+    pin: string;
+    pinText: string;
+    pinStroke: string;
+    pinOutline: string;
+    mapStyle: 'light' | 'dark';
+  },
 ): string {
   const nowMs = Date.now();
   // Pass every pin individually — leaflet.markercluster handles zoom splits.
@@ -79,14 +92,14 @@ function buildLeafletHtml(
       label: escapeHtml(formatPinBadge(pin)),
       selected: pin.event_id === selectedEventId,
       live: isEventLive(pin, nowMs),
-      color: colorForCategory(pin.primary_category),
+      color: chrome.pin,
     }));
 
   const centerLat = region.latitude;
   const centerLng = region.longitude;
   const zoom = zoomFromRegion(region);
   const satellite = mapType === 'satellite';
-  const clusterColor = chrome.primary;
+  const clusterColor = chrome.pin;
 
   return `<!DOCTYPE html>
 <html>
@@ -100,6 +113,7 @@ function buildLeafletHtml(
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; background: ${chrome.background}; }
+    .theme-tiles { filter: ${webTileFilter(chrome.mapStyle)}; }
     .evt-wrap {
       position: relative;
       display: flex;
@@ -108,20 +122,27 @@ function buildLeafletHtml(
       transition: transform 140ms ease-out;
       transform-origin: 50% 100%;
     }
+    .evt-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      background: var(--c, ${chrome.pin});
+      border: 2.5px solid ${chrome.pinStroke};
+      box-shadow: 0 0 0 1.5px ${chrome.pinOutline}, 0 3px 6px rgba(0,0,0,.45);
+    }
     .evt-badge {
-      background: var(--c, ${chrome.primary});
-      color: #fff;
-      font: 800 11px/1.2 system-ui, sans-serif;
-      padding: 4px 8px;
+      background: var(--c, ${chrome.pin});
+      color: ${chrome.pinText};
+      font: 900 12px/1.2 system-ui, sans-serif;
+      letter-spacing: .2px;
+      padding: 4px 9px;
       border-radius: 999px;
-      border: 2px solid #fff;
-      box-shadow: 0 2px 6px rgba(17,24,39,.22);
+      border: 2.5px solid ${chrome.pinStroke};
+      box-shadow: 0 0 0 1.5px ${chrome.pinOutline}, 0 3px 6px rgba(0,0,0,.45);
       white-space: nowrap;
-      max-width: 132px;
-      min-width: 14px;
-      min-height: 14px;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      min-width: 44px;
+      min-height: 28px;
+      box-sizing: border-box;
       transition: transform 140ms ease-out, border-width 140ms ease-out,
         box-shadow 140ms ease-out, filter 140ms ease-out, padding 140ms ease-out;
     }
@@ -136,16 +157,25 @@ function buildLeafletHtml(
       filter: saturate(1.25) brightness(1.08) contrast(1.05);
       box-shadow:
         0 0 0 2px #ffffff,
-        0 0 0 5px var(--c, ${chrome.primary}),
+        0 0 0 5px var(--c, ${chrome.pin}),
         0 4px 12px rgba(17,24,39,.36);
     }
     .evt-caret {
       width: 0; height: 0;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 7px solid var(--c, ${chrome.primary});
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 10px solid ${chrome.pinStroke};
       margin-top: -1px;
-      filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
+      position: relative;
+      filter: drop-shadow(0 0 1px ${chrome.pinOutline}) drop-shadow(0 2px 2px rgba(0,0,0,.45));
+    }
+    .evt-caret::after {
+      content: '';
+      position: absolute;
+      left: -4.5px; top: -10px;
+      border-left: 4.5px solid transparent;
+      border-right: 4.5px solid transparent;
+      border-top: 6px solid var(--c, ${chrome.pin});
       transition: filter 140ms ease-out;
     }
     .evt-wrap.selected .evt-caret {
@@ -153,11 +183,11 @@ function buildLeafletHtml(
     }
     .evt-cluster {
       background: ${clusterColor};
-      color: #fff;
-      font: 800 13px/1 system-ui, sans-serif;
-      border: 3px solid #fff;
+      color: ${chrome.pinText};
+      font: 900 13px/1 system-ui, sans-serif;
+      border: 3px solid ${chrome.pinStroke};
       border-radius: 999px;
-      box-shadow: 0 2px 8px rgba(17,24,39,.28);
+      box-shadow: 0 0 0 1.5px ${chrome.pinOutline}, 0 3px 8px rgba(0,0,0,.45);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -170,11 +200,15 @@ function buildLeafletHtml(
       width: 0; height: 0;
       border-left: 7px solid transparent;
       border-right: 7px solid transparent;
-      border-top: 8px solid ${clusterColor};
+      border-top: 9px solid ${chrome.pinStroke};
       margin-top: -2px;
-      filter: drop-shadow(0 1px 1px rgba(17,24,39,.22));
+      filter: drop-shadow(0 0 1px ${chrome.pinOutline}) drop-shadow(0 2px 2px rgba(0,0,0,.45));
     }
-    .leaflet-div-icon { background: transparent; border: 0; }
+    .leaflet-div-icon, .leaflet-marker-icon {
+      background: transparent;
+      border: 0;
+      overflow: visible !important;
+    }
   </style>
 </head>
 <body>
@@ -182,8 +216,9 @@ function buildLeafletHtml(
   <script>
     const pins = ${JSON.stringify(markers)};
     const map = L.map('map', { zoomControl: true, maxZoom: 19 }).setView([${centerLat}, ${centerLng}], ${zoom});
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    const osm = L.tileLayer('${webTileUrl(chrome.mapStyle)}', {
       maxZoom: 19,
+      className: 'theme-tiles',
       attribution: '&copy; OpenStreetMap, HOT'
     });
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -194,9 +229,12 @@ function buildLeafletHtml(
 
     function pinIcon(p, selected) {
       const cls = 'evt-wrap' + (selected ? ' selected' : '') + (p.live ? ' live' : '');
-      const html = '<div class="' + cls + '" style="--c:' + p.color + '"><div class="evt-badge">' + p.label + '</div><div class="evt-caret"></div></div>';
-      const w = selected ? 108 : 88;
-      const h = selected ? 50 : 40;
+      const body = p.label
+        ? '<div class="evt-badge">' + p.label + '</div>'
+        : '<div class="evt-dot"></div>';
+      const html = '<div class="' + cls + '" style="--c:' + p.color + '">' + body + '<div class="evt-caret"></div></div>';
+      const w = p.label ? Math.max(64, p.label.length * 8 + 28) : 32;
+      const h = 48;
       return L.divIcon({
         className: '',
         html,
@@ -210,13 +248,7 @@ function buildLeafletHtml(
       zoomToBoundsOnClick: true,
       spiderfyOnMaxZoom: true,
       disableClusteringAtZoom: 16,
-      maxClusterRadius: function (z) {
-        // Shrink radius as zoom increases so clusters split earlier.
-        if (z >= 15) return 28;
-        if (z >= 13) return 40;
-        if (z >= 11) return 52;
-        return 64;
-      },
+      maxClusterRadius: 48,
       iconCreateFunction: function (cluster) {
         const count = cluster.getChildCount();
         const size = count >= 100 ? 44 : count >= 10 ? 38 : 34;
@@ -310,6 +342,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       onMarkerPress,
       onClusterPress,
       onMapPress,
+      blocksSelection,
     },
     ref,
   ) {
@@ -343,6 +376,15 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       const onMessage = (event: MessageEvent) => {
         const data = event.data;
         if (!data || typeof data !== 'object') return;
+        if (
+          blocksSelection?.() &&
+          (data.type === 'map-pin' ||
+            data.type === 'map-press' ||
+            data.type === 'map-cluster-open')
+        ) {
+          onMapPress?.();
+          return;
+        }
         if (data.type === 'map-pin' && typeof data.eventId === 'string') {
           ignoreMapPressUntilRef.current = Date.now() + 500;
           const pin = pinsById.get(data.eventId);
@@ -369,7 +411,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
       };
       window.addEventListener('message', onMessage);
       return () => window.removeEventListener('message', onMessage);
-    }, [onMarkerPress, onClusterPress, onMapPress, onRegionChangeComplete, pinsById]);
+    }, [blocksSelection, onMarkerPress, onClusterPress, onMapPress, onRegionChangeComplete, pinsById]);
 
     // Selection updates without rebuilding the iframe (preserves zoom/clusters).
     useEffect(() => {
@@ -384,11 +426,16 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(
         buildLeafletHtml(pins, liveRegionRef.current, selectedEventId, mapType, {
           background: colors.background,
           primary: colors.primary,
+          pin: colors.pin,
+          pinText: colors.pinText,
+          pinStroke: colors.pinStroke,
+          pinOutline: colors.pinOutline,
+          mapStyle: colors.mapStyle,
         }),
       // Rebuild on pin set / basemap / chrome — clustering lives inside Leaflet
       // and recomputes on every zoom/pan without a React rebuild.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [pins, mapType, colors.background, colors.primary],
+      [pins, mapType, colors.background, colors.primary, colors.pin, colors.mapStyle],
     );
 
     return (

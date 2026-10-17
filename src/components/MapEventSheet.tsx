@@ -10,6 +10,7 @@ import {
   eventDetailHref,
   pinToListItem,
 } from '../utils/eventDetail';
+import { withEndedLast } from '../utils/eventLive';
 import { EventCard } from './EventCard';
 
 type MapEventSheetProps = {
@@ -66,7 +67,8 @@ export function MapEventSheet({
 }: MapEventSheetProps) {
   const { colors, spacing, typography, shadows } = useTheme();
   const router = useRouter();
-  const count = pins.length;
+  const orderedPins = withEndedLast(pins);
+  const count = orderedPins.length;
 
   return (
     <View
@@ -91,12 +93,13 @@ export function MapEventSheet({
           </Text>
           <View style={styles.headerActions}>
             {count === 1 ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Expand event details"
-                onPress={() => router.push(eventDetailHref(pins[0].event_id))}
-                hitSlop={8}
-              >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Expand event details"
+              onPress={() => router.push(eventDetailHref(orderedPins[0].event_id))}
+              hitSlop={8}
+              style={styles.iconBtn}
+            >
                 <Ionicons name="expand-outline" size={18} color={colors.primary} />
               </Pressable>
             ) : null}
@@ -105,17 +108,19 @@ export function MapEventSheet({
               accessibilityLabel="Close event details"
               onPress={onClose}
               hitSlop={8}
+              style={styles.iconBtn}
             >
               <Ionicons name="close" size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>
         <ScrollView
-          style={count > 1 ? styles.list : undefined}
+          style={count > 1 ? styles.list : styles.single}
           bounces={false}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {pins.map((pin) =>
+          {orderedPins.map((pin) =>
             count === 1 ? (
               <SingleListing key={pin.event_id} pin={pin} />
             ) : (
@@ -165,5 +170,15 @@ const styles = StyleSheet.create({
   },
   list: {
     maxHeight: 280,
+    flexGrow: 0,
+  },
+  single: {
+    flexGrow: 0,
+  },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

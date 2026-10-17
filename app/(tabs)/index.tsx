@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
@@ -10,144 +11,217 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { Region } from 'react-native-maps';
 
-import { useBrowse } from '../../src/browse';
+import { useBrowse, useEnsureMapViewport, usePlaceActions } from '../../src/browse';
 import {
   BrowseSearchBar,
+  type BrowseSearchBarHandle,
   EventsMap,
   FilterSheet,
+  LocationChip,
   MapEventSheet,
   countActiveFilters,
   filtersToMapParams,
   type EventsMapHandle,
 } from '../../src/components';
-import { useDebouncedValue, useMapEvents, useUserGeo } from '../../src/hooks';
+import { useDebouncedValue, useInfiniteEvents, useMapViewport, useUserGeo } from '../../src/hooks';
+import { useTabBarInset } from '../../src/layout';
 import { useTheme } from '../../src/theme';
 import type { EventMapPin } from '../../src/types/events';
 import type { UserGeo } from '../../src/types/common';
 import {
+  buildAreaListParams,
+  countEventsInView,
+  pinMatchesQuery,
+} from '../../src/utils/areaQuery';
+import {
   DEFAULT_MAP_GEO,
-  INITIAL_RADIUS_KM,
-  geoFromRegion,
-  isRegionDirty,
-  radiusKmFromRegion,
-  regionForRadiusKm,
 } from '../../src/utils/mapRegion';
+import { friendlyPublicError } from '../../src/utils/publicError';
+import {
+  MAP_FETCH_OVERSCAN,
+  VIEWPORT_COMMIT_MS,
+  boundsFromRegion,
+  expandRegion,
+  mergeViewportPins,
+  viewportMeaningfullyChanged,
+} from '../../src/utils/mapViewport';
 
-function pinMatchesQuery(pin: EventMapPin, query: string) {
-  if (!query) return true;
-  const haystack = `${pin.title} ${pin.neighbourhood ?? ''}`.toLowerCase();
-  return haystack.includes(query);
-}
+const PROGRAM_MOVE_MS = 650;
 
 export default function MapScreen() {
-  const { colors, typography, spacing, radius, shadows, tabBar } = useTheme();
-  const { filters, patchFilters, mapType, setMapType } = useBrowse();
+  const { colors, typography, spacing, radius, shadows } = useTheme();
+  const tabBarInset = useTabBarInset();
+  const {
+    filters,
+    patchFilters,
+    sort,
+    mapType,
+    setMapType,
+    viewport,
+    viewportReason,
+    commitViewport,
+    loadedPins,
+    setLoadedPins,
+    mapBoxTotal,
+    setMapBoxTotal,
+    place,
+    placeEpoch,
+  } = useBrowse();
+  const { goNearMe } = usePlaceActions();
+  useEnsureMapViewport();
   const geoQuery = useUserGeo();
   const mapRef = useRef<EventsMapHandle>(null);
+  const searchRef = useRef<BrowseSearchBarHandle>(null);
+  const panDismissed = useRef(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
+  const [gestureRegion, setGestureRegion] = useState<Region | null>(null);
+  const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
+  const pinKeyRef = useRef('');
+  const loadedRef = useRef<EventMapPin[]>([]);
+  const skipFirstAnimate = useRef(true);
+  const epochRef = useRef(placeEpoch);
+  /** Camera moves we started ourselves end before this time; ignore their region callbacks. */
+  const programMoveUntil = useRef(0);
 
   const resolvedCenter = useMemo<UserGeo | null>(() => {
     if (!geoQuery.isFetched) return null;
     return geoQuery.data ?? DEFAULT_MAP_GEO;
   }, [geoQuery.isFetched, geoQuery.data]);
 
-  const [searchCenter, setSearchCenter] = useState<UserGeo | null>(null);
-  const [searchRadiusKm, setSearchRadiusKm] = useState(INITIAL_RADIUS_KM);
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
-  const [baselineRegion, setBaselineRegion] = useState<Region | null>(null);
-  const [selectedPins, setSelectedPins] = useState<EventMapPin[] | null>(null);
-  const cameraSeedRef = useRef<Region | null>(null);
-  const adoptNextRegionRef = useRef(true);
-  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const beginProgrammaticMove = useCallback(() => {
-    adoptNextRegionRef.current = true;
-    setBaselineRegion(null);
-    if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = setTimeout(() => {
-      adoptNextRegionRef.current = false;
-      settleTimerRef.current = null;
-    }, 600);
-  }, []);
+  const debouncedGesture = useDebouncedValue(gestureRegion, VIEWPORT_COMMIT_MS);
 
   useEffect(() => {
-    if (!resolvedCenter || searchCenter) return;
-    const seed = regionForRadiusKm(resolvedCenter, INITIAL_RADIUS_KM);
-    cameraSeedRef.current = seed;
-    beginProgrammaticMove();
-    setSearchCenter(resolvedCenter);
-    setSearchRadiusKm(INITIAL_RADIUS_KM);
-    setMapRegion(seed);
-  }, [resolvedCenter, searchCenter, beginProgrammaticMove]);
+    if (!debouncedGesture || !viewport) return;
+    if (!viewportMeaningfullyChanged(viewport, debouncedGesture)) return;
+    commitViewport(debouncedGesture, 'gesture');
+  }, [debouncedGesture, viewport, commitViewport]);
 
-  useEffect(
-    () => () => {
-      if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-    },
-    [],
-  );
+  useEffect(() => {
+    if (!viewport) return;
+    if (skipFirstAnimate.current) {
+      skipFirstAnimate.current = false;
+      return;
+    }
+    if (viewportReason === 'gesture') return;
+    // A jump must not be followed by a second "gesture" fetch when the
+    // animation settles, or by an older pan that was still debouncing.
+    programMoveUntil.current = Date.now() + PROGRAM_MOVE_MS + 400;
+    setGestureRegion(null);
+    mapRef.current?.animateToRegion(viewport, PROGRAM_MOVE_MS);
+  }, [viewport, viewportReason]);
 
-  const mapParams = useMemo(
-    () => ({
-      ...filtersToMapParams(filters),
-      radius_km: searchRadiusKm,
-      limit: 200,
-    }),
-    [filters, searchRadiusKm],
-  );
+  const mapParams = useMemo(() => filtersToMapParams(filters), [filters]);
+  const mapQuery = useMapViewport(mapParams, viewport, Boolean(viewport));
 
-  const mapQuery = useMapEvents(mapParams, searchCenter, Boolean(searchCenter));
+  useEffect(() => {
+    if (epochRef.current !== placeEpoch) {
+      epochRef.current = placeEpoch;
+      loadedRef.current = [];
+    }
+    if (!viewport || !mapQuery.data) return;
+    const key = JSON.stringify(mapParams);
+    // New filters are still in flight: keep every marker until the new
+    // payload succeeds. A zoom only adds events and drops ones that left
+    // the padded view.
+    if (pinKeyRef.current !== key && mapQuery.isPlaceholderData) return;
+    const replace = pinKeyRef.current !== key;
+    pinKeyRef.current = key;
+    const bounds = boundsFromRegion(expandRegion(viewport, MAP_FETCH_OVERSCAN));
+    const incoming = mapQuery.data.items ?? [];
+    const next = mergeViewportPins(
+      replace ? [] : loadedRef.current,
+      incoming,
+      bounds,
+    );
+    loadedRef.current = next;
+    setLoadedPins(next);
+    // Placeholder data still belongs to the previous box. Don't keep
+    // advertising that box's total while the camera has moved.
+    if (!mapQuery.isPlaceholderData) {
+      setMapBoxTotal(
+        typeof mapQuery.data.total === 'number' ? mapQuery.data.total : null,
+      );
+    } else {
+      setMapBoxTotal(null);
+    }
+  }, [
+    mapQuery.data,
+    mapQuery.isPlaceholderData,
+    viewport,
+    mapParams,
+    setLoadedPins,
+    setMapBoxTotal,
+    placeEpoch,
+  ]);
 
   const debouncedQ = useDebouncedValue(filters.q);
+  const areaParams = useMemo(
+    () =>
+      viewport
+        ? buildAreaListParams({ ...filters, q: debouncedQ }, sort, viewport)
+        : null,
+    [viewport, filters, debouncedQ, sort],
+  );
+  const areaGeo = viewport
+    ? { lat: viewport.latitude, lng: viewport.longitude }
+    : null;
+  const areaQuery = useInfiniteEvents(
+    areaParams ?? { page_size: 24 },
+    areaGeo,
+    Boolean(areaParams),
+  );
   const pins = useMemo(() => {
-    const items = mapQuery.data?.items ?? [];
     const query = debouncedQ.trim().toLowerCase();
-    if (!query) return items;
-    return items.filter((pin) => pinMatchesQuery(pin, query));
-  }, [mapQuery.data?.items, debouncedQ]);
-
-  const areaDirty =
-    mapRegion != null &&
-    baselineRegion != null &&
-    isRegionDirty(mapRegion, baselineRegion);
+    if (!query) return loadedPins;
+    return loadedPins.filter((pin) => pinMatchesQuery(pin, query));
+  }, [loadedPins, debouncedQ]);
+  const areaTotal = countEventsInView({
+    pins,
+    region: viewport,
+    listPages: areaQuery.data?.pages,
+    mapTotal: mapBoxTotal,
+  });
 
   const isInitialLoading =
     !geoQuery.isFetched ||
-    (Boolean(searchCenter) &&
-      mapQuery.isLoading &&
-      !mapQuery.isPlaceholderData);
-  const isSearching = mapQuery.isFetching && !mapQuery.isLoading;
-  const error = mapQuery.error;
-  const bottomInset = tabBar.height;
+    (Boolean(viewport) && mapQuery.isLoading && !mapQuery.isPlaceholderData && pins.length === 0);
+  const error = mapQuery.error ?? areaQuery.error;
   const filterCount = countActiveFilters(filters, { excludeQuery: true });
 
   const onRegionChangeComplete = useCallback((region: Region) => {
-    setMapRegion(region);
-    setBaselineRegion((prev) =>
-      adoptNextRegionRef.current || prev == null ? region : prev,
-    );
+    panDismissed.current = false;
+    if (Date.now() < programMoveUntil.current) return;
+    setGestureRegion(region);
   }, []);
 
-  const onSearchThisArea = useCallback(() => {
-    if (!mapRegion) return;
-    setSelectedPins(null);
-    setSearchCenter(geoFromRegion(mapRegion));
-    setSearchRadiusKm(radiusKmFromRegion(mapRegion));
-    setBaselineRegion(mapRegion);
-  }, [mapRegion]);
+  const dismissSearch = useCallback(() => {
+    searchRef.current?.close();
+    Keyboard.dismiss();
+  }, []);
+
+  const blocksSelection = useCallback(
+    () => searchRef.current?.blocksMapTap() ?? false,
+    [],
+  );
+
+  const onPanDrag = useCallback(() => {
+    if (panDismissed.current) return;
+    panDismissed.current = true;
+    dismissSearch();
+  }, [dismissSearch]);
 
   const onRecenter = useCallback(() => {
     if (!resolvedCenter) return;
-    const next = regionForRadiusKm(resolvedCenter, INITIAL_RADIUS_KM);
     setSelectedPins(null);
-    beginProgrammaticMove();
-    setSearchCenter(resolvedCenter);
-    setSearchRadiusKm(INITIAL_RADIUS_KM);
-    setMapRegion(next);
-    mapRef.current?.animateToRegion(next);
-  }, [resolvedCenter, beginProgrammaticMove]);
+    goNearMe();
+  }, [resolvedCenter, goNearMe]);
 
-  if (!searchCenter || !cameraSeedRef.current) {
+  useEffect(() => {
+    setSelectedPins(null);
+  }, [placeEpoch]);
+
+  if (!viewport) {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={styles.centered}>
@@ -165,13 +239,21 @@ export default function MapScreen() {
     );
   }
 
+  const countReady = areaTotal > 0 || Boolean(areaQuery.data || mapQuery.data);
+  // Still showing the previous area's answer while the new one loads.
+  const updating =
+    mapQuery.isFetching && (mapQuery.isPlaceholderData || mapBoxTotal == null);
   const statusLabel = error
-    ? error instanceof Error
-      ? error.message
-      : 'Failed to load map events'
-    : mapQuery.data
-      ? `${pins.length} event${pins.length === 1 ? '' : 's'} nearby`
-      : 'Loading…';
+    ? friendlyPublicError(
+        error,
+        "Can't load the map right now. Check your connection and try again.",
+      )
+    : updating || !countReady
+      ? place
+        ? `Loading ${place.label}…`
+        : 'Updating map…'
+      : `${areaTotal.toLocaleString()} event${areaTotal === 1 ? '' : 's'} in view`
+
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -179,26 +261,62 @@ export default function MapScreen() {
         <EventsMap
           ref={mapRef}
           pins={pins}
-          initialRegion={cameraSeedRef.current}
+          initialRegion={viewport}
           userGeo={geoQuery.data ?? null}
           selectedEventId={selectedPins?.[0]?.event_id ?? null}
           isLoading={isInitialLoading}
-          mapRegion={mapRegion}
+          mapRegion={viewport}
           mapType={mapType}
           onRegionChangeComplete={onRegionChangeComplete}
-          onMarkerPress={(pin) => setSelectedPins([pin])}
-          onClusterPress={setSelectedPins}
-          onMapPress={() => setSelectedPins(null)}
+          onPanDrag={onPanDrag}
+          blocksSelection={blocksSelection}
+          onMarkerPress={(pin) => {
+            if (searchRef.current?.blocksMapTap()) {
+              searchRef.current.close();
+              return;
+            }
+            setSelectedPins([pin]);
+          }}
+          onClusterPress={(next) => {
+            if (searchRef.current?.blocksMapTap()) {
+              searchRef.current.close();
+              return;
+            }
+            setSelectedPins(next);
+          }}
+          onMapPress={() => {
+            if (searchRef.current?.blocksMapTap()) {
+              searchRef.current.close();
+              return;
+            }
+            setSelectedPins(null);
+          }}
         />
+
+        {searchActive ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss search"
+            onPressIn={dismissSearch}
+            style={styles.dismissLayer}
+          />
+        ) : null}
 
         <SafeAreaView edges={['top']} style={styles.header} pointerEvents="box-none">
           <BrowseSearchBar
+            ref={searchRef}
             value={filters.q}
             onChangeText={(q) => patchFilters({ q })}
             onPressFilters={() => setFiltersOpen(true)}
+            onActiveChange={setSearchActive}
             filterCount={filterCount}
           />
+          <View style={styles.chipRow} pointerEvents="box-none">
+          {place ? (
+            <LocationChip label={place.label} onClear={onRecenter} />
+          ) : null}
           <View
+            pointerEvents="none"
             style={[
               styles.countChip,
               shadows.soft,
@@ -216,51 +334,12 @@ export default function MapScreen() {
             >
               {statusLabel}
             </Text>
+            {updating && !error ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : null}
+          </View>
           </View>
         </SafeAreaView>
-
-        {areaDirty ? (
-          <View style={styles.searchWrap} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Search this area"
-              onPress={onSearchThisArea}
-              disabled={mapQuery.isFetching}
-              style={[
-                styles.searchButton,
-                shadows.fab,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: radius.full,
-                  opacity: mapQuery.isFetching ? 0.7 : 1,
-                },
-              ]}
-            >
-              {isSearching ? (
-                <ActivityIndicator
-                  color={colors.onPrimary}
-                  size="small"
-                  style={{ marginRight: spacing.sm }}
-                />
-              ) : (
-                <Ionicons
-                  name="refresh"
-                  size={16}
-                  color={colors.onPrimary}
-                  style={{ marginRight: spacing.sm }}
-                />
-              )}
-              <Text
-                style={[
-                  typography.caption,
-                  { color: colors.onPrimary, fontWeight: '800' },
-                ]}
-              >
-                Search this area
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
 
         <Pressable
           accessibilityRole="button"
@@ -293,13 +372,13 @@ export default function MapScreen() {
         {selectedPins?.length ? (
           <MapEventSheet
             pins={selectedPins}
-            bottomInset={8}
+            bottomInset={12}
             onClose={() => setSelectedPins(null)}
           />
         ) : null}
       </View>
       <FilterSheet visible={filtersOpen} onClose={() => setFiltersOpen(false)} />
-      <View style={{ height: bottomInset }} />
+      <View style={{ height: tabBarInset }} />
     </View>
   );
 }
@@ -317,32 +396,35 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
+  dismissLayer: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 20,
+    elevation: 20,
+    backgroundColor: 'rgba(0,0,0,0.01)',
+  },
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
+    zIndex: 30,
+    elevation: 30,
     paddingHorizontal: 16,
     paddingTop: 8,
     gap: 10,
   },
-  countChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  searchWrap: {
-    position: 'absolute',
-    top: 126,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  searchButton: {
+  chipRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  countChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   layersButton: {
     position: 'absolute',

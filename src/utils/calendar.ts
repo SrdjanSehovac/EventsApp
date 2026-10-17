@@ -24,11 +24,19 @@ export function parseEventDate(value?: string | null): Date | null {
   return date;
 }
 
-/** Calendar day from the timestamp’s date prefix, not the viewer’s timezone. */
+/**
+ * Calendar day for a timestamp. A date-only value or one with an explicit
+ * offset (the event's own wall clock) keeps its date prefix. A UTC "Z" value,
+ * which is what the server sends, is converted to the viewer's day, so a
+ * 9 PM Toronto event is not filed under the next day.
+ */
 export function dateKeyFromIso(value?: string | null): string | null {
   if (!value) return null;
-  const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (match) return match[1];
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})(.*)$/);
+  if (match) {
+    const rest = match[2];
+    if (!rest || /[+-]\d{2}:?\d{2}$/.test(rest)) return match[1];
+  }
   const date = parseEventDate(value);
   return date ? toDateKey(date) : null;
 }

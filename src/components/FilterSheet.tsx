@@ -12,9 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBrowse } from '../browse';
+import { findProductCity, productCityQueryValue } from '../config/cities';
 import { useCategories, useCities, useNeighbourhoods } from '../hooks';
 import { useResponsive } from '../layout';
 import { useTheme } from '../theme';
+import { DEFAULT_LIST_SORT } from '../utils/listSort';
 import {
   EMPTY_FILTERS,
   EventFilters,
@@ -28,7 +30,7 @@ type FilterSheetProps = {
 export function FilterSheet({ visible, onClose }: FilterSheetProps) {
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const { horizontalPadding } = useResponsive();
-  const { filters, setFilters } = useBrowse();
+  const { filters, setFilters, setSort, setSortTouched } = useBrowse();
   const [draft, setDraft] = useState(filters);
 
   // Category API tree expands group slugs only; it is not listed in the sheet.
@@ -42,6 +44,12 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
   useEffect(() => {
     if (visible) setDraft(filters);
   }, [visible, filters]);
+
+  function resetFilters() {
+    setDraft({ ...EMPTY_FILTERS, q: draft.q });
+    setSort(DEFAULT_LIST_SORT);
+    setSortTouched(false);
+  }
 
   return (
     <Modal
@@ -67,7 +75,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Reset filters"
-              onPress={() => setDraft({ ...EMPTY_FILTERS, q: draft.q })}
+              onPress={resetFilters}
               hitSlop={8}
             >
               <Text
@@ -100,12 +108,13 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
           </View>
 
           <ScrollView
+            style={styles.scroll}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.lg,
               paddingBottom: spacing.xxxl,
             }}
-            keyboardShouldPersistTaps="handled"
           >
             <EventFilters
               value={draft}
@@ -115,6 +124,7 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
               neighbourhoods={neighbourhoodsQuery.data ?? []}
               showSearch={false}
               showClear={false}
+              onReset={resetFilters}
             />
           </ScrollView>
 
@@ -132,7 +142,11 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
               accessibilityRole="button"
               accessibilityLabel="Done"
               onPress={() => {
-                setFilters({ ...draft, q: filters.q });
+                const city = findProductCity(draft.city);
+                const nextCity = city
+                  ? productCityQueryValue(city, citiesQuery.data ?? [])
+                  : draft.city;
+                setFilters({ ...draft, city: nextCity, q: filters.q });
                 onClose();
               }}
               style={[
@@ -162,6 +176,9 @@ export function FilterSheet({ visible, onClose }: FilterSheetProps) {
 
 const styles = StyleSheet.create({
   safe: {
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   header: {

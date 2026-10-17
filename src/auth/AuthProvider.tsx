@@ -10,13 +10,18 @@ import {
 } from 'react';
 
 import {
+  acceptLegalRequest,
+  deleteAccountRequest,
   fetchCurrentUser,
   signInRequest,
   signOutRequest,
   signUpRequest,
 } from '../api/auth';
+import { setLocalBusiness } from '../business/storage';
+import { setLocalSubmissions } from '../submissions/storage';
 import { ApiError } from '../api/client';
 import { setAuthToken, subscribeUnauthorized } from '../api/session';
+import { legalAcceptance, needsLegalAcceptance } from '../legal/versions';
 import type { AuthUser, SignInInput, SignUpInput } from '../types/auth';
 import {
   clearStoredSession,
@@ -33,9 +38,13 @@ type AuthContextValue = {
   user: AuthUser | null;
   token: string | null;
   isSignedIn: boolean;
+  /** Signed in but has not accepted the current Terms / Privacy / Disclaimer. */
+  needsLegal: boolean;
+  acceptLegal: () => Promise<void>;
   signIn: (input: SignInInput) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -182,17 +191,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applySignedOut();
   }, [applySignedOut]);
 
+  const acceptLegal = useCallback(async () => {
+    const legal = await acceptLegalRequest(legalAcceptance());
+    if (!user) return;
+    await applySignedIn(token, { ...user, legal });
+  }, [applySignedIn, token, user]);
+
+  const needsLegal = status === 'signedIn' && needsLegalAcceptance(user?.legal);
+
+  const deleteAccount = useCallback(async () => {
+    await deleteAccountRequest();
+    const userId = user?.user_id;
+    if (userId) {
+      await Promise.all([
+        setLocalSubmissions(userId, []),
+        setLocalBusiness(userId, null),
+      ]);
+    }
+    await clearStoredSession();
+    applySignedOut();
+  }, [applySignedOut, user?.user_id]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
       token,
       isSignedIn: status === 'signedIn',
+      needsLegal,
+      acceptLegal,
       signIn,
       signUp,
       signOut,
+      deleteAccount,
     }),
-    [status, user, token, signIn, signUp, signOut],
+    [status, user, token, needsLegal, acceptLegal, signIn, signUp, signOut, deleteAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

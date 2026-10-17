@@ -20,6 +20,8 @@ type AuthScreenProps = {
   subtitle?: string;
   children: ReactNode;
   scroll?: boolean;
+  /** Hide the back chevron (first-launch gate: there is nothing behind it). */
+  hideBack?: boolean;
 };
 
 export function AuthScreen({
@@ -27,6 +29,7 @@ export function AuthScreen({
   subtitle,
   children,
   scroll = true,
+  hideBack = false,
 }: AuthScreenProps) {
   const { colors, typography, spacing } = useTheme();
   const { horizontalPadding, contentMaxWidth } = useResponsive();
@@ -48,6 +51,7 @@ export function AuthScreen({
             { paddingHorizontal: horizontalPadding, borderBottomColor: colors.border },
           ]}
         >
+          {hideBack ? <View style={{ width: 8, height: 44 }} /> : (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Back"
@@ -60,13 +64,16 @@ export function AuthScreen({
           >
             <Ionicons name="chevron-back" size={22} color={colors.text} />
           </Pressable>
+          )}
           <Text style={[typography.heading, { color: colors.text, flex: 1 }]}>
             {title}
           </Text>
         </View>
         {scroll ? (
           <ScrollView
+            style={styles.scroll}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             contentContainerStyle={{
               paddingHorizontal: horizontalPadding,
               paddingTop: spacing.xl,
@@ -129,9 +136,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   back: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  scroll: {
+    flex: 1,
   },
 });

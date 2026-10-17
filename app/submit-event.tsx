@@ -3,17 +3,19 @@ import {
   ActivityIndicator,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
-import { AuthField, AuthScreen, EventMediaFields } from '../src/components';
-import { SW_ONTARIO_CITIES } from '../src/config/cities';
+import { AuthField, AuthScreen, EventMediaFields, SelectField } from '../src/components';
+import { PRODUCT_CITIES, buildCityOptions } from '../src/config/cities';
 import { useAuth, useCategories, useMyBusiness } from '../src/hooks';
 import { useSubmitEvent } from '../src/hooks/submissions';
 import { colorForCategory, useTheme } from '../src/theme';
+import { friendlyPublicError } from '../src/utils/publicError';
+import { toIsoStart } from '../src/utils/startTime';
 
 const FALLBACK_CATEGORIES = [
   { slug: 'music', name: 'Music' },
@@ -25,36 +27,7 @@ const FALLBACK_CATEGORIES = [
 ];
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return 'Could not submit event.';
-}
-
-function toIsoStart(dateRaw: string, timeRaw: string): string | null {
-  const date = dateRaw.trim();
-  const time = timeRaw.trim() || '19:00';
-  let isoDate: string | null = null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    isoDate = date;
-  } else {
-    const match = date.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      isoDate = `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
-    }
-  }
-  if (!isoDate) return null;
-
-  const timeMatch = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-  if (!timeMatch) return null;
-  let hour = Number(timeMatch[1]);
-  const minute = Number(timeMatch[2]);
-  const meridiem = timeMatch[3]?.toUpperCase();
-  if (meridiem === 'PM' && hour < 12) hour += 12;
-  if (meridiem === 'AM' && hour === 12) hour = 0;
-  if (hour > 23 || minute > 59) return null;
-
-  return `${isoDate}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+  return friendlyPublicError(error, "Couldn't submit that event. Please try again.");
 }
 
 export default function SubmitEventScreen() {
@@ -69,13 +42,19 @@ export default function SubmitEventScreen() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [city, setCity] = useState<string>(SW_ONTARIO_CITIES[0]);
+  const [city, setCity] = useState<string>(PRODUCT_CITIES[0].name);
+  const cityOptions = useMemo(() => buildCityOptions([], { includeAny: false }), []);
   const [venue, setVenue] = useState('');
   const [address, setAddress] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('19:00');
   const [price, setPrice] = useState('');
   const [isFree, setIsFree] = useState(true);
+  const [rsvp, setRsvp] = useState(false);
+  const [capacity, setCapacity] = useState('');
+  const [closeDate, setCloseDate] = useState('');
+  const [closeTime, setCloseTime] = useState('');
+  const [waitlist, setWaitlist] = useState(true);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -102,6 +81,24 @@ export default function SubmitEventScreen() {
       setError('Use a start date like 09/20/2026 and a time like 19:00.');
       return;
     }
+    const rsvpOn = isFree && rsvp;
+    const cap = capacity.trim() ? Number(capacity) : null;
+    if (rsvpOn && cap !== null && (!Number.isInteger(cap) || cap < 1)) {
+      setError('Capacity must be a whole number, or leave it empty for no limit.');
+      return;
+    }
+    let closesAt: string | null = null;
+    if (rsvpOn && closeDate.trim()) {
+      closesAt = toIsoStart(closeDate, closeTime || '23:59');
+      if (!closesAt) {
+        setError('Use a close date like 09/20/2026 and a time like 18:00.');
+        return;
+      }
+      if (closesAt > startsAt) {
+        setError('Registration should close before the event starts.');
+        return;
+      }
+    }
     const priceCad = isFree ? 0 : Number(price);
     if (!isFree && (!Number.isFinite(priceCad) || priceCad < 0)) {
       setError('Enter a price in CAD, or mark the event as free.');
@@ -118,6 +115,10 @@ export default function SubmitEventScreen() {
         starts_at: startsAt,
         is_free: isFree,
         price_cad: isFree ? 0 : priceCad,
+        rsvp_enabled: rsvpOn,
+        rsvp_capacity: rsvpOn ? cap : null,
+        rsvp_closes_at: rsvpOn ? closesAt : null,
+        rsvp_waitlist: rsvpOn && cap !== null && waitlist,
         category_slug: categorySlug,
         category_name: selectedCategory?.name ?? null,
         photo_urls: verifiedBusiness ? photoUrls : undefined,
@@ -132,7 +133,7 @@ export default function SubmitEventScreen() {
 
   if (status === 'loading') {
     return (
-      <AuthScreen title="Submit event">
+      <AuthScreen title="Post an event">
         <ActivityIndicator color={colors.primary} />
       </AuthScreen>
     );
@@ -141,13 +142,13 @@ export default function SubmitEventScreen() {
   if (!isSignedIn) {
     return (
       <AuthScreen
-        title="Submit event"
-        subtitle="Sign in to send an event for the catalogue."
+        title="Post an event"
+        subtitle="Sign in to post or suggest an event."
       >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Sign in"
-          onPress={() => router.push('/sign-in')}
+          onPress={() => router.push({ pathname: '/sign-up', params: { reason: 'post' } })}
           style={[
             styles.button,
             { backgroundColor: colors.primary, borderRadius: radius.md },
@@ -161,9 +162,41 @@ export default function SubmitEventScreen() {
     );
   }
 
+  if (businessQuery.isLoading) {
+    return (
+      <AuthScreen title="Post an event">
+        <ActivityIndicator color={colors.primary} />
+      </AuthScreen>
+    );
+  }
+
+  if (!verifiedBusiness || verifiedBusiness.suspended) {
+    return (
+      <AuthScreen
+        title="Post an event"
+        subtitle={
+          verifiedBusiness?.suspended
+            ? 'Posting is paused for this organizer account.'
+            : 'Only verified organizers can post events. You can apply, or suggest an event for our team to review.'
+        }
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Contribute"
+          onPress={() => router.replace('/contribute')}
+          style={[styles.button, { backgroundColor: colors.primary, borderRadius: radius.md }]}
+        >
+          <Text style={[typography.body, { color: colors.onPrimary, fontWeight: '700' }]}>
+            Become an organizer or suggest an event
+          </Text>
+        </Pressable>
+      </AuthScreen>
+    );
+  }
+
   if (done) {
     return (
-      <AuthScreen title="Submitted" subtitle="Thanks — it will show under My submissions on Saved.">
+      <AuthScreen title="Posted" subtitle="Thanks. New organizers’ first events, and anything our checks flag, are reviewed before going live. Track it under Your posts in Account & Settings.">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back to saved"
@@ -183,12 +216,8 @@ export default function SubmitEventScreen() {
 
   return (
     <AuthScreen
-      title="Submit event"
-      subtitle={
-        verifiedBusiness
-          ? `Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`
-          : 'Share a night out, market, or show. We’ll keep it on Saved while EventServer reviews it.'
-      }
+      title="Post an event"
+      subtitle={`Posting as ${verifiedBusiness.business_name}. Add photos, an optional clip, and a short bio.`}
     >
       <AuthField
         label="TITLE"
@@ -205,43 +234,18 @@ export default function SubmitEventScreen() {
         style={{ minHeight: 96, textAlignVertical: 'top' }}
       />
 
-      <Text
-        style={[
-          typography.caption,
-          { color: colors.textMuted, fontWeight: '700', letterSpacing: 0.6, marginBottom: spacing.sm },
-        ]}
-      >
-        CITY
-      </Text>
-      <View style={[styles.chipRow, { marginBottom: spacing.lg, gap: spacing.sm }]}>
-        {SW_ONTARIO_CITIES.map((name) => {
-          const selected = city === name;
-          return (
-            <Pressable
-              key={name}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => setCity(name)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
-                  borderRadius: radius.full,
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  { color: selected ? colors.onPrimary : colors.textSecondary, fontWeight: '700' },
-                ]}
-              >
-                {name}
-              </Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ marginBottom: spacing.lg }}>
+        <SelectField
+          label="City"
+          placeholder="Toronto"
+          value={city}
+          options={cityOptions}
+          searchable
+          searchPlaceholder="Search cities…"
+          onChange={(next) => {
+            if (next) setCity(next);
+          }}
+        />
       </View>
 
       <AuthField
@@ -343,6 +347,53 @@ export default function SubmitEventScreen() {
         />
       )}
 
+      {isFree ? (
+        <View style={[styles.rsvpBox, { borderColor: colors.border, borderRadius: radius.md, marginBottom: spacing.lg }]}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.body, { color: colors.text, fontWeight: '700' }]}>Free registration (RSVP)</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                Guests register in the app and get a QR ticket. You get a guest list with check-in.
+              </Text>
+            </View>
+            <Switch accessibilityLabel="Require RSVP" value={rsvp} onValueChange={setRsvp} />
+          </View>
+          {rsvp ? (
+            <View style={{ marginTop: spacing.md }}>
+              <AuthField
+                label="CAPACITY (OPTIONAL)"
+                value={capacity}
+                onChangeText={setCapacity}
+                placeholder="No limit"
+                keyboardType="number-pad"
+              />
+              <AuthField
+                label="REGISTRATION CLOSES (OPTIONAL)"
+                value={closeDate}
+                onChangeText={setCloseDate}
+                placeholder="MM/DD/YYYY — default: when it starts"
+                keyboardType="numbers-and-punctuation"
+              />
+              {closeDate.trim() ? (
+                <AuthField
+                  label="CLOSE TIME"
+                  value={closeTime}
+                  onChangeText={setCloseTime}
+                  placeholder="23:59"
+                  keyboardType="numbers-and-punctuation"
+                />
+              ) : null}
+              {capacity.trim() ? (
+                <View style={styles.switchRow}>
+                  <Text style={[typography.body, { color: colors.text, flex: 1 }]}>Waitlist when full</Text>
+                  <Switch accessibilityLabel="Waitlist when full" value={waitlist} onValueChange={setWaitlist} />
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {verifiedBusiness ? (
         <EventMediaFields
           photoUrls={photoUrls}
@@ -387,6 +438,8 @@ export default function SubmitEventScreen() {
 }
 
 const styles = StyleSheet.create({
+  rsvpBox: { borderWidth: StyleSheet.hairlineWidth, padding: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   button: {
     minHeight: 48,
     alignItems: 'center',

@@ -1,20 +1,13 @@
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { ApiError } from '../src/api/client';
 import { AuthScreen, EventCard } from '../src/components';
 import { useAuth, useFavourites } from '../src/hooks';
 import { useTheme } from '../src/theme';
+import { friendlyPublicError } from '../src/utils/publicError';
 
 function errorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 404) {
-      return 'Favourites are not available yet (EventServer needs GET /v1/me/favourites).';
-    }
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Could not load favourites.';
+  return friendlyPublicError(error, "Couldn't load saved events. Please try again.");
 }
 
 export default function FavouritesScreen() {
@@ -70,20 +63,18 @@ export default function FavouritesScreen() {
         </Text>
       ) : (
         <FlatList
+          style={styles.list}
           data={items}
           keyExtractor={(item) => item.event_id}
-          renderItem={({ item }) => (
-            <View style={{ marginBottom: spacing.lg }}>
-                  <EventCard item={item} variant="listing" />
-            </View>
-          )}
+          renderItem={({ item }) => <EventCard item={item} variant="photo" />}
           ListEmptyComponent={
             <Text style={[typography.body, { color: colors.textMuted }]}>
               No favourites yet. Open an event and tap the heart to save it.
             </Text>
           }
-          contentContainerStyle={{ paddingBottom: spacing.xxxl }}
+          contentContainerStyle={{ flexGrow: 0, paddingBottom: spacing.xl }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         />
       )}
     </AuthScreen>
@@ -91,6 +82,9 @@ export default function FavouritesScreen() {
 }
 
 const styles = StyleSheet.create({
+  list: {
+    flex: 1,
+  },
   button: {
     minHeight: 48,
     alignItems: 'center',

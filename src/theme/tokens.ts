@@ -1,7 +1,7 @@
 /**
  * Single source of truth for visual design tokens.
  * EventsApp chrome (scheme A — Emerald): near-white surfaces, warm-gray cards,
- * deep emerald actions (#0F766E). Category hues stay on pins and event icons only.
+ * deep emerald actions (#0F766E). Map pins are one darker emerald, not category hues.
  */
 
 export type ColorSchemeName = 'light' | 'dark';
@@ -26,8 +26,16 @@ export type ThemeColors = {
   warning: string;
   danger: string;
   overlay: string;
+  /** Inner ring around every pin. */
   pinStroke: string;
+  /** Outer halo + shadow colour, so the ring reads on pale and green tiles. */
   pinOutline: string;
+  /** Uniform map pin fill (one colour for every event). */
+  pin: string;
+  /** Price / count text on the pin. */
+  pinText: string;
+  /** Map base style that matches the theme. */
+  mapStyle: 'light' | 'dark';
 };
 
 export type ThemeTokens = {
@@ -118,7 +126,10 @@ const lightColors: ThemeColors = {
   danger: '#DC2626',
   overlay: 'rgba(28, 25, 23, 0.45)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#1C1917',
+  pinOutline: '#0B2B24',
+  pin: '#047857',
+  pinText: '#FFFFFF',
+  mapStyle: 'light',
 };
 
 const darkColors: ThemeColors = {
@@ -142,7 +153,10 @@ const darkColors: ThemeColors = {
   danger: '#F87171',
   overlay: 'rgba(0, 0, 0, 0.58)',
   pinStroke: '#FFFFFF',
-  pinOutline: '#0C1210',
+  pinOutline: '#000000',
+  pin: '#10B981',
+  pinText: '#03241B',
+  mapStyle: 'dark',
 };
 
 export const palettes: Record<ColorSchemeName, ThemeColors> = {

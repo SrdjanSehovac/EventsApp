@@ -17,14 +17,6 @@ export const businessKeys = {
   mine: (userId: string | null) => [...businessKeys.all, 'mine', userId] as const,
 };
 
-function preferServer(
-  server: BusinessProfile | null,
-  local: BusinessProfile | null,
-): BusinessProfile | null {
-  if (server) return server;
-  return local;
-}
-
 export function useMyBusiness(enabled = true) {
   const { user, isSignedIn } = useAuth();
   const userId = user?.user_id ?? null;
@@ -39,7 +31,8 @@ export function useMyBusiness(enabled = true) {
         if (server && userId) {
           await setLocalBusiness(userId, { ...server, source: 'server' });
         }
-        return preferServer(server, local);
+        // The server is the source of truth once it answers.
+        return server;
       } catch (error) {
         if (isMissingBusinessRoute(error)) {
           return local;
