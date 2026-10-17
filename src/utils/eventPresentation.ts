@@ -1,6 +1,6 @@
 import type { EventDetail } from '../types/events';
 import {
-  allowedOutboundUrl,
+  allowedOutboundUrl, platformFreeUrl,
   isBlockedSourceLabel,
   sanitizePublicText,
 } from './outboundLinks';
@@ -132,7 +132,7 @@ export function hostedByLine(name?: string | null): string | null {
  * http(s) only, and competitor hosts such as allevents.in stay plain text.
  */
 export function organizerPageUrl(url?: string | null): string | null {
-  return allowedOutboundUrl(url);
+  return platformFreeUrl(url);
 }
 
 export function formatActionLabel(label: string, price?: string | null): string {

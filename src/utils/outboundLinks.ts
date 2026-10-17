@@ -287,3 +287,46 @@ export function visibleLabels(
   }
   return seen;
 }
+
+/**
+ * Event platforms that compete with the app. A checkout on one of them may
+ * still open from "Get tickets", but host links and shared links never point
+ * there.
+ */
+export const COMPETITOR_PLATFORM_HOSTS: readonly string[] = [
+  'meetup.com',
+  'meetu.ps',
+  'lu.ma',
+  'luma.com',
+  'partiful.com',
+  'evbuc.com',
+  'allevents.in',
+  'showpass.com',
+  'universe.com',
+  'dice.fm',
+  'ra.co',
+  'residentadvisor.net',
+];
+
+export function isCompetitorPlatformUrl(url?: string | null): boolean {
+  const next = url?.trim() ?? '';
+  if (!next) return false;
+  let host = '';
+  let path = '';
+  try {
+    const parsed = new URL(next);
+    host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+    path = parsed.pathname;
+  } catch {
+    return false;
+  }
+  if (/(^|\.)eventbrite\.[a-z.]+$/.test(host)) return true;
+  if (/(^|\.)facebook\.com$/.test(host) && path.startsWith('/events')) return true;
+  return COMPETITOR_PLATFORM_HOSTS.some((d) => host === d || host.endsWith(`.${d}`));
+}
+
+/** An outbound link that is allowed and is not on any competing event platform. */
+export function platformFreeUrl(url?: string | null): string | null {
+  const next = allowedOutboundUrl(url);
+  return next && !isCompetitorPlatformUrl(next) ? next : null;
+}

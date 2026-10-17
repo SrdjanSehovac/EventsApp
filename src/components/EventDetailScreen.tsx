@@ -37,7 +37,7 @@ import {
 } from '../utils/eventDetail';
 import { formatSaleBadge } from '../utils/eventFormat';
 import {
-  allowedOutboundUrl,
+  allowedOutboundUrl, platformFreeUrl,
   isBlockedSourceLabel,
   resolveOutboundLink,
   sanitizePublicText,
@@ -337,8 +337,9 @@ export function EventDetailScreen({ eventId }: EventDetailScreenProps) {
 
   async function shareEvent() {
     if (!detail) return;
+    // Never share a competing event platform's page (Eventbrite, Meetup, ...).
     const url =
-      allowedOutboundUrl(detail.external_url) ?? outbound?.url ?? null;
+      platformFreeUrl(detail.external_url) ?? platformFreeUrl(outbound?.url) ?? null;
     const message = url ? `${detail.title}\n${url}` : detail.title;
     await Share.share({ title: detail.title, message, url: url ?? undefined });
   }

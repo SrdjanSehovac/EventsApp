@@ -22,7 +22,7 @@ import {
   formatFactsRow,
   formatSaleBadge,
 } from '../utils/eventFormat';
-import { normalizeLinkType } from '../utils/outboundLinks';
+import { normalizeLinkType, platformFreeUrl } from '../utils/outboundLinks';
 import {
   allowedImageUrl,
   isBlockedSourceLabel,
@@ -105,7 +105,7 @@ export function EventCard({ item, variant = 'card', pressDisabled = false }: Eve
   }
 
   async function shareEvent() {
-    const url = outbound?.url;
+    const url = platformFreeUrl(outbound?.url) ?? undefined;
     const message = url ? `${item.title}\n${url}` : item.title;
     await Share.share({
       title: item.title,
